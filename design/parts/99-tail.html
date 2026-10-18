@@ -1,0 +1,177 @@
+</main>
+<div class="board-toast" id="board-toast" role="status" aria-live="polite"></div>
+<script>
+(function () {
+  var KEY_DIR = 'abs.designDir';
+  var KEY_CHOICE = 'abs.designChoice';
+  var names = { a: '樱糖手帐', b: '夜樱电台', c: '原稿纸', d: '薄荷汽水' };
+
+  function read(key) {
+    try { return window.localStorage.getItem(key); } catch (err) { return null; }
+  }
+  function write(key, value) {
+    try { window.localStorage.setItem(key, value); } catch (err) { /* file:// may deny storage */ }
+  }
+
+  var dirTabs = Array.prototype.slice.call(document.querySelectorAll('[data-dir-tab]'));
+  var panels = Array.prototype.slice.call(document.querySelectorAll('[data-panel]'));
+  var current = read(KEY_DIR) || 'a';
+  if (!panels.some(function (p) { return p.dataset.panel === current; })) current = 'a';
+
+  function syncDefaultPopover(panel) {
+    if (!panel) return;
+    panel.querySelectorAll('[data-popover-panel].is-open').forEach(function (p) {
+      p.classList.remove('is-open');
+    });
+    var auto = panel.querySelector('.view.is-active [data-popover-panel][data-default-open]');
+    if (auto) auto.classList.add('is-open');
+  }
+
+  function setDir(name, scroll) {
+    current = name;
+    write(KEY_DIR, name);
+    dirTabs.forEach(function (tab) {
+      var on = tab.dataset.dirTab === name;
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.forEach(function (panel) {
+      panel.classList.toggle('is-active', panel.dataset.panel === name);
+    });
+    syncDefaultPopover(document.querySelector('.dir-panel.is-active'));
+    if (scroll && window.scrollY > 40) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  dirTabs.forEach(function (tab) {
+    tab.addEventListener('click', function () { setDir(tab.dataset.dirTab, true); });
+  });
+
+  document.querySelectorAll('[data-view-tab]').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var panel = tab.closest('[data-panel]');
+      if (!panel) return;
+      var view = tab.dataset.viewTab;
+      panel.querySelectorAll('[data-view-tab]').forEach(function (t) {
+        var on = t === tab;
+        t.classList.toggle('is-active', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      panel.querySelectorAll('[data-view]').forEach(function (v) {
+        v.classList.toggle('is-active', v.dataset.view === view);
+      });
+      syncDefaultPopover(panel);
+    });
+  });
+
+  var chooseButtons = Array.prototype.slice.call(document.querySelectorAll('[data-choose]'));
+  var choiceName = document.getElementById('choice-name');
+  var choiceBox = document.getElementById('board-choice');
+
+  function markChoice(value) {
+    if (!value) return;
+    var name = names[value] || value;
+    if (choiceName) choiceName.textContent = name;
+    if (choiceBox) choiceBox.classList.add('is-set');
+    chooseButtons.forEach(function (btn) {
+      var on = btn.dataset.choose === value;
+      btn.classList.toggle('is-chosen', on);
+      if (on) {
+        btn.textContent = '已选择 · ' + name;
+      } else if (btn.dataset.chooseName) {
+        btn.textContent = btn.classList.contains('cc-pick')
+          ? '选择 ' + btn.dataset.choose.toUpperCase()
+          : '选择这个方向';
+      }
+    });
+  }
+
+  chooseButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var value = btn.dataset.choose;
+      write(KEY_CHOICE, value);
+      markChoice(value);
+      toast('已选「' + (names[value] || value) + '」· 把编号或名字告诉我即可');
+    });
+  });
+
+  var toastTimer = null;
+  function toast(message) {
+    var el = document.getElementById('board-toast');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add('is-on');
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(function () { el.classList.remove('is-on'); }, 3400);
+  }
+
+  document.querySelectorAll('[data-popover]').forEach(function (btn) {
+    btn.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var target = document.getElementById(btn.dataset.popover);
+      if (!target) return;
+      var open = target.classList.toggle('is-open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
+
+  document.addEventListener('click', function (event) {
+    if (
+      event.target.closest('[data-popover]') ||
+      event.target.closest('[data-popover-panel]') ||
+      event.target.closest('[data-view-tab]') ||
+      event.target.closest('[data-dir-tab]')
+    ) return;
+    document.querySelectorAll('[data-popover-panel].is-open').forEach(function (p) {
+      p.classList.remove('is-open');
+    });
+  });
+
+  document.querySelectorAll('[data-save]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var panel = btn.closest('[data-panel]');
+      if (!panel) return;
+      var stamp = panel.querySelector('[data-stamp]');
+      if (stamp) {
+        stamp.classList.add('is-stamping');
+        window.setTimeout(function () { stamp.classList.remove('is-stamping'); }, 900);
+      }
+      btn.classList.add('is-saving');
+      panel.querySelectorAll('[data-saved]').forEach(function (el) { el.textContent = '已保存 · 刚刚'; });
+      panel.querySelectorAll('[data-dirty]').forEach(function (el) { el.classList.add('is-off'); });
+      panel.querySelectorAll('[data-popover-panel].is-open').forEach(function (p) { p.classList.remove('is-open'); });
+      window.setTimeout(function () {
+        btn.classList.remove('is-saving');
+        toast('已保存 · 1 个提交到 main');
+      }, 700);
+    });
+  });
+
+  document.querySelectorAll('[data-panel]').forEach(function (panel) {
+    panel.addEventListener('click', function (event) {
+      var file = event.target.closest('[data-file]');
+      if (!file) return;
+      panel.querySelectorAll('[data-file]').forEach(function (f) { f.classList.remove('is-selected'); });
+      file.classList.add('is-selected');
+      var path = file.getAttribute('data-file');
+      if (!path) return;
+      panel.querySelectorAll('[data-path]').forEach(function (el) { el.textContent = path; });
+    });
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    if (event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    var order = ['a', 'b', 'c', 'd', 'compare'];
+    var index = order.indexOf(current);
+    var next = event.key === 'ArrowRight' ? (index + 1) % order.length : (index - 1 + order.length) % order.length;
+    setDir(order[next], true);
+  });
+
+  setDir(current, false);
+  markChoice(read(KEY_CHOICE));
+})();
+</script>
+</body>
+</html>

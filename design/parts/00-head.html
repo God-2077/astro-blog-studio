@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Astro Blog Studio · 视觉方向选型</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23241F28'/%3E%3Ctext x='50' y='70' font-size='58' text-anchor='middle' fill='%23FBEFE4'%3E%E2%9C%BF%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Martian+Mono:wght@400;600&family=Shippori+Mincho:wght@500;600;700&family=Sometype+Mono:wght@400;500&family=Sora:wght@300;400;600;700&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+/* ---------- shared reset ---------- */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+h1,h2,h3,h4,h5,p,figure,blockquote,dl,dd,pre{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+a{color:inherit;text-decoration:none}
+ul,ol{margin:0;padding:0;list-style:none}
+svg{display:block}
+img{max-width:100%;display:block}
+:focus-visible{outline:2px solid #A8496B;outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* ---------- decision board chrome (neutral; must not compete) ---------- */
+:root{
+  --board-bg:#F3EFE9;
+  --board-card:#FBF8F3;
+  --board-ink:#241F28;
+  --board-muted:#716873;
+  --board-line:#DDD5CC;
+  --board-line-soft:#E9E2D9;
+  --board-rose:#A8496B;
+  --board-font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+body{
+  background:var(--board-bg);
+  color:var(--board-ink);
+  font-family:var(--board-font);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+.board-top{
+  position:sticky;top:0;z-index:80;
+  background:rgba(244,240,234,.96);
+  border-bottom:1px solid var(--board-line);
+  backdrop-filter:saturate(1.1) blur(6px);
+}
+.board-inner{
+  max-width:1560px;margin:0 auto;padding:12px 20px 0;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+}
+.board-brand{display:flex;align-items:center;gap:10px;min-width:220px}
+.board-mark{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--board-ink);color:#FBEFE4;
+  display:grid;place-items:center;flex:none;
+}
+.board-mark svg{width:18px;height:18px}
+.board-brand-text{display:flex;flex-direction:column;line-height:1.25}
+.board-brand-text strong{font-size:13.5px;letter-spacing:.01em}
+.board-brand-text span{font-size:10.5px;color:var(--board-muted);letter-spacing:.02em}
+.board-tabs{
+  display:flex;align-items:center;gap:2px;padding:4px;
+  background:#EAE4DC;border-radius:999px;min-width:0;
+  overflow-x:auto;scrollbar-width:none;
+}
+.board-tabs::-webkit-scrollbar{display:none}
+.board-tab{
+  display:inline-flex;align-items:center;gap:6px;
+  height:32px;padding:0 13px;border-radius:999px;
+  font-size:12.5px;color:var(--board-muted);white-space:nowrap;
+  transition:background .16s ease,color .16s ease;
+}
+.board-tab span{font-size:10px;letter-spacing:.08em;opacity:.7;font-variant-numeric:tabular-nums}
+.board-tab:hover{color:var(--board-ink);background:rgba(255,255,255,.55)}
+.board-tab.is-active{background:var(--board-ink);color:#FAF4EC}
+.board-tab.is-active span{opacity:.6}
+.board-tab-sep{width:1px;height:18px;background:var(--board-line);margin:0 5px;flex:none}
+.board-choice{
+  margin-left:auto;display:flex;align-items:center;gap:7px;
+  height:32px;padding:0 12px;border:1px solid var(--board-line);
+  border-radius:999px;background:var(--board-card);
+  font-size:11.5px;color:var(--board-muted);white-space:nowrap;
+}
+.board-choice-dot{width:6px;height:6px;border-radius:50%;background:#C9BFB5}
+.board-choice.is-set{border-color:#C98AA0;color:var(--board-ink)}
+.board-choice.is-set .board-choice-dot{background:var(--board-rose)}
+.board-choice strong{color:var(--board-ink);font-weight:600}
+.board-howto{
+  max-width:1560px;margin:0 auto;padding:7px 20px 10px;
+  font-size:11px;color:#857A80;letter-spacing:.01em;
+}
+.board-howto b{color:var(--board-ink);font-weight:600}
+.board-main{max-width:1560px;margin:0 auto;padding:16px 20px 56px}
+
+.dir-panel,.compare-panel{display:none}
+.dir-panel.is-active,.compare-panel.is-active{display:block}
+.dir-panel{
+  border-radius:22px;overflow:hidden;
+  box-shadow:0 1px 0 rgba(36,31,40,.05),0 26px 70px -38px rgba(36,31,40,.55);
+}
+
+/* structural slots inside every direction; each direction styles them */
+.dir-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:22px 28px 18px;flex-wrap:wrap}
+.dir-kicker{font-size:10px;letter-spacing:.18em;text-transform:uppercase;opacity:.65}
+.dir-title h1{font-size:clamp(22px,2.2vw,30px);line-height:1.15;letter-spacing:-.01em;font-weight:600}
+.dir-title h1 em{font-style:normal;font-weight:400;font-size:.5em;letter-spacing:.06em;opacity:.55;margin-left:.5em;white-space:nowrap}
+.dir-thesis{max-width:62ch;font-size:12.5px;line-height:1.7;margin-top:8px;opacity:.75}
+.dir-side{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.swatches{display:flex;align-items:center;gap:6px}
+.swatch{width:20px;height:20px;border-radius:50%;border:1px solid rgba(0,0,0,.16);flex:none}
+.choose-btn{
+  height:38px;padding:0 17px;border-radius:999px;border:1px solid currentColor;
+  font-size:12px;letter-spacing:.02em;display:inline-flex;align-items:center;gap:7px;
+  transition:transform .16s ease,background .16s ease,color .16s ease;
+}
+.choose-btn:hover{transform:translateY(-1px)}
+.choose-btn.is-chosen{box-shadow:inset 0 0 0 1px currentColor}
+.view-tabs{display:flex;align-items:center;gap:6px;padding:0 28px 16px;flex-wrap:wrap}
+.view-tab{
+  height:30px;padding:0 12px;border-radius:999px;font-size:12px;
+  opacity:.62;transition:opacity .16s ease,background .16s ease,color .16s ease;
+}
+.view-tab:hover{opacity:.9}
+.view-tab.is-active{opacity:1}
+.view{display:none}
+.view.is-active{display:block}
+.view-wrap{padding:0 20px 22px}
+.board-toast{
+  position:fixed;left:50%;bottom:26px;z-index:120;transform:translate(-50%,14px);
+  background:#241F28;color:#FAF3EA;padding:10px 16px;border-radius:999px;
+  font-size:12px;letter-spacing:.01em;opacity:0;pointer-events:none;
+  transition:opacity .2s ease,transform .2s ease;box-shadow:0 12px 30px -12px rgba(0,0,0,.5);
+}
+.board-toast.is-on{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- compare board ---------- */
+.compare-panel{
+  background:var(--board-card);border:1px solid var(--board-line);border-radius:22px;
+  padding:28px clamp(18px,3vw,38px) 34px;
+}
+.compare-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:20px}
+.compare-head h2{font-family:Georgia,"Songti SC","SimSun",serif;font-size:clamp(24px,2.6vw,34px);font-weight:500;letter-spacing:-.01em}
+.compare-head p{max-width:58ch;font-size:12.5px;color:var(--board-muted);line-height:1.7;margin-top:6px}
+.compare-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.compare-card{border:1px solid var(--board-line);border-radius:14px;padding:16px;background:#FFFDF9;display:flex;flex-direction:column;gap:10px}
+.compare-card h3{font-size:14px;display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.compare-card h3 span{font-size:10px;color:var(--board-muted);letter-spacing:.1em}
+.compare-card .cc-thesis{font-size:11.5px;line-height:1.65;color:#5E555F;min-height:58px}
+.compare-card dl{display:grid;grid-template-columns:52px minmax(0,1fr);gap:5px 8px;font-size:10.5px;line-height:1.55;margin:0}
+.compare-card dt{color:#756B76;letter-spacing:.02em}
+.compare-card dd{margin:0;color:#3A333D}
+.compare-card .cc-palette{display:flex;gap:4px;flex-wrap:wrap}
+.compare-card .cc-palette i{width:16px;height:16px;border-radius:4px;border:1px solid rgba(0,0,0,.12)}
+.compare-card .cc-risk{font-size:10.5px;line-height:1.6;color:#8A5A63;border-top:1px dashed var(--board-line);padding-top:8px}
+.compare-card .cc-pick{
+  margin-top:auto;height:32px;border-radius:8px;border:1px solid #D9CFC5;background:#F5EFE7;
+  font-size:11px;transition:background .16s ease,border-color .16s ease;
+}
+.compare-card .cc-pick:hover{background:#EFE5DA;border-color:#C9B9AA}
+.compare-card .cc-pick.is-chosen{background:#241F28;color:#FAF3EA;border-color:#241F28}
+.compare-table{width:100%;border-collapse:collapse;margin-top:24px;font-size:11.5px}
+.compare-table caption{text-align:left;font-size:11px;letter-spacing:.12em;color:#93888F;padding-bottom:8px}
+.compare-table th,.compare-table td{padding:9px 10px;border-bottom:1px solid var(--board-line-soft);text-align:left;vertical-align:top;line-height:1.6}
+.compare-table thead th{font-weight:600;font-size:10.5px;letter-spacing:.06em;color:#6F6570;border-bottom:1px solid var(--board-line)}
+.compare-table tbody th{font-weight:500;color:#6F6570;white-space:nowrap}
+.compare-table td strong{font-weight:600}
+.contrast-footnote{font-size:10.5px;line-height:1.7;color:#6F6570;margin-top:8px;max-width:80ch}
+.compare-notes{margin-top:24px;display:grid;grid-template-columns:1.15fr .85fr;gap:22px}
+.compare-notes h3{font-size:12px;letter-spacing:.1em;color:#6F6570;text-transform:uppercase;margin-bottom:8px}
+.compare-notes p,.compare-notes li{font-size:12px;line-height:1.75;color:#4B434E}
+.compare-notes ul{display:flex;flex-direction:column;gap:5px}
+.compare-notes li::before{content:"·";color:var(--board-rose);margin-right:7px}
+.contrast-list{display:flex;flex-direction:column;gap:6px;font-size:11px;color:#4B434E}
+.contrast-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px dotted var(--board-line);padding-bottom:5px}
+.contrast-list b{font-weight:600;font-variant-numeric:tabular-nums}
+.contrast-list em{font-style:normal;color:#93888F}
+
+@media (max-width:1180px){
+  .compare-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:820px){
+  .board-inner{padding:10px 12px 0;gap:10px}
+  .board-brand{min-width:0}
+  .board-brand-text span{display:none}
+  .board-choice{margin-left:0}
+  .board-howto{padding:6px 14px 9px}
+  .board-main{padding:10px 10px 40px}
+  .dir-head{padding:18px 16px 14px}
+  .view-tabs{padding:0 16px 12px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+  .view-tabs::-webkit-scrollbar{display:none}
+  .view-wrap{padding:0 10px 16px}
+  .compare-panel{padding:20px 14px 26px}
+  .compare-grid{grid-template-columns:1fr}
+  .compare-notes{grid-template-columns:1fr}
+  .compare-table{display:block;overflow-x:auto;white-space:nowrap}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;scroll-behavior:auto !important}
+}
+</style>
+</head>
+<body>
+<header class="board-top">
+  <div class="board-inner">
+    <div class="board-brand">
+      <span class="board-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M12 3.5c1.6 2.6 3.7 4.1 6.5 4.7-1.6 1.3-2.6 3-3 5.1"/>
+          <path d="M12 20.5c1.6-2.6 3.7-4.1 6.5-4.7-1.6-1.3-2.6-3-3-5.1"/>
+          <path d="M12 3.5c-1.6 2.6-3.7 4.1-6.5 4.7 1.6 1.3 2.6 3 3 5.1"/>
+          <path d="M12 20.5c-1.6-2.6-3.7-4.1-6.5-4.7 1.6-1.3 2.6-3 3-5.1"/>
+          <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+        </svg>
+      </span>
+      <div class="board-brand-text">
+        <strong>Astro Blog Studio</strong>
+        <span>视觉方向选型 · 4 个方案 · 每个 5 个视图</span>
+      </div>
+    </div>
+    <nav class="board-tabs" role="tablist" aria-label="视觉方向">
+      <button class="board-tab is-active" role="tab" data-dir-tab="a" aria-selected="true"><span>01</span>樱糖手帐</button>
+      <button class="board-tab" role="tab" data-dir-tab="b" aria-selected="false"><span>02</span>夜樱电台</button>
+      <button class="board-tab" role="tab" data-dir-tab="c" aria-selected="false"><span>03</span>原稿纸</button>
+      <button class="board-tab" role="tab" data-dir-tab="d" aria-selected="false"><span>04</span>薄荷汽水</button>
+      <span class="board-tab-sep" aria-hidden="true"></span>
+      <button class="board-tab board-tab-compare" role="tab" data-dir-tab="compare" aria-selected="false">对比与说明</button>
+    </nav>
+    <div class="board-choice" id="board-choice">
+      <span class="board-choice-dot" aria-hidden="true"></span>
+      <span>已选</span>
+      <strong id="choice-name">未选择</strong>
+    </div>
+  </div>
+  <p class="board-howto">选一个方向，点该方向右上角的<b>「选择这个方向」</b>，然后把编号或名字告诉我；键盘 <b>← / →</b> 可切换方向。样例数据为虚构，不含真实仓库内容。</p>
+</header>
+<main class="board-main" id="board-main">

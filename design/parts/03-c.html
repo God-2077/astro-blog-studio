@@ -1,0 +1,759 @@
+<section class="dir-panel dir-c" data-panel="c" aria-label="原稿纸">
+  <div class="dir-head">
+    <div class="dir-title">
+      <div class="dir-kicker">Direction 03 · Manuscript</div>
+      <h1>原稿纸 <em>Genkō Yōshi</em></h1>
+      <p class="dir-thesis">把编辑器做成一张校样：页边编号、colophon 元数据、朱批和一枚「校了」印。没有卡片堆叠，靠字体、留白和页边信息建立秩序。</p>
+    </div>
+    <div class="dir-side">
+      <div class="swatches" aria-label="色板">
+        <span class="swatch" style="background:#FBF7F0"></span>
+        <span class="swatch" style="background:#2B2733"></span>
+        <span class="swatch" style="background:#A8496B"></span>
+        <span class="swatch" style="background:#6F8E7E"></span>
+        <span class="swatch" style="background:#A8732A"></span>
+        <span class="swatch" style="background:#F1E4E0"></span>
+      </div>
+      <button class="choose-btn" data-choose="c" data-choose-name="原稿纸">选择这个方向</button>
+    </div>
+  </div>
+
+  <div class="view-tabs" role="tablist" aria-label="原稿纸视图">
+    <button class="view-tab is-active" role="tab" data-view-tab="workbench" aria-selected="true"><span>01</span> 工作台</button>
+    <button class="view-tab" role="tab" data-view-tab="editor" aria-selected="false"><span>02</span> 编辑器</button>
+    <button class="view-tab" role="tab" data-view-tab="settings" aria-selected="false"><span>03</span> 设置</button>
+    <button class="view-tab" role="tab" data-view-tab="unlock" aria-selected="false"><span>04</span> 解锁</button>
+    <button class="view-tab" role="tab" data-view-tab="components" aria-selected="false"><span>05</span> 组件标本</button>
+  </div>
+
+  <div class="view is-active" data-view="workbench">
+    <div class="view-wrap">
+      <header class="c-masthead">
+        <div class="c-masthead-brand">STUDIO<span class="c-masthead-dot">·</span><em>原稿纸</em></div>
+        <nav class="c-masthead-nav" aria-label="主导航">
+          <span class="is-on">工作台</span><span>目次</span><span>校样</span><span>设置</span>
+        </nav>
+        <div class="c-masthead-actions">
+          <span class="c-saved" data-saved>已保存 · 15:42</span>
+          <button class="c-btn" type="button">新建</button>
+        </div>
+      </header>
+      <div class="c-masthead-sub">
+        <span>yukino/astro-blog-content · main · src</span>
+        <span>第 04 期 · 2026 年 10 月 18 日 · 晴</span>
+        <span>164 篇 · 9 个目录</span>
+      </div>
+
+      <div class="c-workbench">
+        <div class="c-margin">
+          <span class="c-page-num">04</span>
+          <small>VOL. 04</small>
+          <small>10 / 18</small>
+        </div>
+
+        <article class="c-manuscript">
+          <div class="c-kicker">卷首 · 工作台</div>
+          <h1>本日の原稿</h1>
+          <p class="c-lede">写作不是把字塞进输入框。先找一张纸，把要改的那几行摊开；改完，校一遍，再盖章。</p>
+          <div class="c-rule"></div>
+
+          <div class="c-toc">
+            <div class="c-toc-head"><span>目次 · CONTENTS</span><span>最近动过</span></div>
+            <div class="c-toc-row is-selected" data-file="src/content/blog/note/便笺-Markdown-备忘单.md">
+              <span class="c-toc-num">01</span>
+              <span class="c-toc-title">便笺：Markdown 备忘单</span>
+              <span class="c-toc-meta">便笺 · 置顶 · 10-17</span>
+              <span class="c-toc-page">12</span>
+            </div>
+            <div class="c-toc-row" data-file="src/content/blog/post/Posts-本站的壁纸.md">
+              <span class="c-toc-num">02</span>
+              <span class="c-toc-title">Posts：本站的壁纸</span>
+              <span class="c-toc-meta">文章 · 10-16</span>
+              <span class="c-toc-page">18</span>
+            </div>
+            <div class="c-toc-row" data-file="src/content/blog/reads/读书笔记-余华的《第七天》.md">
+              <span class="c-toc-num">03</span>
+              <span class="c-toc-title">读书笔记：余华的《第七天》</span>
+              <span class="c-toc-meta">读书笔记 · 草稿 · 10-15</span>
+              <span class="c-toc-page">24</span>
+            </div>
+            <div class="c-toc-row" data-file="src/content/blog/note/便笺-git-与-patch.md">
+              <span class="c-toc-num">04</span>
+              <span class="c-toc-title">便笺：git 与 patch</span>
+              <span class="c-toc-meta">便笺 · 加密 · 10-14</span>
+              <span class="c-toc-page">31</span>
+            </div>
+            <div class="c-toc-row" data-file="src/content/blog/ssn/碎碎念-2024-05-06.md">
+              <span class="c-toc-num">05</span>
+              <span class="c-toc-title">碎碎念 · 2024-05-06</span>
+              <span class="c-toc-meta">碎碎念 · 10-12</span>
+              <span class="c-toc-page">36</span>
+            </div>
+            <div class="c-toc-row" data-file="src/content/blog/post/posts-使用-Service-Worker-缓存网站资源.md">
+              <span class="c-toc-num">06</span>
+              <span class="c-toc-title">posts：使用 Service Worker 缓存网站资源</span>
+              <span class="c-toc-meta">文章 · 10-11</span>
+              <span class="c-toc-page">42</span>
+            </div>
+            <div class="c-toc-row" data-file="src/content/blog/note/便笺-2024-07-21-归档页面修改.md">
+              <span class="c-toc-num">07</span>
+              <span class="c-toc-title">便笺：归档页面修改</span>
+              <span class="c-toc-meta">便笺 · 10-09</span>
+              <span class="c-toc-page">48</span>
+            </div>
+            <div class="c-toc-row" data-file="src/content/blog/reads/读书笔记-想要的东西会过期.md">
+              <span class="c-toc-num">08</span>
+              <span class="c-toc-title">读书笔记：想要的东西会过期</span>
+              <span class="c-toc-meta">读书笔记 · 10-08</span>
+              <span class="c-toc-page">53</span>
+            </div>
+          </div>
+
+          <div class="c-toc-foot"><span>共 164 篇 · 已排除 en / ja 共 266 篇</span><button class="c-link" type="button">展开全部目次 →</button></div>
+        </article>
+
+        <aside class="c-aside">
+          <section>
+            <h3>統計</h3>
+            <div class="c-stats">
+              <div class="c-stat"><strong>164</strong><span>全部</span></div>
+              <div class="c-stat"><strong>3</strong><span>草稿</span></div>
+              <div class="c-stat"><strong>1</strong><span>加密</span></div>
+              <div class="c-stat"><strong>96%</strong><span>缓存</span></div>
+            </div>
+          </section>
+          <section>
+            <h3>注</h3>
+            <p class="c-note c-note-rose">3 篇便笺缺 <code>updated</code>；1 篇 YAML 里 <code>categories</code> 用了旧的嵌套写法。保存前会在页边标出来。</p>
+            <p class="c-note">API 余量 4,812 / 5,000；分支无保护；上次保存 2 分钟前。</p>
+          </section>
+          <section class="c-seal-wrap">
+            <div class="c-seal">校了</div>
+            <p class="c-note c-note-small">上次校了：10-17 23:48<br>update: …/便笺-Markdown-备忘单.md</p>
+            <button class="c-link" type="button">查看提交 →</button>
+          </section>
+          <section>
+            <h3>今日</h3>
+            <ul class="c-checklist">
+              <li class="is-done">补完表格一节</li>
+              <li class="is-done">把读书笔记草稿改成发布</li>
+              <li>给旧便笺补 updated</li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" data-view="editor">
+    <div class="view-wrap">
+      <header class="c-masthead">
+        <div class="c-masthead-brand">STUDIO<span class="c-masthead-dot">·</span><em>原稿纸</em></div>
+        <nav class="c-masthead-nav" aria-label="主导航"><span>工作台</span><span>目次</span><span class="is-on">校样</span><span>设置</span></nav>
+        <div class="c-masthead-actions">
+          <span class="c-saved" data-saved>有未保存修改</span>
+          <button class="c-btn" type="button" data-popover="c-commit">提交</button>
+        </div>
+      </header>
+      <div class="c-masthead-sub">
+        <span>便笺 / 便笺-Markdown-备忘单.md</span>
+        <span>第 12 页 · 校样 · CRLF / UTF-8</span>
+        <span data-path>src/content/blog/note/便笺-Markdown-备忘单.md</span>
+      </div>
+
+      <div class="c-editor">
+        <div class="c-margin c-margin-editor">
+          <span class="c-page-num">12</span>
+          <small>EDITING</small>
+          <small>便笺</small>
+        </div>
+
+        <article class="c-sheet">
+          <div class="c-kicker">便笺 · 2024-07-21</div>
+          <h2 class="c-title">便笺：Markdown 备忘单</h2>
+
+          <dl class="c-colophon">
+            <dt>repo</dt><dd>yukino/astro-blog-content</dd>
+            <dt>branch</dt><dd>main</dd>
+            <dt>date</dt><dd>2024-07-21 20:10:28</dd>
+            <dt>updated</dt><dd>—</dd>
+            <dt>categories</dt><dd>笔记 › 备忘</dd>
+            <dt>tags</dt><dd>Markdown, 备忘, 语法</dd>
+          </dl>
+
+          <div class="c-toolbar" aria-label="编辑器工具栏">
+            <button type="button">粗体</button><button type="button">斜体</button><button type="button">链接</button><span class="c-tool-sep"></span><button type="button">标题</button><button type="button">列表</button><button type="button">表格</button><button type="button">代码</button><span class="c-tool-sep"></span><button type="button">剧透</button><button type="button">数学</button>
+            <span class="c-toolbar-note">Markdown · 保留 CRLF</span>
+          </div>
+
+          <div class="c-source">
+            <p class="c-src-h2">## 为什么要记备忘单</p>
+            <p>每次写文章都要翻一次语法，索性把常用的几条钉在这里。写完就忘的，通常不是语法，是当时想写的那句话。</p>
+            <p class="c-src-comment">&lt;!-- 下面这段是从旧便笺里搬来的 --&gt;</p>
+            <ul class="c-src-list">
+              <li>标题：<code>## 二级标题</code></li>
+              <li>强调：<strong>粗体</strong> / <em>斜体</em> / <mark>高亮</mark></li>
+              <li>剧透：<span class="c-src-spoiler">!!点开才看得见!!</span></li>
+              <li>数学：<code>$E = mc^2$</code></li>
+            </ul>
+            <p class="c-src-h2">### 表格与代码</p>
+            <table class="c-src-table">
+              <thead><tr><th>场景</th><th>语法</th></tr></thead>
+              <tbody><tr><td>表格</td><td><code>| a | b |</code></td></tr><tr><td>代码</td><td>三个反引号 + 语言名</td></tr></tbody>
+            </table>
+            <pre class="c-src-code"><code>const studio = {
+  repo: 'astro-blog-content',
+  branch: 'main',
+  eol: 'crlf',
+};</code></pre>
+            <p class="c-src-h2">### 一条给自己的规矩</p>
+            <p>先写，再排版；先保存，再纠结。<span class="c-caret" aria-hidden="true"></span></p>
+          </div>
+
+          <footer class="c-sheet-foot">
+            <div class="c-foot-left">
+              <span>第 12 页</span>
+              <span>1,284 字 · 约 5 分钟</span>
+              <span class="c-dirty" data-dirty>未校</span>
+            </div>
+            <div class="c-foot-right">
+              <span class="c-foot-hint">⌘S 校了并提交</span>
+              <button class="c-seal-btn" type="button" data-stamp data-save><span>校</span><span>了</span></button>
+            </div>
+          </footer>
+
+          <div class="c-commit is-open" id="c-commit" data-popover-panel data-default-open>
+            <div class="c-commit-head"><span>提交 · COMMIT</span><button class="c-link" type="button" data-popover="c-commit">关闭</button></div>
+            <div class="c-commit-rule"></div>
+            <code class="c-commit-msg">update: src/content/blog/note/便笺-Markdown-备忘单.md</code>
+            <div class="c-commit-meta"><span>main</span><span>1 个提交</span><span>1 行变更</span></div>
+            <button class="c-btn c-btn-solid" type="button" data-save>确认校了</button>
+          </div>
+        </article>
+
+        <aside class="c-annotations">
+          <section>
+            <h3>校样 · 试读</h3>
+            <div class="c-proof">
+              <h4>为什么要记备忘单</h4>
+              <p>每次写文章都要翻一次语法，索性把常用的几条钉在这里。写完就忘的，通常不是语法，是当时想写的那句话。</p>
+              <h4>表格与代码</h4>
+              <pre><code>const studio = { eol: 'crlf' };</code></pre>
+              <p class="c-proof-spoiler">点开才看得见</p>
+            </div>
+          </section>
+          <section>
+            <h3>目次</h3>
+            <ul class="c-mini-toc">
+              <li>为什么要记备忘单 <span>1</span></li>
+              <li>表格与代码 <span>2</span></li>
+              <li>一条给自己的规矩 <span>3</span></li>
+            </ul>
+          </section>
+          <section>
+            <h3>校阅</h3>
+            <ul class="c-checklist c-checklist-rose">
+              <li>缺 updated <span>—</span></li>
+              <li>加密文章 <span>无</span></li>
+              <li>YAML 错误 <span>0</span></li>
+              <li>远端冲突 <span>未检测</span></li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" data-view="settings">
+    <div class="view-wrap">
+      <header class="c-masthead">
+        <div class="c-masthead-brand">STUDIO<span class="c-masthead-dot">·</span><em>原稿纸</em></div>
+        <nav class="c-masthead-nav" aria-label="主导航"><span>工作台</span><span>目次</span><span>校样</span><span class="is-on">设置</span></nav>
+        <div class="c-masthead-actions"><span class="c-saved" data-saved>已保存</span><button class="c-btn" type="button">导出配置</button></div>
+      </header>
+      <div class="c-masthead-sub">
+        <span>設定 · PREFERENCES</span>
+        <span>只存在本机 · 不同步</span>
+        <span>v0.1.0</span>
+      </div>
+
+      <div class="c-settings">
+        <aside class="c-set-index">
+          <h3>目次</h3>
+          <a class="is-on" href="#c"><span>01</span>连接</a>
+          <a href="#c"><span>02</span>内容与排除</a>
+          <a href="#c"><span>03</span>提交消息</a>
+          <a href="#c"><span>04</span>安全</a>
+          <a href="#c"><span>05</span>外观</a>
+          <a href="#c"><span>06</span>数据</a>
+        </aside>
+
+        <div class="c-form">
+          <div class="c-form-head">
+            <div class="c-kicker">設定 · 01</div>
+            <h2>连接与内容</h2>
+            <p>令牌只会在解锁后存在于内存；这里显示的是掩码。</p>
+          </div>
+
+          <section class="c-fieldset">
+            <h3>01 · 连接</h3>
+            <div class="c-row"><span>仓库</span><input type="text" value="yukino/astro-blog-content" aria-label="仓库"></div>
+            <div class="c-row"><span>分支</span><input type="text" value="main" aria-label="分支"></div>
+            <div class="c-row"><span>令牌</span><input type="password" value="github_pat_••••••••••••" aria-label="令牌"></div>
+            <div class="c-row"><span>状态</span><em class="c-ok">已连接 · 可写 · 4,812/5,000</em></div>
+          </section>
+
+          <section class="c-fieldset">
+            <h3>02 · 内容与排除</h3>
+            <div class="c-row"><span>根目录</span><input type="text" value="src" aria-label="根目录"></div>
+            <div class="c-row"><span>文件类型</span><input type="text" value=".md, .mdx" aria-label="文件类型"></div>
+            <div class="c-row c-row-top"><span>排除规则</span><div class="c-rule-list"><span>src/content/blog/en</span><span>src/content/blog/ja</span><span>src/pages/en</span><span>src/pages/ja</span></div></div>
+            <div class="c-form-note">4 条规则均命中 · 隐藏 266 篇 · 未匹配 0 条</div>
+          </section>
+
+          <section class="c-fieldset">
+            <h3>03 · 提交消息</h3>
+            <div class="c-row"><span>create</span><input type="text" value="create: {path}" aria-label="创建模板"></div>
+            <div class="c-row"><span>update</span><input type="text" value="update: {path}" aria-label="更新模板"></div>
+            <div class="c-row"><span>delete</span><input type="text" value="delete: {path}" aria-label="删除模板"></div>
+            <div class="c-row"><span>move</span><input type="text" value="update: {oldPath} → {newPath}" aria-label="移动模板"></div>
+            <div class="c-form-note">预览：update: src/content/blog/note/便笺-Markdown-备忘单.md</div>
+          </section>
+
+          <section class="c-fieldset">
+            <h3>04 · 安全</h3>
+            <label class="c-check"><input type="checkbox" checked><span>设备指纹自动解锁</span></label>
+            <label class="c-check"><input type="checkbox" checked><span>密码每次打开验证</span></label>
+            <label class="c-check"><input type="checkbox"><span>密码 + 设备绑定（双因子）</span></label>
+            <div class="c-row"><span>自动锁定</span><input type="text" value="15 分钟" aria-label="自动锁定"></div>
+            <div class="c-form-note">忘记密码无法找回，只能重新输入 PAT；指纹变化可用密码恢复。</div>
+          </section>
+
+          <div class="c-form-actions">
+            <button class="c-btn c-btn-solid" type="button">保存設定</button>
+            <button class="c-btn" type="button">恢复默认</button>
+            <button class="c-link c-danger" type="button">清除本地数据…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" data-view="unlock">
+    <div class="view-wrap">
+      <div class="c-unlock">
+        <div class="c-unlock-margin"><span>01</span><small>PRIVATE</small></div>
+        <div class="c-title-page">
+          <div class="c-kicker">私人原稿 · PRIVATE MANUSCRIPT</div>
+          <h2>本书仅限本人翻阅</h2>
+          <div class="c-title-rule"></div>
+          <p class="c-title-note">稿件还在。令牌已经封存在这台设备的保险库里；输入密码，或用指纹开卷。</p>
+          <label class="c-unlock-field">
+            <span>password</span>
+            <input type="password" value="••••••••••" aria-label="密码">
+            <i class="c-caret" aria-hidden="true"></i>
+          </label>
+          <div class="c-unlock-actions">
+            <button class="c-btn c-btn-solid" type="button">开卷</button>
+            <button class="c-link" type="button">用设备指纹自动开卷 →</button>
+          </div>
+          <div class="c-title-rule"></div>
+          <p class="c-title-foot">令牌只在本机解密 · 锁定即清空内存与缓存 · 忘记密码 = 重新输入 PAT</p>
+          <div class="c-seal c-seal-unlock">私</div>
+        </div>
+        <div class="c-unlock-margin c-unlock-margin-right"><span>第</span><small>一页</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" data-view="components">
+    <div class="view-wrap">
+      <div class="c-spec">
+        <section class="c-spec-block">
+          <h3>按钮 / Buttons</h3>
+          <div class="c-spec-row"><button class="c-btn c-btn-solid" type="button">校了</button><button class="c-btn" type="button">取消</button><button class="c-link" type="button">文本链接 →</button><button class="c-seal-btn" type="button"><span>校</span><span>了</span></button></div>
+          <div class="c-spec-row" style="margin-top:8px"><button class="c-btn" type="button" disabled style="opacity:.4">禁用</button><button class="c-btn c-btn-solid" type="button">保存中…</button></div>
+        </section>
+        <section class="c-spec-block">
+          <h3>字段 / Fields</h3>
+          <div class="c-row"><span>title</span><input type="text" value="便笺：Markdown 备忘单" aria-label="示例标题"></div>
+          <div class="c-row"><span>date</span><input type="text" value="2024-07-21 20:10:28" aria-label="示例日期"></div>
+          <label class="c-check"><input type="checkbox" checked><span>保存时更新 updated</span></label>
+        </section>
+        <section class="c-spec-block">
+          <h3>标记 / Marks</h3>
+          <div class="c-spec-row"><em class="c-ok">可写</em><em class="c-warn">草稿</em><em class="c-danger">加密</em><span class="c-tag">便笺</span><span class="c-tag">置顶</span></div>
+          <div class="c-spec-row" style="margin-top:8px"><span class="c-rule-chip">src/content/blog/en</span><span class="c-rule-chip">已排除</span></div>
+        </section>
+        <section class="c-spec-block">
+          <h3>目次行 / TOC</h3>
+          <div class="c-mini-toc c-mini-toc-spec">
+            <li>便笺：Markdown 备忘单 <span>12</span></li>
+            <li>Posts：本站的壁纸 <span>18</span></li>
+            <li>读书笔记：余华的《第七天》 <span>24</span></li>
+          </div>
+        </section>
+        <section class="c-spec-block">
+          <h3>状态 / States</h3>
+          <div class="c-spec-toast"><span>已校了 · 1 个提交到 main</span><span>查看 →</span></div>
+          <div class="c-skel" style="width:86%;margin-top:10px"></div>
+          <div class="c-skel" style="width:58%;margin-top:6px"></div>
+          <div class="c-spec-empty"><strong>这里还没有草稿</strong>新建一篇，或者把旧便笺标成草稿。</div>
+        </section>
+        <section class="c-spec-block">
+          <h3>提交 / Commit</h3>
+          <div class="c-commit" style="position:static;display:block;width:auto">
+            <div class="c-commit-head"><span>提交 · COMMIT</span><span>main</span></div>
+            <div class="c-commit-rule"></div>
+            <code class="c-commit-msg">update: src/content/blog/note/便笺-Markdown-备忘单.md</code>
+            <div class="c-commit-meta"><span>main</span><span>1 个提交</span></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* ---------- direction C · 原稿纸 ---------- */
+.dir-c{
+  --c-paper:#FBF7F0;
+  --c-paper-2:#F5EDE1;
+  --c-ink:#2B2733;
+  --c-ink-soft:#4E4854;
+  --c-ash:#6F6875;
+  --c-line:#D9CFC4;
+  --c-line-soft:#E8E0D6;
+  --c-rose:#A8496B;
+  --c-rose-2:#D9A3B4;
+  --c-wash:#F1E4E0;
+  --c-sage:#557465;
+  --c-ochre:#8A5E1F;
+  --c-serif:"Shippori Mincho","Noto Serif SC","Songti SC",Georgia,"Times New Roman",serif;
+  --c-ui:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --c-mono:"Sometype Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  background:var(--c-paper);
+  background-image:
+    radial-gradient(circle at 1px 1px,rgba(43,39,51,.035) 1px,transparent 0),
+    linear-gradient(180deg,rgba(168,73,107,.025),transparent 30%);
+  background-size:18px 18px,100% 100%;
+  color:var(--c-ink);
+  font-family:var(--c-ui);
+}
+.dir-c .dir-head{background:linear-gradient(180deg,#FBF7F0,#F7F1E7);border-bottom:3px double var(--c-ink)}
+.dir-c .dir-kicker{font-family:var(--c-mono);color:var(--c-rose);letter-spacing:.2em}
+.dir-c .dir-title h1{font-family:var(--c-serif);font-weight:600;letter-spacing:.02em}
+.dir-c .dir-title h1 em{font-family:var(--c-mono);font-size:9px;letter-spacing:.18em;color:var(--c-ash)}
+.dir-c .dir-thesis{color:var(--c-ink-soft);font-family:var(--c-serif);font-size:12px}
+.dir-c .swatch{border-color:rgba(43,39,51,.3);border-radius:1px}
+.dir-c .choose-btn{
+  border-radius:2px;border:1px solid var(--c-rose);color:var(--c-rose);background:transparent;
+  font-family:var(--c-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;height:36px;
+}
+.dir-c .choose-btn:hover{background:var(--c-rose);color:var(--c-paper)}
+.dir-c .choose-btn.is-chosen{background:var(--c-ink);color:var(--c-paper);border-color:var(--c-ink)}
+.dir-c .view-tabs{background:#F7F1E7;border-bottom:1px solid var(--c-line);gap:20px;padding-top:4px}
+.dir-c .view-tab{
+  border-radius:0;padding:0 1px 9px;border-bottom:2px solid transparent;
+  font-family:var(--c-mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--c-ash);display:inline-flex;align-items:center;gap:6px;
+}
+.dir-c .view-tab span{color:var(--c-rose-2);font-size:7.5px;letter-spacing:.05em}
+.dir-c .view-tab:hover{color:var(--c-ink)}
+.dir-c .view-tab.is-active{color:var(--c-ink);border-bottom-color:var(--c-rose)}
+.dir-c .view-tab.is-active span{color:var(--c-rose)}
+.dir-c .view-wrap{padding:20px 22px 26px}
+
+/* masthead */
+.dir-c .c-masthead{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  border-bottom:2px solid var(--c-ink);padding-bottom:9px;
+}
+.dir-c .c-masthead-brand{font-family:var(--c-serif);font-size:21px;letter-spacing:.14em;font-weight:600;display:flex;align-items:baseline;gap:8px}
+.dir-c .c-masthead-brand em{font-style:normal;font-family:var(--c-ui);font-size:10px;letter-spacing:.22em;color:var(--c-ash)}
+.dir-c .c-masthead-dot{color:var(--c-rose);font-size:16px}
+.dir-c .c-masthead-nav{display:flex;gap:16px;font-family:var(--c-mono);font-size:8.5px;letter-spacing:.12em;color:var(--c-ash)}
+.dir-c .c-masthead-nav span.is-on{color:var(--c-ink);border-bottom:1px solid var(--c-rose);padding-bottom:2px}
+.dir-c .c-masthead-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dir-c .c-saved{font-family:var(--c-mono);font-size:8px;letter-spacing:.06em;color:var(--c-ash)}
+.dir-c .c-masthead-sub{
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  font-family:var(--c-mono);font-size:8px;letter-spacing:.08em;color:var(--c-ash);
+  padding:6px 0 16px;border-bottom:1px solid var(--c-line);margin-bottom:20px;
+}
+.dir-c .c-masthead-sub span:nth-child(3){text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:42ch}
+
+/* buttons and controls */
+.dir-c .c-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  height:32px;padding:0 13px;border:1px solid var(--c-ink);border-radius:2px;
+  background:transparent;color:var(--c-ink);font-family:var(--c-mono);
+  font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;
+  transition:background .15s,color .15s,border-color .15s;
+}
+.dir-c .c-btn:hover{background:var(--c-ink);color:var(--c-paper)}
+.dir-c .c-btn-solid{background:var(--c-ink);color:var(--c-paper)}
+.dir-c .c-btn-solid:hover{background:var(--c-rose);border-color:var(--c-rose)}
+.dir-c .c-link{
+  font-family:var(--c-mono);font-size:8.5px;letter-spacing:.08em;color:var(--c-rose);
+  border-bottom:1px solid transparent;padding-bottom:1px;text-align:left;
+}
+.dir-c .c-link:hover{border-bottom-color:var(--c-rose)}
+.dir-c .c-danger{color:var(--c-ochre)}
+.dir-c .c-danger:hover{border-bottom-color:var(--c-ochre)}
+
+/* workbench */
+.dir-c .c-workbench{display:grid;grid-template-columns:64px minmax(0,1fr) 258px;gap:28px;align-items:start}
+.dir-c .c-margin{border-right:1px solid var(--c-line);padding-right:16px;text-align:right;position:sticky;top:16px}
+.dir-c .c-page-num{display:block;font-family:var(--c-serif);font-size:36px;line-height:1;color:var(--c-rose-2)}
+.dir-c .c-margin small{display:block;font-family:var(--c-mono);font-size:7px;letter-spacing:.14em;color:var(--c-ash);margin-top:8px;line-height:1.7;white-space:nowrap}
+.dir-c .c-manuscript{max-width:760px;min-width:0}
+.dir-c .c-kicker{font-family:var(--c-mono);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--c-rose)}
+.dir-c .c-manuscript h1{font-family:var(--c-serif);font-size:clamp(30px,3.6vw,48px);font-weight:600;line-height:1.2;letter-spacing:.01em;margin:9px 0 10px}
+.dir-c .c-lede{font-family:var(--c-serif);font-size:13.5px;line-height:2;color:var(--c-ink-soft);max-width:44ch}
+.dir-c .c-rule{height:2px;background:var(--c-ink);margin-top:22px;position:relative}
+.dir-c .c-rule::after{content:"";position:absolute;left:0;right:0;top:4px;height:1px;background:var(--c-line)}
+.dir-c .c-toc{margin-top:18px}
+.dir-c .c-toc-head{display:flex;justify-content:space-between;gap:10px;font-family:var(--c-mono);font-size:7.5px;letter-spacing:.18em;color:var(--c-ash);border-bottom:1px solid var(--c-ink);padding-bottom:6px}
+.dir-c .c-toc-row{
+  display:grid;grid-template-columns:28px minmax(0,1fr) 118px 24px;gap:12px;align-items:baseline;
+  padding:10px 2px;border-bottom:1px solid var(--c-line-soft);cursor:pointer;min-width:0;
+}
+.dir-c .c-toc-row:hover{background:rgba(168,73,107,.045)}
+.dir-c .c-toc-row.is-selected{background:linear-gradient(90deg,rgba(168,73,107,.07),transparent 70%)}
+.dir-c .c-toc-num{font-family:var(--c-mono);font-size:8px;color:var(--c-rose)}
+.dir-c .c-toc-title{font-family:var(--c-serif);font-size:13px;line-height:1.5;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.dir-c .c-toc-row.is-selected .c-toc-title{font-weight:700}
+.dir-c .c-toc-meta{font-family:var(--c-mono);font-size:7.5px;color:var(--c-ash);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dir-c .c-toc-page{font-family:var(--c-mono);font-size:8.5px;color:var(--c-ash);text-align:right}
+.dir-c .c-toc-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;font-family:var(--c-mono);font-size:7.5px;color:var(--c-ash)}
+.dir-c .c-aside{display:flex;flex-direction:column;gap:18px;border-left:1px solid var(--c-line);padding-left:18px;min-width:0}
+.dir-c .c-aside section{border-bottom:1px solid var(--c-line-soft);padding-bottom:14px}
+.dir-c .c-aside section:last-child{border-bottom:0}
+.dir-c .c-aside h3{font-family:var(--c-mono);font-size:7.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--c-ash);border-bottom:1px solid var(--c-ink);padding-bottom:5px;margin-bottom:9px}
+.dir-c .c-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 8px}
+.dir-c .c-stat strong{display:block;font-family:var(--c-serif);font-size:25px;font-weight:600;line-height:1}
+.dir-c .c-stat span{font-family:var(--c-mono);font-size:7px;letter-spacing:.12em;color:var(--c-ash)}
+.dir-c .c-note{font-family:var(--c-serif);font-size:10.5px;line-height:1.9;color:var(--c-ink-soft);margin-bottom:9px}
+.dir-c .c-note-rose{color:var(--c-rose)}
+.dir-c .c-note code{font-family:var(--c-mono);font-size:9px;background:var(--c-wash);padding:0 3px;border-radius:1px}
+.dir-c .c-note-small{font-family:var(--c-mono);font-size:7.5px;line-height:1.8;color:var(--c-ash)}
+.dir-c .c-seal-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.dir-c .c-seal{
+  width:58px;height:58px;border:2px solid var(--c-rose);color:var(--c-rose);
+  display:grid;place-items:center;font-family:var(--c-serif);font-size:19px;font-weight:700;
+  letter-spacing:.12em;writing-mode:vertical-rl;transform:rotate(-3deg);border-radius:2px;
+  box-shadow:inset 0 0 0 3px var(--c-paper),inset 0 0 0 4px rgba(168,73,107,.28);
+}
+.dir-c .c-checklist{display:flex;flex-direction:column;gap:6px;font-size:9.5px;color:var(--c-ink-soft)}
+.dir-c .c-checklist li{display:flex;align-items:baseline;gap:6px;padding-bottom:4px;border-bottom:1px dotted var(--c-line)}
+.dir-c .c-checklist li::before{content:"□";color:var(--c-rose-2);margin-right:0;flex:none}
+.dir-c .c-checklist li.is-done{color:var(--c-ash);text-decoration:line-through}
+.dir-c .c-checklist li.is-done::before{content:"■";color:var(--c-sage)}
+.dir-c .c-checklist li span{font-family:var(--c-mono);font-size:7.5px;color:var(--c-ash);text-decoration:none;margin-left:auto;flex:none}
+.dir-c .c-checklist-rose li::before{content:"·";color:var(--c-rose)}
+
+/* editor */
+.dir-c .c-editor{display:grid;grid-template-columns:54px minmax(0,1fr) 252px;gap:24px;align-items:start}
+.dir-c .c-margin-editor{position:static}
+.dir-c .c-sheet{
+  position:relative;background:var(--c-paper);border:1px solid var(--c-line);
+  padding:22px 26px 16px;max-width:820px;min-width:0;
+  box-shadow:0 1px 0 rgba(43,39,51,.04),0 18px 48px -40px rgba(43,39,51,.5);
+}
+.dir-c .c-sheet::before,.dir-c .c-sheet::after{content:"";position:absolute;left:8px;right:8px;height:1px;background:var(--c-line-soft);bottom:-4px}
+.dir-c .c-sheet::after{left:14px;right:14px;bottom:-7px}
+.dir-c .c-title{font-family:var(--c-serif);font-size:clamp(22px,2.4vw,29px);font-weight:600;line-height:1.35;margin:7px 0 12px}
+.dir-c .c-colophon{
+  display:grid;grid-template-columns:62px minmax(0,1fr) 62px minmax(0,1fr);
+  gap:3px 10px;border-top:1px solid var(--c-ink);border-bottom:1px solid var(--c-line);
+  padding:9px 0;margin:0 0 14px;font-family:var(--c-mono);font-size:8px;line-height:1.6;
+}
+.dir-c .c-colophon dt{color:var(--c-ash);letter-spacing:.06em}
+.dir-c .c-colophon dd{margin:0;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dir-c .c-toolbar{display:flex;align-items:center;gap:2px;padding:6px 0;border-bottom:1px solid var(--c-line);margin-bottom:12px;flex-wrap:wrap}
+.dir-c .c-toolbar button{
+  height:24px;padding:0 7px;border-radius:1px;font-family:var(--c-mono);font-size:8px;
+  letter-spacing:.08em;color:var(--c-ash);border:1px solid transparent;
+}
+.dir-c .c-toolbar button:hover{color:var(--c-ink);border-color:var(--c-line);background:var(--c-paper-2)}
+.dir-c .c-tool-sep{width:1px;height:13px;background:var(--c-line);margin:0 5px}
+.dir-c .c-toolbar-note{margin-left:auto;font-family:var(--c-mono);font-size:7px;color:var(--c-ash)}
+.dir-c .c-source{font-family:var(--c-serif);font-size:13.5px;line-height:2.05;color:var(--c-ink);overflow-wrap:anywhere}
+.dir-c .c-source p{margin-bottom:8px}
+.dir-c .c-src-h2{font-family:var(--c-serif);font-size:16px;font-weight:700;color:var(--c-rose);margin:14px 0 4px}
+.dir-c .c-src-comment{font-family:var(--c-mono);font-size:10px;color:var(--c-ash);line-height:1.8}
+.dir-c .c-src-list{margin:0 0 8px;display:flex;flex-direction:column;gap:2px;padding-left:18px;list-style:disc}
+.dir-c .c-src-list li{line-height:1.9}
+.dir-c .c-src-list code,.dir-c .c-source code{font-family:var(--c-mono);font-size:11px;background:var(--c-wash);padding:0 3px;border-radius:1px}
+.dir-c .c-source pre code{background:none;color:inherit;padding:0;border-radius:0;font-size:inherit}
+.dir-c .c-src-spoiler{background:var(--c-ink);color:transparent;border-radius:2px;padding:0 3px;user-select:none}
+.dir-c .c-src-table{width:100%;border-collapse:collapse;margin:8px 0 12px;font-family:var(--c-mono);font-size:9.5px}
+.dir-c .c-src-table th,.dir-c .c-src-table td{border-bottom:1px solid var(--c-line);padding:4px 7px;text-align:left}
+.dir-c .c-src-table th{border-bottom-color:var(--c-ink);color:var(--c-ash);font-weight:500}
+.dir-c .c-src-code{
+  font-family:var(--c-mono);font-size:10px;line-height:1.8;background:#2B2733;color:#F1E6EC;
+  padding:11px 13px;margin:10px 0 14px;border-radius:2px;overflow:hidden;white-space:pre-wrap;
+}
+.dir-c .c-caret{display:inline-block;width:1px;height:14px;background:var(--c-rose);vertical-align:-2px;animation:c-blink 1.1s steps(1) infinite}
+@keyframes c-blink{50%{opacity:0}}
+.dir-c .c-sheet-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-top:2px solid var(--c-ink);margin-top:16px;padding-top:8px;flex-wrap:wrap}
+.dir-c .c-foot-left{display:flex;flex-wrap:wrap;gap:12px;font-family:var(--c-mono);font-size:7.5px;color:var(--c-ash)}
+.dir-c .c-dirty{color:var(--c-ochre);display:inline-flex;align-items:center;gap:4px}
+.dir-c .c-dirty::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--c-ochre)}
+.dir-c .c-dirty.is-off{display:none}
+.dir-c .c-foot-right{display:flex;align-items:center;gap:12px}
+.dir-c .c-foot-hint{font-family:var(--c-mono);font-size:7.5px;color:var(--c-ash)}
+.dir-c .c-seal-btn{
+  width:48px;height:48px;border:2px solid var(--c-rose);border-radius:2px;color:var(--c-rose);
+  font-family:var(--c-serif);font-size:15px;font-weight:700;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;line-height:1.15;letter-spacing:.08em;
+  background:rgba(168,73,107,.03);transform:rotate(-3deg);
+  box-shadow:inset 0 0 0 2px var(--c-paper),inset 0 0 0 3px rgba(168,73,107,.25);
+  transition:transform .2s,background .2s;
+}
+.dir-c .c-seal-btn:hover{transform:rotate(0) scale(1.04);background:rgba(168,73,107,.08)}
+.dir-c .c-seal-btn.is-stamping{animation:c-stamp .8s cubic-bezier(.34,1.4,.64,1)}
+@keyframes c-stamp{
+  0%{transform:rotate(-12deg) scale(.82);opacity:.35}
+  45%{transform:rotate(-1deg) scale(1.12);opacity:1}
+  70%{transform:rotate(-5deg) scale(.98)}
+  100%{transform:rotate(-3deg) scale(1)}
+}
+.dir-c .c-commit{
+  position:absolute;right:22px;bottom:70px;width:330px;max-width:calc(100% - 44px);
+  background:var(--c-paper);border:1px solid var(--c-ink);padding:11px 13px;display:none;z-index:6;
+  box-shadow:0 20px 50px -30px rgba(43,39,51,.65);
+}
+.dir-c .c-commit.is-open{display:block}
+.dir-c .c-commit-head{display:flex;justify-content:space-between;align-items:center;font-family:var(--c-mono);font-size:7.5px;letter-spacing:.16em;color:var(--c-ash)}
+.dir-c .c-commit-rule{height:1px;background:var(--c-ink);margin:6px 0 9px}
+.dir-c .c-commit-msg{display:block;font-family:var(--c-mono);font-size:9px;line-height:1.7;color:var(--c-rose);word-break:break-all;background:var(--c-paper-2);padding:7px 8px;border-left:2px solid var(--c-rose)}
+.dir-c .c-commit-meta{display:flex;justify-content:space-between;gap:8px;font-family:var(--c-mono);font-size:7px;color:var(--c-ash);margin:8px 0 9px}
+.dir-c .c-commit .c-btn{width:100%}
+.dir-c .c-annotations{display:flex;flex-direction:column;gap:16px;border-left:1px solid var(--c-line);padding-left:16px;min-width:0}
+.dir-c .c-annotations section{border-bottom:1px solid var(--c-line-soft);padding-bottom:12px}
+.dir-c .c-annotations section:last-child{border-bottom:0}
+.dir-c .c-annotations h3{font-family:var(--c-mono);font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:var(--c-ash);border-bottom:1px solid var(--c-ink);padding-bottom:4px;margin-bottom:8px}
+.dir-c .c-proof h4{font-family:var(--c-serif);font-size:11px;font-weight:700;color:var(--c-rose);margin-bottom:3px}
+.dir-c .c-proof p{font-family:var(--c-serif);font-size:9.5px;line-height:1.95;color:var(--c-ink-soft);margin-bottom:7px}
+.dir-c .c-proof pre{font-family:var(--c-mono);font-size:8px;background:var(--c-paper-2);border-left:2px solid var(--c-rose-2);padding:6px 7px;overflow:hidden;margin-bottom:7px}
+.dir-c .c-proof-spoiler{background:var(--c-ink);color:transparent;padding:0 4px;border-radius:1px;user-select:none}
+.dir-c .c-mini-toc{display:flex;flex-direction:column;gap:3px;font-family:var(--c-serif);font-size:10px;color:var(--c-ink-soft)}
+.dir-c .c-mini-toc li{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dotted var(--c-line);padding-bottom:3px}
+.dir-c .c-mini-toc li span{font-family:var(--c-mono);font-size:8px;color:var(--c-ash)}
+
+/* settings */
+.dir-c .c-settings{display:grid;grid-template-columns:180px minmax(0,1fr);gap:26px;align-items:start}
+.dir-c .c-set-index{border-right:1px solid var(--c-line);padding-right:16px}
+.dir-c .c-set-index h3{font-family:var(--c-mono);font-size:7.5px;letter-spacing:.18em;color:var(--c-ash);border-bottom:1px solid var(--c-ink);padding-bottom:5px;margin-bottom:8px}
+.dir-c .c-set-index a{display:flex;gap:8px;font-family:var(--c-serif);font-size:11px;color:var(--c-ink-soft);padding:6px 2px;border-bottom:1px dotted var(--c-line)}
+.dir-c .c-set-index a span{font-family:var(--c-mono);font-size:7.5px;color:var(--c-rose-2)}
+.dir-c .c-set-index a.is-on{color:var(--c-rose);font-weight:700}
+.dir-c .c-set-index a.is-on span{color:var(--c-rose)}
+.dir-c .c-form{max-width:780px;min-width:0}
+.dir-c .c-form-head{border-bottom:2px solid var(--c-ink);padding-bottom:10px;margin-bottom:16px}
+.dir-c .c-form-head h2{font-family:var(--c-serif);font-size:27px;font-weight:600;margin:5px 0 4px}
+.dir-c .c-form-head p{font-family:var(--c-serif);font-size:10.5px;line-height:1.8;color:var(--c-ash)}
+.dir-c .c-fieldset{border-bottom:1px solid var(--c-line);padding:12px 0 14px}
+.dir-c .c-fieldset h3{font-family:var(--c-mono);font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--c-rose);margin-bottom:7px}
+.dir-c .c-row{display:grid;grid-template-columns:130px minmax(0,1fr);gap:14px;align-items:center;padding:4px 0;font-size:10.5px}
+.dir-c .c-row > span{font-family:var(--c-mono);font-size:8px;letter-spacing:.06em;color:var(--c-ash)}
+.dir-c .c-row input{height:28px;border:0;border-bottom:1px solid var(--c-line);background:transparent;color:var(--c-ink);font-family:var(--c-mono);font-size:10px;padding:0 2px;min-width:0;width:100%}
+.dir-c .c-row input:focus{outline:none;border-bottom-color:var(--c-rose)}
+.dir-c .c-row-top{align-items:start}
+.dir-c .c-rule-list{display:flex;flex-wrap:wrap;gap:5px}
+.dir-c .c-rule-list span{font-family:var(--c-mono);font-size:8px;border:1px solid var(--c-line);padding:2px 6px;color:var(--c-ink-soft);background:var(--c-paper-2)}
+.dir-c .c-form-note{font-family:var(--c-mono);font-size:7.5px;color:var(--c-ash);margin-top:6px;line-height:1.7}
+.dir-c .c-check{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--c-ink-soft);padding:4px 0;cursor:pointer;position:relative}
+.dir-c .c-check input{appearance:none;width:13px;height:13px;border:1px solid var(--c-ink);border-radius:1px;background:transparent;position:relative;flex:none;cursor:pointer}
+.dir-c .c-check input:checked{background:var(--c-ink)}
+.dir-c .c-check input:checked::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;font-size:9px;color:var(--c-paper)}
+.dir-c .c-check input:focus-visible{outline:2px solid var(--c-rose);outline-offset:2px}
+.dir-c .c-form-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-top:16px}
+.dir-c .c-ok{font-style:normal;font-family:var(--c-mono);font-size:8.5px;color:var(--c-sage)}
+.dir-c .c-warn{font-style:normal;font-family:var(--c-mono);font-size:8.5px;color:var(--c-ochre)}
+.dir-c .c-danger{font-style:normal;font-family:var(--c-mono);font-size:8.5px;color:var(--c-rose)}
+.dir-c .c-tag{font-family:var(--c-mono);font-size:8px;border:1px solid var(--c-line);padding:1px 5px;color:var(--c-ash)}
+.dir-c .c-rule-chip{font-family:var(--c-mono);font-size:8px;border:1px solid var(--c-line);padding:2px 6px;color:var(--c-ink-soft);background:var(--c-paper-2)}
+
+/* unlock */
+.dir-c .c-unlock{
+  min-height:660px;display:grid;grid-template-columns:50px minmax(0,560px) 50px;
+  justify-content:center;gap:26px;align-items:center;padding:20px 8px;
+}
+.dir-c .c-unlock-margin{text-align:center;font-family:var(--c-mono);font-size:7px;color:var(--c-ash);letter-spacing:.14em}
+.dir-c .c-unlock-margin span{display:block;font-family:var(--c-serif);font-size:28px;color:var(--c-rose-2);line-height:1;margin-bottom:8px}
+.dir-c .c-title-page{text-align:center;border-top:2px solid var(--c-ink);border-bottom:2px solid var(--c-ink);padding:30px 30px 26px;background:rgba(255,255,255,.28)}
+.dir-c .c-title-page h2{font-family:var(--c-serif);font-size:clamp(24px,3vw,36px);font-weight:600;letter-spacing:.06em;margin:10px 0 14px}
+.dir-c .c-title-rule{height:1px;background:var(--c-line);margin:16px auto;width:64%}
+.dir-c .c-title-note{font-family:var(--c-serif);font-size:11.5px;line-height:2;color:var(--c-ink-soft);max-width:36ch;margin:0 auto 18px}
+.dir-c .c-unlock-field{display:flex;align-items:center;gap:10px;max-width:300px;margin:0 auto 16px;border-bottom:1px solid var(--c-ink);padding-bottom:4px}
+.dir-c .c-unlock-field > span{font-family:var(--c-mono);font-size:8px;letter-spacing:.12em;color:var(--c-ash)}
+.dir-c .c-unlock-field input{border:0;background:transparent;font-family:var(--c-mono);font-size:14px;letter-spacing:.24em;color:var(--c-ink);padding:3px 0;min-width:0;flex:1;text-align:center}
+.dir-c .c-unlock-field input:focus{outline:none}
+.dir-c .c-unlock-actions{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:8px}
+.dir-c .c-title-foot{font-family:var(--c-mono);font-size:7.5px;line-height:1.8;color:var(--c-ash);max-width:40ch;margin:14px auto 0}
+.dir-c .c-seal-unlock{margin:18px auto 0;width:50px;height:50px;font-size:17px}
+
+/* specimen */
+.dir-c .c-spec{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 26px}
+.dir-c .c-spec-block{border-top:1px solid var(--c-ink);padding:12px 0 16px;min-width:0}
+.dir-c .c-spec-block h3{font-family:var(--c-mono);font-size:7.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--c-ash);margin-bottom:10px}
+.dir-c .c-spec-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.dir-c .c-spec-toast{display:flex;justify-content:space-between;gap:10px;font-size:9px;border:1px solid var(--c-line);padding:8px 10px;background:var(--c-paper-2)}
+.dir-c .c-spec-toast span:last-child{font-family:var(--c-mono);color:var(--c-rose)}
+.dir-c .c-skel{height:6px;background:linear-gradient(90deg,var(--c-wash),#FAF4EC,var(--c-wash));background-size:200% 100%;animation:c-shimmer 1.8s linear infinite}
+@keyframes c-shimmer{to{background-position:-200% 0}}
+.dir-c .c-spec-empty{margin-top:12px;border:1px dashed var(--c-line);padding:14px;text-align:center;font-family:var(--c-serif);font-size:9.5px;color:var(--c-ash)}
+.dir-c .c-spec-empty strong{display:block;font-size:11px;color:var(--c-ink);margin-bottom:3px}
+.dir-c .c-mini-toc-spec{font-size:10px}
+.dir-c .c-spec-block .c-commit{box-shadow:none;border-width:1px}
+
+@media (max-width:1180px){
+  .dir-c .c-workbench{grid-template-columns:54px minmax(0,1fr)}
+  .dir-c .c-aside{grid-column:1/-1;border-left:0;border-top:1px solid var(--c-line);padding-left:0;padding-top:18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+  .dir-c .c-aside section{border-bottom:0}
+  .dir-c .c-editor{grid-template-columns:44px minmax(0,1fr)}
+  .dir-c .c-annotations{grid-column:1/-1;border-left:0;border-top:1px solid var(--c-line);padding-left:0;padding-top:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+  .dir-c .c-annotations section{border-bottom:0}
+}
+@media (max-width:900px){
+  .dir-c .c-workbench,.dir-c .c-editor,.dir-c .c-settings{grid-template-columns:1fr}
+  .dir-c .c-margin{display:none}
+  .dir-c .c-aside{grid-template-columns:1fr 1fr}
+  .dir-c .c-annotations{grid-template-columns:1fr 1fr}
+  .dir-c .c-set-index{display:flex;flex-wrap:wrap;gap:4px;border-right:0;border-bottom:1px solid var(--c-line);padding:0 0 10px}
+  .dir-c .c-set-index h3{width:100%}
+  .dir-c .c-set-index a{border-bottom:0;padding:3px 7px;border:1px solid var(--c-line);font-size:9.5px}
+  .dir-c .c-unlock{grid-template-columns:minmax(0,560px)}
+  .dir-c .c-unlock-margin{display:none}
+  .dir-c .c-spec{grid-template-columns:1fr}
+}
+@media (max-width:620px){
+  .dir-c .view-wrap{padding:14px 12px 20px}
+  .dir-c .c-masthead-brand{font-size:18px}
+  .dir-c .c-masthead-nav{display:none}
+  .dir-c .c-masthead-sub span:nth-child(2){display:none}
+  .dir-c .c-masthead-sub span:nth-child(3){max-width:100%}
+  .dir-c .c-manuscript h1{font-size:30px}
+  .dir-c .c-lede{font-size:12px}
+  .dir-c .c-toc-row{grid-template-columns:22px minmax(0,1fr) 22px;gap:8px}
+  .dir-c .c-toc-meta{display:none}
+  .dir-c .c-toc-title{font-size:12px}
+  .dir-c .c-aside{grid-template-columns:1fr}
+  .dir-c .c-sheet{padding:16px 14px 12px}
+  .dir-c .c-colophon{grid-template-columns:56px minmax(0,1fr)}
+  .dir-c .c-source{font-size:12px;line-height:2}
+  .dir-c .c-src-h2{font-size:14px}
+  .dir-c .c-toolbar-note{display:none}
+  .dir-c .c-annotations{grid-template-columns:1fr}
+  .dir-c .c-commit{position:static;width:auto;max-width:none;margin-top:12px}
+  .dir-c .c-row{grid-template-columns:88px minmax(0,1fr)}
+  .dir-c .c-form-head h2{font-size:22px}
+  .dir-c .c-title-page{padding:22px 16px}
+  .dir-c .c-title-page h2{font-size:24px}
+  .dir-c .c-unlock{min-height:0;padding:6px 0}
+  .dir-c .c-spec-block .c-commit{display:none}
+}
+</style>
