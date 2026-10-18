@@ -70,4 +70,26 @@ test.describe('demo mode', () => {
     await expect(page.locator('.abs-receipt')).toContainText('create: src/content/blog/E2E 新建稿.md');
     await expect(page.locator('.abs-tree-row').filter({ hasText: 'E2E 新建稿.md' })).toBeVisible();
   });
+
+  test('renders {title} in create and update commit templates', async ({ page }) => {
+    await page.goto('/?demo=1#/settings');
+    const commitSection = page.locator('section.abs-paper').filter({ hasText: '提交消息' });
+    const templates = commitSection.locator('input.abs-input');
+    await templates.nth(0).fill('create: {title} @ {path}');
+    await templates.nth(1).fill('update: {title} @ {path}');
+    await page.getByRole('button', { name: '保存设置' }).click();
+    await expect(page.getByText('设置已保存')).toBeVisible();
+
+    await page.goto('/?demo=1');
+    await page.getByRole('button', { name: '新建文章' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await dialog.locator('input.abs-input').first().fill('E2E 标题占位符');
+    await dialog.getByRole('button', { name: '开始起草' }).click();
+    await page.locator('.abs-stamp').click();
+    await page.getByRole('button', { name: '确认创建' }).click();
+    await expect(page.getByText('已创建并提交 · 1 个提交')).toBeVisible();
+
+    await page.locator('.abs-brand').click();
+    await expect(page.locator('.abs-receipt')).toContainText('create: E2E 标题占位符 @ src/content/blog/E2E 标题占位符.md');
+  });
 });

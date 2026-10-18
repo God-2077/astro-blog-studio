@@ -73,6 +73,7 @@ export interface GitHubGateway {
   getRepo(): Promise<RepoInfo>;
   getTree(): Promise<TreeResult>;
   readFile(path: string): Promise<FileContent>;
+  readFiles(paths: string[]): Promise<FileContent[]>;
   readBlob(sha: string): Promise<Uint8Array>;
   writeFile(input: FileWriteInput): Promise<CommitResult>;
   deleteFile(input: FileDeleteInput): Promise<CommitResult>;

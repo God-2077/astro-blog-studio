@@ -1,4 +1,4 @@
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useGateway } from '@/lib/gateway/context';
 import type { RepoInfo, TreeResult } from '@/lib/github/types';
@@ -106,30 +106,38 @@ export function summarize(text: string, path: string): PostSummary {
   };
 }
 
-export function usePostSummaries(paths: string[], limit = 12) {
+export function usePostSummaries(paths: string[], limit = 12, treeSha?: string) {
   const { gateway, key } = useGateway();
+  const queryClient = useQueryClient();
   const selected = useMemo(() => paths.slice(0, limit), [paths, limit]);
-  const queries = useQueries({
-    queries: selected.map((path) => ({
-      queryKey: ['file', key, path],
-      queryFn: () => gateway.readFile(path),
-      staleTime: 60_000,
-    })),
+
+  const batch = useQuery({
+    queryKey: ['summaries', key, treeSha ?? null, selected],
+    queryFn: async () => {
+      const files = await gateway.readFiles(selected);
+      for (const file of files) {
+        queryClient.setQueryData(['file', key, file.path], file);
+      }
+      return files;
+    },
+    enabled: selected.length > 0 && Boolean(treeSha),
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
+    placeholderData: keepPreviousData,
   });
 
   const summaries = useMemo(() => {
     const list: PostSummary[] = [];
-    queries.forEach((query, index) => {
-      const path = selected[index];
-      if (query.data && path) list.push(summarize(query.data.text, path));
-    });
+    for (const file of batch.data ?? []) list.push(summarize(file.text, file.path));
     return list;
-  }, [queries, selected]);
+  }, [batch.data]);
 
   return {
     summaries,
-    isLoading: queries.some((query) => query.isLoading),
-    isError: queries.every((query) => query.isError),
-    scanned: queries.filter((query) => query.data).length,
+    isLoading: batch.isLoading,
+    isError: batch.isError,
+    error: batch.error,
+    refetch: batch.refetch,
+    scanned: batch.data?.length ?? 0,
   };
 }

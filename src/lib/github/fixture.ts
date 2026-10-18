@@ -60,6 +60,16 @@ export class FixtureGateway implements GitHubGateway {
     return { path, text: file.text, sha: file.sha, size: new Blob([file.text]).size };
   }
 
+  async readFiles(paths: string[]): Promise<FileContent[]> {
+    const files: FileContent[] = [];
+    for (const path of paths) {
+      const file = this.files.get(path);
+      if (!file) continue;
+      files.push({ path, text: file.text, sha: file.sha, size: new Blob([file.text]).size });
+    }
+    return files;
+  }
+
   async readBlob(): Promise<Uint8Array> {
     throw new AppError('UNSUPPORTED', { message: '演示模式没有二进制文件。' });
   }

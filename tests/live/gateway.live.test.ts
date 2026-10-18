@@ -99,6 +99,20 @@ describe.skipIf(!env)('LiveGateway against the test repository', () => {
     expect(read.text.includes('\r\n')).toBe(true);
   });
 
+  it('reads multiple files in one batch, including CJK paths', async () => {
+    const files = await gateway.readFiles([
+      'src/content/blog/post/hello-world.md',
+      'src/content/blog/note/便笺-测试.md',
+      'src/pages/about.md',
+      'src/content/blog/note/missing.md',
+    ]);
+    expect(files).toHaveLength(3);
+    const note = files.find((file) => file.path === 'src/content/blog/note/便笺-测试.md');
+    expect(note?.text).toContain('便笺：测试');
+    expect(note?.sha).toMatch(/^[a-f0-9]{40}$/);
+    expect(files.some((file) => file.path.endsWith('missing.md'))).toBe(false);
+  });
+
   it('creates, updates, detects a stale sha, and deletes', async () => {
     const target = path('便笺-新建.md');
     const created = await gateway.writeFile({

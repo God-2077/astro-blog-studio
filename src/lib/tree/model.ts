@@ -32,6 +32,11 @@ export interface TreeModel {
 }
 
 const collator = new Intl.Collator('zh-Hans-CN', { numeric: true, sensitivity: 'base' });
+const modelCache = new WeakMap<TreeEntry[], Map<string, TreeModel>>();
+
+function configCacheKey(config: TreeConfig): string {
+  return `${config.rootDir}\u0000${config.extensions.join('\u0000')}\u0000${config.excludes.join('\u0000')}`;
+}
 
 function stripRoot(path: string, rootDir: string): string {
   const root = rootDir.replace(/^\/+|\/+$/g, '');
@@ -40,6 +45,10 @@ function stripRoot(path: string, rootDir: string): string {
 }
 
 export function buildTreeModel(entries: TreeEntry[], config: TreeConfig): TreeModel {
+  const cacheKey = configCacheKey(config);
+  const cached = modelCache.get(entries)?.get(cacheKey);
+  if (cached) return cached;
+
   const matcher = createExclusionMatcher(config.excludes);
   const relevant = entries.filter(
     (entry) => entry.path && isUnderRoot(entry.path, config.rootDir) && isMarkdownFile(entry.path, config.extensions),
@@ -96,7 +105,11 @@ export function buildTreeModel(entries: TreeEntry[], config: TreeConfig): TreeMo
   sortNodes(rootNodes);
   files.sort((a, b) => collator.compare(a.path, b.path));
 
-  return { nodes: rootNodes, files, totalMarkdown: files.length, excludedCount };
+  const model: TreeModel = { nodes: rootNodes, files, totalMarkdown: files.length, excludedCount };
+  const byConfig = modelCache.get(entries) ?? new Map<string, TreeModel>();
+  byConfig.set(cacheKey, model);
+  modelCache.set(entries, byConfig);
+  return model;
 }
 
 export function collectFolders(nodes: TreeNode[]): FolderNode[] {

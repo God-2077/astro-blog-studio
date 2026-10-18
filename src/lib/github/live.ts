@@ -25,17 +25,41 @@ interface LiveGatewayOptions {
 
 const MAX_FILE_BYTES = 900_000;
 const API_VERSION = '2022-11-28';
+const GRAPHQL_URL = 'https://api.github.com/graphql';
+const GRAPHQL_BATCH_SIZE = 20;
+
+interface GraphqlBlob {
+  oid: string;
+  byteSize: number;
+  text: string | null;
+}
+
+interface GraphqlPayload {
+  data?: {
+    repository?: Record<string, GraphqlBlob | null> | null;
+  } | null;
+  errors?: Array<{ message?: string }>;
+}
 
 export class LiveGateway implements GitHubGateway {
   private readonly octokit: Octokit;
   private readonly owner: string;
   private readonly name: string;
   private readonly branch: string;
+  private readonly token: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly onRateLimit?: (info: RateLimitInfo) => void;
+  private graphqlDisabled = false;
 
   constructor(options: LiveGatewayOptions) {
     this.owner = options.owner;
     this.name = options.name;
     this.branch = options.branch;
+    this.token = options.token;
+    // Browser `fetch` is a Window method: calling it with the gateway as `this`
+    // throws "Illegal invocation", which would silently force the REST fallback.
+    this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
+    this.onRateLimit = options.onRateLimit;
     this.octokit = new Octokit({
       auth: options.token,
       ...(options.fetchImpl ? { request: { fetch: options.fetchImpl } } : {}),
@@ -53,18 +77,22 @@ export class LiveGateway implements GitHubGateway {
     });
 
     this.octokit.hook.after('request', (response) => {
-      const headers = response.headers as Record<string, string | undefined>;
-      const limit = Number(headers['x-ratelimit-limit']);
-      const remaining = Number(headers['x-ratelimit-remaining']);
-      const reset = Number(headers['x-ratelimit-reset']);
-      if (Number.isFinite(limit) && Number.isFinite(remaining)) {
-        options.onRateLimit?.({
-          limit,
-          remaining,
-          resetAt: Number.isFinite(reset) ? reset * 1000 : Date.now() + 60_000,
-        });
-      }
+      this.reportRate(response.headers as Record<string, string | undefined>);
     });
+  }
+
+  private reportRate(headers: Record<string, string | undefined> | Headers): void {
+    const read = (name: string): string | null => (headers instanceof Headers ? headers.get(name) : (headers[name] ?? null));
+    const limit = Number(read('x-ratelimit-limit'));
+    const remaining = Number(read('x-ratelimit-remaining'));
+    const reset = Number(read('x-ratelimit-reset'));
+    if (Number.isFinite(limit) && Number.isFinite(remaining)) {
+      this.onRateLimit?.({
+        limit,
+        remaining,
+        resetAt: Number.isFinite(reset) ? reset * 1000 : Date.now() + 60_000,
+      });
+    }
   }
 
   private async call<T>(fn: () => Promise<T>): Promise<T> {
@@ -132,6 +160,72 @@ export class LiveGateway implements GitHubGateway {
       const text = decodeUtf8(bytes);
       return { path, text, sha: data.sha, size: data.size };
     });
+  }
+
+  async readFiles(paths: string[]): Promise<FileContent[]> {
+    const unique = [...new Set(paths.filter((path) => path.trim().length > 0))];
+    if (unique.length === 0) return [];
+
+    const files: FileContent[] = [];
+    for (let index = 0; index < unique.length; index += GRAPHQL_BATCH_SIZE) {
+      const chunk = unique.slice(index, index + GRAPHQL_BATCH_SIZE);
+      if (this.graphqlDisabled) {
+        files.push(...(await this.readFilesRest(chunk)));
+        continue;
+      }
+      try {
+        files.push(...(await this.readFilesGraphql(chunk)));
+      } catch {
+        // A single GraphQL failure should not break the dashboard: fall back to
+        // the per-file Contents API and remember the failure for this session.
+        this.graphqlDisabled = true;
+        files.push(...(await this.readFilesRest(chunk)));
+      }
+    }
+    return files;
+  }
+
+  private async readFilesRest(paths: string[]): Promise<FileContent[]> {
+    const results = await Promise.allSettled(paths.map((path) => this.readFile(path)));
+    return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+  }
+
+  private async readFilesGraphql(paths: string[]): Promise<FileContent[]> {
+    const variables: Record<string, string> = { owner: this.owner, name: this.name };
+    const definitions = ['$owner: String!', '$name: String!'];
+    const aliases = paths.map((path, index) => {
+      variables[`e${index}`] = `${this.branch}:${path}`;
+      definitions.push(`$e${index}: String!`);
+      return `f${index}: object(expression: $e${index}) { ... on Blob { oid byteSize text } }`;
+    });
+    const query = `query(${definitions.join(', ')}) { repository(owner: $owner, name: $name) { ${aliases.join('\n')} } }`;
+
+    const response = await this.fetchImpl(GRAPHQL_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': API_VERSION,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    this.reportRate(response.headers);
+    if (!response.ok) throw new Error(`GraphQL request failed with ${response.status}`);
+
+    const payload = (await response.json()) as GraphqlPayload;
+    if (payload.errors?.length || !payload.data?.repository) {
+      throw new Error(payload.errors?.[0]?.message ?? 'GraphQL repository response missing');
+    }
+
+    const repository = payload.data.repository;
+    const files: FileContent[] = [];
+    paths.forEach((path, index) => {
+      const blob = repository[`f${index}`];
+      if (!blob?.text || blob.byteSize > MAX_FILE_BYTES) return;
+      files.push({ path, text: blob.text, sha: blob.oid, size: blob.byteSize });
+    });
+    return files;
   }
 
   async readBlob(sha: string): Promise<Uint8Array> {

@@ -6,7 +6,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { useQueryClient } from '@tanstack/react-query';
 import CodeMirror from '@uiw/react-codemirror';
 import { ArrowLeft, ArrowUpRight, Check, FileWarning, MoveRight, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { FrontmatterForm } from '@/components/frontmatter-form';
@@ -22,7 +22,7 @@ import { useGateway } from '@/lib/gateway/context';
 import { mapError } from '@/lib/github/errors';
 import { composeDocument, type DocumentMeta, parseDocument, updateFrontmatterRaw } from '@/lib/markdown/document';
 import { renderMarkdown } from '@/lib/markdown/render';
-import { renderCommitMessage } from '@/lib/paths/commit-message';
+import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
 import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
 import { formatInTimeZone } from '@/lib/utils/date';
 import { useEditorGuard } from '@/stores/editor';
@@ -80,6 +80,8 @@ export function EditorPage() {
   const [stamping, setStamping] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageEdited, setMessageEdited] = useState(false);
+  const messageSourceRef = useRef('');
   const [conflictOpen, setConflictOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState('');
@@ -111,18 +113,30 @@ export function EditorPage() {
     setSaveOpen(false);
   }, [isNew, pendingDraft, file.data, path, fields]);
 
-  useEffect(() => {
-    if (!path) return;
+  const currentTitle =
+    (typeof form.title === 'string' ? form.title.trim() : '') ||
+    (typeof originalData.title === 'string' ? originalData.title.trim() : '');
+  const messageSourceKey = `${path ?? ''}|${isNew}|${settings.commit.create}|${settings.commit.update}|${config.timezone}`;
+  const defaultMessage = useMemo(() => {
+    if (!path) return '';
     const template = isNew ? settings.commit.create : settings.commit.update;
-    const action = isNew ? 'create' : 'update';
-    setMessage(
-      renderCommitMessage(template, {
-        path,
-        action,
-        date: formatInTimeZone(new Date(), config.timezone),
-      }),
-    );
-  }, [path, isNew, settings.commit.create, settings.commit.update, config.timezone]);
+    return renderCommitMessage(template, {
+      path,
+      action: isNew ? 'create' : 'update',
+      date: formatInTimeZone(new Date(), config.timezone),
+      title: resolveCommitTitle(currentTitle, path),
+    });
+  }, [path, isNew, settings.commit.create, settings.commit.update, config.timezone, currentTitle]);
+
+  useEffect(() => {
+    if (messageSourceRef.current !== messageSourceKey) {
+      messageSourceRef.current = messageSourceKey;
+      setMessageEdited(false);
+      setMessage(defaultMessage);
+    } else if (!messageEdited) {
+      setMessage(defaultMessage);
+    }
+  }, [messageSourceKey, defaultMessage, messageEdited]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -290,6 +304,7 @@ export function EditorPage() {
           path,
           action: 'delete',
           date: formatInTimeZone(new Date(), config.timezone),
+          title: resolveCommitTitle(currentTitle, path),
         }),
         branch: repo.defaultBranch,
         sha: loadedSha,
@@ -326,6 +341,7 @@ export function EditorPage() {
           newPath: target,
           action: 'move',
           date: formatInTimeZone(new Date(), config.timezone),
+          title: resolveCommitTitle(currentTitle, target),
         }),
         branch: repo.defaultBranch,
         sha: loadedSha,
@@ -591,7 +607,10 @@ export function EditorPage() {
                     <textarea
                       className="abs-textarea mt-2 min-h-[64px] font-mono text-[10px]"
                       value={message}
-                      onChange={(event) => setMessage(event.target.value)}
+                      onChange={(event) => {
+                        setMessage(event.target.value);
+                        setMessageEdited(true);
+                      }}
                       aria-label="提交消息"
                     />
                     <p className="mt-1.5 font-mono text-[9px] text-muted">

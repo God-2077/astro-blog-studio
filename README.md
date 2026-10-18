@@ -16,7 +16,8 @@
 - **frontmatter**：字段可在设置中增删；每个字段有名称、类型（`string / date / number / boolean / list`）和必填开关。默认预置 hello-world 常用字段（title、date、updated、description、categories、tags、draft、sticky、password、cover、keywords）；必填为空会阻止保存；未知字段原样保留；YAML 损坏时降级为原文编辑。
 - **写操作**：新建、保存、删除、移动/重命名。新建先在本地起草，**第一次保存才创建文件，只调用一次创建 API**；移动用 Git Data API 在**一个提交**里完成；更新带 `sha` 乐观锁，冲突时弹出「重新加载 / 覆盖远端 / 取消」。
 - **格式保真**：保留 CRLF / LF / BOM / 结尾换行；分块 base64 处理，避免大文件栈溢出；UTF-8 解码替换字符检测。
-- **提交体验**：提交消息模板（`{path}`、`{oldPath}`、`{newPath}`、`{dir}`、`{name}`、`{date}`、`{action}`）；提交前确认；提交小票（sha、路径、时间、GitHub 链接）；API 配额显示。
+- **提交体验**：提交消息模板（`{path}`、`{title}`、`{oldPath}`、`{newPath}`、`{dir}`、`{name}`、`{date}`、`{action}`）；提交前确认；提交小票（sha、路径、时间、GitHub 链接）；API 配额显示。
+- **Dashboard 性能**：首屏只发起 1 次 tree 请求 + 1 次 GraphQL 批量 frontmatter 读取；GraphQL 不可用时自动回退到 REST。最近/草稿/加密仍基于前 12 篇采样，避免为了统计读取整库。
 - **真实 / 演示双模式**：`?demo=1` 使用内存 fixture，不联网、不写仓库，适合评审 UI 和录屏。
 - **保险库**：PAT 以 AES-GCM-256 加密后写 localStorage；密钥由 PBKDF2-SHA256（600k 次）派生；设备指纹（FingerprintJS）自动解锁；可选密码，支持「密码 + 设备」双因子；内存会话令牌；锁定清空。
 - **设置**：根目录、扩展名、排除规则、时区、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、自动锁定、密码更换、重置保险库。
@@ -61,7 +62,7 @@ pnpm dev
 - **保存**：带上次读到的 blob sha 写入；远端已变化时返回 409，应用显示冲突对话框，不会静默覆盖。新建路径若在草稿期间被远端占用，保存会提示换路径并保留草稿。
 - **移动**：读取旧 blob → 建新树 → 新提交（父提交为当前 HEAD）→ 更新分支 ref；一个提交完成，不会出现「先加后删」的中间状态。
 - **删除**：创建一个删除提交；Git 历史仍可恢复。
-- **提交消息占位符**：`{path}` 目标路径、`{oldPath}`、`{newPath}`、`{dir}` 所在目录、`{name}` 不含扩展名、`{date}` 按设置时区、`{action}`。未知占位符保留原文并在设置页给出预览。
+- **提交消息占位符**：`{path}` 目标路径、`{title}` 文章标题（缺失时回退文件名去扩展名）、`{oldPath}`、`{newPath}`、`{dir}` 所在目录、`{name}` 不含扩展名、`{date}` 按设置时区、`{action}`。未知占位符保留原文并在设置页给出预览。
 
 ## 安全模型
 
@@ -78,16 +79,16 @@ pnpm dev
 ```bash
 cp .env.example .env.local   # 填入测试 PAT / 仓库
 pnpm test:seed               # 测试仓库为空时也能创建首个提交
-pnpm test                    # 37 个单元测试（路径、frontmatter 字段、编码、vault、预览）
-pnpm test:live               # 6 个真实 GitHub 集成测试（会创建/移动/删除 src/_e2e/*，最后清理）
-pnpm test:e2e                # 6 个 Playwright 测试（1 setup + 3 demo + 2 live；需 .env.local）
+pnpm test                    # 41 个单元测试（路径、frontmatter 字段、编码、vault、预览、批量读取）
+pnpm test:live               # 7 个真实 GitHub 集成测试（会创建/移动/删除 src/_e2e/*，最后清理）
+pnpm test:e2e                # 8 个 Playwright 测试（1 setup + 4 demo + 3 live；需 .env.local）
 pnpm test:clean              # 兜底清理 src/_e2e/*
 pnpm verify                  # typecheck + lint + unit + build
 ```
 
-- 单元测试覆盖：排除规则、树模型、提交模板、frontmatter 解析/回写/CRLF/注释保留、字段定义/类型/必填/删除、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法。
-- Live 测试覆盖：真实仓库读、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射。
-- E2E 覆盖：demo 工作台保存、设置中增删字段并反映到编辑器、新稿本地起草后一次创建；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、真实文件保存与回执。
+- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、字段定义/类型/必填/删除、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退。
+- Live 测试覆盖：真实仓库读、批量读取（含 CJK 路径）、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射。
+- E2E 覆盖：demo 工作台保存、设置中增删字段并反映到编辑器、新稿本地起草后一次创建、`{title}` 提交模板；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执。
 - 测试结束请**轮换测试 token**；`.env.local` 不要提交。
 
 **手动 E2E 清单**（或用 `pnpm test:e2e`，见下）：

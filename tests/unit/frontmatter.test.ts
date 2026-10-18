@@ -12,12 +12,6 @@ import {
   valueToDisplay,
 } from '@/lib/frontmatter/fields';
 
-const simpleFields: FrontmatterField[] = [
-  { name: 'title', type: 'string', required: true },
-  { name: 'date', type: 'date', required: false },
-  { name: 'tags', type: 'list', required: false },
-];
-
 describe('frontmatter field definitions', () => {
   it('ships the common hello-world fields with title/date required', () => {
     const names = DEFAULT_FRONTMATTER_FIELDS.map((field) => field.name);

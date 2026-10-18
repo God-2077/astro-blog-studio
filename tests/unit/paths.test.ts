@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findUnknownPlaceholders, renderCommitMessage } from '@/lib/paths/commit-message';
+import { findUnknownPlaceholders, renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
 import { createExclusionMatcher, isMarkdownFile, isUnderRoot, normalizeRepoPath } from '@/lib/paths/paths';
 import { buildTreeModel } from '@/lib/tree/model';
 
@@ -29,16 +29,15 @@ describe('paths and exclusions', () => {
   });
 
   it('builds a tree with visible files and excluded counts', () => {
-    const model = buildTreeModel(
-      [
-        { path: 'src/content/blog/note/a.md', sha: 'a' },
-        { path: 'src/content/blog/note/b.md', sha: 'b' },
-        { path: 'src/content/blog/en/a.md', sha: 'c' },
-        { path: 'src/pages/about.md', sha: 'd' },
-        { path: 'public/readme.md', sha: 'e' },
-      ],
-      { rootDir: 'src', extensions: ['.md'], excludes: ['src/content/blog/en'] },
-    );
+    const entries = [
+      { path: 'src/content/blog/note/a.md', sha: 'a' },
+      { path: 'src/content/blog/note/b.md', sha: 'b' },
+      { path: 'src/content/blog/en/a.md', sha: 'c' },
+      { path: 'src/pages/about.md', sha: 'd' },
+      { path: 'public/readme.md', sha: 'e' },
+    ];
+    const config = { rootDir: 'src', extensions: ['.md'], excludes: ['src/content/blog/en'] };
+    const model = buildTreeModel(entries, config);
     expect(model.files.map((file) => file.path)).toEqual([
       'src/content/blog/note/a.md',
       'src/content/blog/note/b.md',
@@ -47,6 +46,7 @@ describe('paths and exclusions', () => {
     expect(model.totalMarkdown).toBe(3);
     expect(model.excludedCount).toBe(1);
     expect(model.nodes.map((node) => node.name)).toEqual(['content', 'pages']);
+    expect(buildTreeModel(entries, config)).toBe(model);
   });
 });
 
@@ -71,7 +71,20 @@ describe('commit messages', () => {
         date: '2026-01-01',
       }),
     ).toBe('move a.md → b.md');
-    expect(findUnknownPlaceholders('x {nope} {path}')).toEqual(['nope']);
+    expect(findUnknownPlaceholders('x {nope} {path} {title}')).toEqual(['nope']);
+  });
+
+  it('renders {title} and falls back to the file stem', () => {
+    expect(
+      renderCommitMessage('{title} · update: {path}', {
+        path: 'src/content/blog/note/a.md',
+        action: 'update',
+        date: '2026-01-01',
+        title: '便笺',
+      }),
+    ).toBe('便笺 · update: src/content/blog/note/a.md');
+    expect(resolveCommitTitle(undefined, 'src/content/blog/note/a.md')).toBe('a');
+    expect(resolveCommitTitle('  便笺  ', 'src/content/blog/note/a.md')).toBe('便笺');
   });
 
   it('falls back when the template is empty', () => {

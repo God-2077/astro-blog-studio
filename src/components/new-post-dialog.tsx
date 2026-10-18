@@ -61,7 +61,12 @@ export function NewPostDialog({
       : normalizedDir || config.rootDir;
   const path = joinPath(fullDir, finalFile);
   const date = formatInTimeZone(new Date(), settings.content.timezone);
-  const message = renderCommitMessage(settings.commit.create, { path, action: 'create', date });
+  const message = renderCommitMessage(settings.commit.create, {
+    path,
+    action: 'create',
+    date,
+    title: title.trim() || undefined,
+  });
   const collision = Boolean(model?.files.some((file) => file.path === path));
 
   const handleCreate = (): void => {

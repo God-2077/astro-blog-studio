@@ -39,15 +39,16 @@ src/
     ui.tsx                  Badge / Field / Spinner / ErrorNote / EmptyState / Skeleton
   pages/                    dashboard / editor / settings / setup / unlock
   lib/
-    github/live.ts          Octokit：getRepo/getTree/readFile/writeFile/deleteFile/moveFile
+    github/live.ts          Octokit + GraphQL：getRepo/getTree/readFile/readFiles/writeFile/deleteFile/moveFile
     github/fixture.ts       内存 gateway（demo）
     github/errors.ts        AppError + mapError（唯一错误翻译层）
     gateway/context.tsx     GatewayProvider / DemoGatewayProvider / isDemoRequested
     frontmatter/fields.ts   字段类型/默认集/校验/form 映射/新稿初始文档
     markdown/document.ts    frontmatter 解析、compose、按 key 回写、EOL/BOM
     markdown/render.ts      marked + katex + DOMPurify + shoka 预处理
-    paths/                  normalize / exclusion matcher / commit-message
-    tree/model.ts           文件树模型（相对根目录显示，路径保留全路径）
+    paths/commit-message.ts 提交模板（含 {title}）/ title 回退
+    paths/                  normalize / exclusion matcher
+    tree/model.ts           文件树模型（相对根目录显示，路径保留全路径；按 tree 引用 memo）
     vault/                  crypto / fingerprint / keystore / session
     demo/fixtures.ts         演示仓库与 12 篇示例
   stores/                   zustand：settings(persist)、vault、ui、rate-limit、last-commit、editor guard、pending-post
@@ -82,7 +83,11 @@ scripts/                    seed/clean/test-env、design build/serve
    - 字段名必须通过 `validateFrontmatterFields`；不要硬编码某个字段（title/date 也只是默认 required）。
    - 删除配置字段不等于删除文件里的键；未知字段保留；空可选字段回写时用 `null` 删除键块。
    - 不把字段配置写进 `astro-blog` schema；它是应用层表单配置。
-6. **设计**
+6. **Dashboard 数据读取**
+   - dashboard 的 frontmatter 采样必须走 `gateway.readFiles` 批量接口（LiveGateway 优先一次 GraphQL，失败回退 Contents REST）；不要回到逐文件 `useQueries`。
+   - 批量结果要回填 `['file']` cache；采样上限保持 12 篇，不为了统计全量读取。
+   - 改动 gateway 批量逻辑必须同时验证 CORS/权限、CJK 路径、超大/缺失文件和 REST 回退。
+7. **设计**
    - 组件样式优先用 `.abs-*` 设计系统；不要引入通用 SaaS 卡片网格/渐变/玻璃拟态。
    - 编辑器内部保持安静：无纹理、无旋转、无入场动画；动效尊重 `prefers-reduced-motion`。
    - 唯一实心樱粉按钮是「新建文章」；印章是唯一的红。
@@ -92,7 +97,7 @@ scripts/                    seed/clean/test-env、design build/serve
 
 1. `pnpm test:seed`（测试仓库为空或需要恢复种子）。
 2. `pnpm test` / `pnpm test:live`；live 会创建 `src/_e2e/<runId>/*` 并自动清理。
-3. `pnpm test:e2e`：setup 建本地加密保险库（`tests/e2e/.auth/`，已 gitignore），demo 验证 fixture/字段配置/新稿草稿，live 创建/清理 `src/_e2e/*`，并断言新稿保存前 404、保存后单提交。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。
+3. `pnpm test:e2e`：setup 建本地加密保险库（`tests/e2e/.auth/`，已 gitignore），demo 验证 fixture/字段配置/新稿草稿/`{title}`，live 创建/清理 `src/_e2e/*`，并断言新稿保存前 404、保存后单提交、dashboard 1 次 GraphQL 批量且 0 次 summary Contents 请求。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。
 4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；移动/删除/冲突；390px。
 5. `pnpm verify`；`pnpm test:clean`；轮换测试 token。
 

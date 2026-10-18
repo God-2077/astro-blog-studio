@@ -19,7 +19,14 @@ export function DashboardPage() {
   const rate = useRateLimit();
 
   const paths = useMemo(() => (model ? model.files.map((file) => file.path) : []), [model]);
-  const { summaries, isLoading: summariesLoading, scanned } = usePostSummaries(paths, 12);
+  const {
+    summaries,
+    isLoading: summariesLoading,
+    isError: summariesError,
+    error: summariesErrorDetail,
+    refetch: refetchSummaries,
+    scanned,
+  } = usePostSummaries(paths, 12, tree.data?.sha);
 
   const sorted = useMemo(
     () => [...summaries].sort((a, b) => (b.updated ?? b.date).localeCompare(a.updated ?? a.date)),
@@ -60,6 +67,13 @@ export function DashboardPage() {
         </section>
 
         {tree.error ? <ErrorNote error={tree.error} onRetry={() => void tree.refetch()} className="mt-4" /> : null}
+        {summariesError ? (
+          <ErrorNote
+            error={summariesErrorDetail ?? new Error('frontmatter 读取失败')}
+            onRetry={() => void refetchSummaries()}
+            className="mt-3"
+          />
+        ) : null}
 
         <section className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5" aria-label="统计">
           <div className="abs-sticky bg-mint-2 rotate-[-0.7deg]">

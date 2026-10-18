@@ -65,6 +65,25 @@ test.describe('live new-post flow', () => {
     await apiContext.dispose();
   });
 
+  test('dashboard summarizes the recent list with one GraphQL batch', async ({ page }) => {
+    const requests: Array<{ url: string; method: string }> = [];
+    page.on('request', (request) => {
+      if (request.url().startsWith('https://api.github.com')) {
+        requests.push({ url: request.url(), method: request.method() });
+      }
+    });
+
+    await unlock(page);
+    await expect(page.locator('.abs-sheet').filter({ hasText: '最近动过' }).locator('ul button').first()).toBeVisible({
+      timeout: 30_000,
+    });
+
+    const graphql = requests.filter((request) => request.url.endsWith('/graphql'));
+    const contents = requests.filter((request) => /\/contents\//.test(request.url));
+    expect(graphql).toHaveLength(1);
+    expect(contents).toHaveLength(0);
+  });
+
   test('does not create the file until the first save, then creates it in one commit', async ({ page }) => {
     await unlock(page);
     await page.getByRole('button', { name: '新建文章' }).first().click();

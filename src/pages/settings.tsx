@@ -47,6 +47,7 @@ export function SettingsPage() {
 
   const isDemo = mode === 'demo';
   const samplePath = `${rootDir || 'src'}/content/blog/note/便笺-备忘单.md`;
+  const sampleTitle = '便笺：备忘单';
   const today = new Date().toISOString().slice(0, 10);
 
   const save = async (): Promise<void> => {
@@ -252,7 +253,7 @@ export function SettingsPage() {
           <section className="abs-paper p-3.5">
             <h2 className="font-display text-[16px] font-bold">提交消息</h2>
             <p className="mt-0.5 text-[10.5px] text-muted">
-              可用 {'{path} {oldPath} {newPath} {dir} {name} {date} {action}'}；未知占位符保持原文。
+              可用 {'{path} {title} {oldPath} {newPath} {dir} {name} {date} {action}'}；未知占位符保持原文。
             </p>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
               <Field label="create">
@@ -285,7 +286,8 @@ export function SettingsPage() {
               </Field>
             </div>
             <p className="mt-2 break-all font-mono text-[9px] text-muted">
-              preview: {renderCommitMessage(updateTemplate, { path: samplePath, action: 'update', date: today })}
+              preview:{' '}
+              {renderCommitMessage(updateTemplate, { path: samplePath, action: 'update', date: today, title: sampleTitle })}
             </p>
             <label className="mt-3 flex items-center gap-2 text-[11px]">
               <input
