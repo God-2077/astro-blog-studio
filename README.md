@@ -13,13 +13,13 @@
 
 - **文件索引**：树形浏览、路径搜索、排除规则过滤、刷新；显示目录内 Markdown 数量与被排除数量。
 - **编辑**：CodeMirror 6 Markdown 编辑 + 实时预览；GFM、表格、代码、KaTeX 数学、剧透 `!!x!!`、高亮 `==x==`、插入 `++x++`、ruby、`:::info` 容器、`<!-- more -->` 摘要分隔。
-- **frontmatter**：title / date / updated / categories / tags / draft / sticky 表单；未知字段原样保留；YAML 损坏时降级为原文编辑。
-- **写操作**：新建、保存、删除、移动/重命名。移动用 Git Data API 在**一个提交**里完成；保存带 `sha` 乐观锁，冲突时弹出「重新加载 / 覆盖远端 / 取消」。
+- **frontmatter**：字段可在设置中增删；每个字段有名称、类型（`string / date / number / boolean / list`）和必填开关。默认预置 hello-world 常用字段（title、date、updated、description、categories、tags、draft、sticky、password、cover、keywords）；必填为空会阻止保存；未知字段原样保留；YAML 损坏时降级为原文编辑。
+- **写操作**：新建、保存、删除、移动/重命名。新建先在本地起草，**第一次保存才创建文件，只调用一次创建 API**；移动用 Git Data API 在**一个提交**里完成；更新带 `sha` 乐观锁，冲突时弹出「重新加载 / 覆盖远端 / 取消」。
 - **格式保真**：保留 CRLF / LF / BOM / 结尾换行；分块 base64 处理，避免大文件栈溢出；UTF-8 解码替换字符检测。
 - **提交体验**：提交消息模板（`{path}`、`{oldPath}`、`{newPath}`、`{dir}`、`{name}`、`{date}`、`{action}`）；提交前确认；提交小票（sha、路径、时间、GitHub 链接）；API 配额显示。
 - **真实 / 演示双模式**：`?demo=1` 使用内存 fixture，不联网、不写仓库，适合评审 UI 和录屏。
 - **保险库**：PAT 以 AES-GCM-256 加密后写 localStorage；密钥由 PBKDF2-SHA256（600k 次）派生；设备指纹（FingerprintJS）自动解锁；可选密码，支持「密码 + 设备」双因子；内存会话令牌；锁定清空。
-- **设置**：根目录、扩展名、排除规则、时区、提交模板、字号/行号、保存时更新 `updated`、自动锁定、密码更换、重置保险库。
+- **设置**：根目录、扩展名、排除规则、时区、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、自动锁定、密码更换、重置保险库。
 - **响应式**：桌面双栏、移动端抽屉索引；`prefers-reduced-motion` 降级。
 
 ## 快速开始
@@ -56,9 +56,9 @@ pnpm dev
 ## 内容与提交规则
 
 - **可见文件**：根目录下、扩展名匹配、且不命中排除规则的文件。排除支持目录前缀与 glob（如 `src/content/blog/en`、`src/content/**/draft/**`）。
-- **frontmatter**：只改表单里变化的键；未识别字段、注释行、键顺序尽量原样保留。保存时按原文件的换行风格重新拼接。
-- **新建**：标题生成文件名（可手改），目录从现有文件夹中选择或直接输入；frontmatter 模板来自设置。提交消息用 `create` 模板。
-- **保存**：带上次读到的 blob sha 写入；远端已变化时返回 409，应用显示冲突对话框，不会静默覆盖。
+- **frontmatter**：编辑器表单由设置中的字段列表动态生成；字段类型、必填、增删都在设置页维护。只改表单里变化的键；未识别字段、注释行、键顺序尽量原样保留。保存时按原文件的换行风格重新拼接。
+- **新建**：标题生成文件名（可手改），目录从现有文件夹中选择或直接输入；生成初始 frontmatter 后进入**本地草稿**。此时不会写仓库；盖章保存时才用 `create` 模板做唯一一次创建提交。刷新/直接打开链接不会创建空文件。
+- **保存**：带上次读到的 blob sha 写入；远端已变化时返回 409，应用显示冲突对话框，不会静默覆盖。新建路径若在草稿期间被远端占用，保存会提示换路径并保留草稿。
 - **移动**：读取旧 blob → 建新树 → 新提交（父提交为当前 HEAD）→ 更新分支 ref；一个提交完成，不会出现「先加后删」的中间状态。
 - **删除**：创建一个删除提交；Git 历史仍可恢复。
 - **提交消息占位符**：`{path}` 目标路径、`{oldPath}`、`{newPath}`、`{dir}` 所在目录、`{name}` 不含扩展名、`{date}` 按设置时区、`{action}`。未知占位符保留原文并在设置页给出预览。
@@ -78,21 +78,22 @@ pnpm dev
 ```bash
 cp .env.example .env.local   # 填入测试 PAT / 仓库
 pnpm test:seed               # 测试仓库为空时也能创建首个提交
-pnpm test                    # 25 个单元测试（路径、frontmatter、编码、vault、预览）
+pnpm test                    # 37 个单元测试（路径、frontmatter 字段、编码、vault、预览）
 pnpm test:live               # 6 个真实 GitHub 集成测试（会创建/移动/删除 src/_e2e/*，最后清理）
-pnpm test:e2e                # 3 个 Playwright 浏览器测试（setup + demo + live；需 .env.local）
+pnpm test:e2e                # 6 个 Playwright 测试（1 setup + 3 demo + 2 live；需 .env.local）
 pnpm test:clean              # 兜底清理 src/_e2e/*
 pnpm verify                  # typecheck + lint + unit + build
 ```
 
-- 单元测试覆盖：排除规则、树模型、提交模板、frontmatter 解析/回写/CRLF/注释保留、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法。
+- 单元测试覆盖：排除规则、树模型、提交模板、frontmatter 解析/回写/CRLF/注释保留、字段定义/类型/必填/删除、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法。
 - Live 测试覆盖：真实仓库读、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射。
+- E2E 覆盖：demo 工作台保存、设置中增删字段并反映到编辑器、新稿本地起草后一次创建；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、真实文件保存与回执。
 - 测试结束请**轮换测试 token**；`.env.local` 不要提交。
 
 **手动 E2E 清单**（或用 `pnpm test:e2e`，见下）：
 
 1. `?demo=1` 打开工作台；展开索引、打开一篇笔记；改正文/标题；盖章保存；回工作台看提交小票。
-2. 新建文章 → 检查目录、文件名、frontmatter、提交模板；打开新文件。
+2. 新建文章 → 检查目录、文件名、初始字段；确认此时仓库没有新文件；在编辑器盖章后才出现一次创建提交。
 3. 设置 → 改提交模板/字号 → 保存；回工作台确认预览变化。
 4. 真实模式：连接测试仓库 → 打开 `便笺-测试.md`（CRLF）→ 保存 → 回工作台看 GitHub 链接；在设置里锁定 → 重新加载 → 设备/密码解锁。
 5. 移动/删除对话框；冲突场景（用 GitHub 网页端先改同一文件，再在应用里保存）。
@@ -123,11 +124,12 @@ astro-blog-studio/
 ├─ docs/screenshots/       # 成品截图（demo fixture）
 ├─ scripts/                # 设计台构建、静态预览、测试仓库 seed/clean
 ├─ src/
-│  ├─ components/          # AppShell、文件树、新建对话框、UI 原子
+│  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、UI 原子
 │  ├─ hooks/               # 数据查询、自动锁定
 │  ├─ lib/
 │  │  ├─ config/           # zod 设置 schema、默认值
 │  │  ├─ demo/             # 演示数据
+│  │  ├─ frontmatter/      # 字段定义/默认集/校验/新稿初始文档
 │  │  ├─ gateway/          # GatewayProvider（live/demo）
 │  │  ├─ github/           # LiveGateway（Octokit）、fixture、错误映射
 │  │  ├─ markdown/         # frontmatter 文档模型、marked + DOMPurify 渲染
@@ -136,7 +138,7 @@ astro-blog-studio/
 │  │  ├─ utils/            # 日期、编码、cn
 │  │  └─ vault/            # WebCrypto 加解密、设备指纹、会话、keystore
 │  ├─ pages/               # 工作台、编辑器、设置、Setup、Unlock
-│  ├─ stores/              # settings / vault / ui / rate-limit / editor guard
+│  ├─ stores/              # settings / vault / ui / rate-limit / editor guard / pending-post
 │  └─ styles/              # Tailwind v4 tokens + abs-* 组件样式
 ├─ tests/
 │  ├─ unit/                # Vitest 单元测试

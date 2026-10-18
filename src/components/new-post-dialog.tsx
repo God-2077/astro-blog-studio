@@ -1,17 +1,15 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { useQueryClient } from '@tanstack/react-query';
 import { FilePlus2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { Field } from '@/components/ui';
+import { buildNewPostDocument } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
-import { mapError } from '@/lib/github/errors';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
-import { joinPath, normalizeRepoPath, withoutExtension } from '@/lib/paths/paths';
+import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
 import { collectFolders, type TreeModel } from '@/lib/tree/model';
 import { formatInTimeZone } from '@/lib/utils/date';
-import { useLastCommit } from '@/stores/last-commit';
+import { usePendingPost } from '@/stores/pending-post';
 import { useSettings } from '@/stores/settings';
 
 function sanitizeFilePart(value: string): string {
@@ -31,16 +29,14 @@ export function NewPostDialog({
   onOpenChange: (open: boolean) => void;
   model: TreeModel | null;
 }) {
-  const { gateway, repo, config, key } = useGateway();
+  const { config } = useGateway();
   const settings = useSettings();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const setLastCommit = useLastCommit((state) => state.setCommit);
+  const setPendingDraft = usePendingPost((state) => state.setDraft);
   const [title, setTitle] = useState('');
   const [dir, setDir] = useState(settings.editor.defaultDir || config.rootDir);
   const [filename, setFilename] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const folders = useMemo(
     () => (model ? collectFolders(model.nodes).map((folder) => joinPath(config.rootDir, folder.path)) : []),
@@ -52,7 +48,6 @@ export function NewPostDialog({
     setTitle('');
     setFilename('');
     setError(null);
-    setBusy(false);
     const preferred = settings.editor.defaultDir || config.rootDir;
     setDir(folders.includes(preferred) ? preferred : config.rootDir);
   }, [open, settings.editor.defaultDir, config.rootDir, folders]);
@@ -66,15 +61,10 @@ export function NewPostDialog({
       : normalizedDir || config.rootDir;
   const path = joinPath(fullDir, finalFile);
   const date = formatInTimeZone(new Date(), settings.content.timezone);
-  const template = settings.editor.frontmatterTemplate
-    .replaceAll('{title}', title.replaceAll("'", "''"))
-    .replaceAll('{date}', date)
-    .replaceAll('{dir}', fullDir)
-    .replaceAll('{name}', withoutExtension(finalFile));
-
+  const message = renderCommitMessage(settings.commit.create, { path, action: 'create', date });
   const collision = Boolean(model?.files.some((file) => file.path === path));
 
-  const handleCreate = async (): Promise<void> => {
+  const handleCreate = (): void => {
     if (!title.trim()) {
       setError('标题不能为空');
       return;
@@ -87,22 +77,13 @@ export function NewPostDialog({
       setError('这个路径已经有文件了');
       return;
     }
-    setBusy(true);
-    setError(null);
-    try {
-      const message = renderCommitMessage(settings.commit.create, { path, action: 'create', date });
-      const text = `${template.endsWith('\n') ? template : `${template}\n`}\n`;
-      const result = await gateway.writeFile({ path, text, message, branch: repo.defaultBranch });
-      setLastCommit({ sha: result.sha, message: result.message, path, at: Date.now(), htmlUrl: result.htmlUrl });
-      await queryClient.invalidateQueries({ queryKey: ['tree', key] });
-      toast.success('已创建并提交');
-      onOpenChange(false);
-      navigate(`/edit?path=${encodeURIComponent(path)}`);
-    } catch (caught) {
-      setError(mapError(caught).detail ?? mapError(caught).message);
-    } finally {
-      setBusy(false);
-    }
+    const existing = usePendingPost.getState().draft;
+    if (existing && !window.confirm('已经有一篇未提交的新文章草稿，继续会覆盖它。继续吗？')) return;
+
+    const text = buildNewPostDocument(settings.frontmatter.fields, { title: title.trim(), date });
+    setPendingDraft({ path, text });
+    onOpenChange(false);
+    navigate(`/edit?path=${encodeURIComponent(path)}&new=1`);
   };
 
   return (
@@ -114,8 +95,8 @@ export function NewPostDialog({
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">new draft</p>
               <Dialog.Title className="font-display text-[22px] font-bold leading-tight">新建文章</Dialog.Title>
-              <Dialog.Description className="mt-1 text-[11px] text-muted">
-                会直接创建一个提交到 {repo.defaultBranch}；提交消息使用设置里的模板。
+              <Dialog.Description className="mt-1 text-[11px] leading-relaxed text-muted">
+                先在本地起草；盖章时只提交一次，打开编辑器时不会写仓库。
               </Dialog.Description>
             </div>
             <Dialog.Close className="abs-icon-btn" aria-label="关闭">
@@ -156,13 +137,11 @@ export function NewPostDialog({
           </div>
 
           <div className="mt-4 rounded-xl border border-dashed border-line bg-paper-2 px-3 py-2.5">
-            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">将创建</p>
+            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">将创建 · 保存时提交</p>
             <p className="mt-1 break-all font-mono text-[11px] text-ink">{path || '…'}</p>
             <p className="mt-2 text-[10px] text-muted">
               提交消息：
-              <code className="font-mono text-[10px] text-sakura">
-                {renderCommitMessage(settings.commit.create, { path, action: 'create', date })}
-              </code>
+              <code className="font-mono text-[10px] text-sakura">{message}</code>
             </p>
           </div>
 
@@ -174,14 +153,9 @@ export function NewPostDialog({
 
           <div className="mt-5 flex items-center justify-end gap-2">
             <Dialog.Close className="abs-btn abs-btn-ghost h-8 text-[11px]">取消</Dialog.Close>
-            <button
-              type="button"
-              className="abs-btn abs-btn-primary h-8 text-[11px]"
-              onClick={() => void handleCreate()}
-              disabled={busy}
-            >
+            <button type="button" className="abs-btn abs-btn-primary h-8 text-[11px]" onClick={handleCreate}>
               <FilePlus2 aria-hidden className="size-3.5" />
-              {busy ? '创建中…' : '创建并打开'}
+              开始起草
             </button>
           </div>
         </Dialog.Content>

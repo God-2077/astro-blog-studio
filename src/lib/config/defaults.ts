@@ -1,11 +1,5 @@
+import { cloneFrontmatterFields, DEFAULT_FRONTMATTER_FIELDS } from '@/lib/frontmatter/fields';
 import type { Settings } from './schema';
-
-export const DEFAULT_FRONTMATTER_TEMPLATE = `---
-title: '{title}'
-date: '{date}'
-draft: true
----
-`;
 
 export const SUGGESTED_EXCLUDES = ['src/content/blog/en', 'src/content/blog/ja', 'src/pages/en', 'src/pages/ja'];
 
@@ -28,12 +22,14 @@ export const defaultSettings: Settings = {
   editor: {
     defaultDir: 'src/content/blog',
     filenameTemplate: '{title}',
-    frontmatterTemplate: DEFAULT_FRONTMATTER_TEMPLATE,
     updateUpdatedAt: true,
     layout: 'split',
     showLineNumbers: false,
     fontSize: 15,
     externalImages: true,
+  },
+  frontmatter: {
+    fields: cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS),
   },
   appearance: {
     theme: 'native',

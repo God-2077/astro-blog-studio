@@ -1,10 +1,23 @@
 import { z } from 'zod';
+import { DEFAULT_FRONTMATTER_FIELDS, FRONTMATTER_FIELD_TYPES } from '@/lib/frontmatter/fields';
 
 export const repoSchema = z.object({
   owner: z.string().min(1),
   name: z.string().min(1),
   branch: z.string().min(1),
 });
+
+export const frontmatterFieldSchema = z.object({
+  name: z.string().min(1).max(64),
+  type: z.enum(FRONTMATTER_FIELD_TYPES),
+  required: z.boolean(),
+});
+
+export const frontmatterSettingsSchema = z
+  .object({
+    fields: z.array(frontmatterFieldSchema),
+  })
+  .default({ fields: DEFAULT_FRONTMATTER_FIELDS });
 
 export const settingsSchema = z.object({
   version: z.literal(1),
@@ -25,13 +38,13 @@ export const settingsSchema = z.object({
   editor: z.object({
     defaultDir: z.string(),
     filenameTemplate: z.string(),
-    frontmatterTemplate: z.string(),
     updateUpdatedAt: z.boolean(),
     layout: z.enum(['split', 'editor', 'preview']),
     showLineNumbers: z.boolean(),
     fontSize: z.number().min(12).max(20),
     externalImages: z.boolean(),
   }),
+  frontmatter: frontmatterSettingsSchema,
   appearance: z.object({
     theme: z.enum(['native', 'night']),
     motion: z.enum(['full', 'reduced', 'off']),
@@ -48,3 +61,4 @@ export const settingsSchema = z.object({
 
 export type Settings = z.infer<typeof settingsSchema>;
 export type RepoConfig = z.infer<typeof repoSchema>;
+export type FrontmatterSettings = z.infer<typeof frontmatterSettingsSchema>;

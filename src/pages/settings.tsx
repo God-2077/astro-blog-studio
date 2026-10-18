@@ -3,7 +3,14 @@ import { ArrowLeft, KeyRound, LockKeyhole, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
 import { Field } from '@/components/ui';
+import {
+  cloneFrontmatterFields,
+  DEFAULT_FRONTMATTER_FIELDS,
+  normalizeFrontmatterFields,
+  validateFrontmatterFields,
+} from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
 import { rewrapVault } from '@/lib/vault/keystore';
@@ -33,6 +40,8 @@ export function SettingsPage() {
   const [autoLockMinutes, setAutoLockMinutes] = useState(String(settings.security.autoLockMinutes));
   const [newPassword, setNewPassword] = useState('');
   const [requireDevice, setRequireDevice] = useState(settings.security.deviceBindingForPassword);
+  const [fields, setFields] = useState(() => cloneFrontmatterFields(settings.frontmatter.fields));
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [passwordBusy, setPasswordBusy] = useState(false);
 
@@ -41,6 +50,15 @@ export function SettingsPage() {
   const today = new Date().toISOString().slice(0, 10);
 
   const save = async (): Promise<void> => {
+    const issues = validateFrontmatterFields(fields);
+    if (issues.length) {
+      setFieldError(issues.map((issue) => issue.message).join('；'));
+      toast.error('Frontmatter 字段有误，请先修正');
+      return;
+    }
+    setFieldError(null);
+    const normalizedFields = normalizeFrontmatterFields(fields);
+    setFields(normalizedFields);
     setBusy(true);
     try {
       settings.patch({
@@ -71,6 +89,9 @@ export function SettingsPage() {
           updateUpdatedAt,
           fontSize: Math.min(20, Math.max(12, Number(fontSize) || 15)),
           showLineNumbers,
+        },
+        frontmatter: {
+          fields: normalizedFields,
         },
         security: {
           ...settings.security,
@@ -129,6 +150,12 @@ export function SettingsPage() {
     if (!window.confirm('重新配置会删除本机保险库，然后回到首次配置。继续吗？')) return;
     vault.reset();
     navigate('/setup');
+  };
+
+  const resetFields = (): void => {
+    if (!window.confirm('恢复 hello-world 常用字段？当前字段列表会被替换。')) return;
+    setFields(cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS));
+    setFieldError(null);
   };
 
   return (
@@ -196,6 +223,30 @@ export function SettingsPage() {
                 disabled={isDemo}
               />
             </Field>
+          </section>
+
+          <section className="abs-paper relative p-3.5">
+            <span className="abs-tape abs-tape-mint" aria-hidden />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-[16px] font-bold">Frontmatter 字段</h2>
+              <span className="font-mono text-[9px] text-muted">{fields.length} 个字段</span>
+            </div>
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
+              决定编辑器的字段、类型和必填校验；删除字段不会删除已有文件里的键，未配置字段会原样保留。
+            </p>
+            <FrontmatterFieldsEditor
+              fields={fields}
+              onChange={(next) => {
+                setFields(next);
+                setFieldError(null);
+              }}
+              onResetDefaults={resetFields}
+            />
+            {fieldError ? (
+              <p className="mt-2 rounded-lg border border-danger/30 bg-white/70 px-3 py-2 text-[11px] text-danger" role="alert">
+                {fieldError}
+              </p>
+            ) : null}
           </section>
 
           <section className="abs-paper p-3.5">

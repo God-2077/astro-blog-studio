@@ -33,7 +33,9 @@ src/
     app-shell.tsx           顶栏、演示条、桌面索引、移动抽屉、CSS 外框
     protected-layout.tsx    vault 状态 + live/demo GatewayProvider
     tree-panel.tsx          文件树、搜索、排除计数、离开未保存确认
-    new-post-dialog.tsx     新建文章 + create 提交
+    new-post-dialog.tsx     新建文章 → 本地草稿（不写 API）
+    frontmatter-form.tsx    按设置字段配置渲染的动态 frontmatter 表单
+    frontmatter-fields-editor.tsx  设置页的字段增删/类型/必填编辑
     ui.tsx                  Badge / Field / Spinner / ErrorNote / EmptyState / Skeleton
   pages/                    dashboard / editor / settings / setup / unlock
   lib/
@@ -41,13 +43,14 @@ src/
     github/fixture.ts       内存 gateway（demo）
     github/errors.ts        AppError + mapError（唯一错误翻译层）
     gateway/context.tsx     GatewayProvider / DemoGatewayProvider / isDemoRequested
+    frontmatter/fields.ts   字段类型/默认集/校验/form 映射/新稿初始文档
     markdown/document.ts    frontmatter 解析、compose、按 key 回写、EOL/BOM
     markdown/render.ts      marked + katex + DOMPurify + shoka 预处理
     paths/                  normalize / exclusion matcher / commit-message
     tree/model.ts           文件树模型（相对根目录显示，路径保留全路径）
     vault/                  crypto / fingerprint / keystore / session
     demo/fixtures.ts         演示仓库与 12 篇示例
-  stores/                   zustand：settings(persist)、vault、ui、rate-limit、last-commit、editor guard
+  stores/                   zustand：settings(persist)、vault、ui、rate-limit、last-commit、editor guard、pending-post
   styles/app.css            Tailwind v4 tokens + .abs-* 设计系统
 tests/unit | live | e2e
 scripts/                    seed/clean/test-env、design build/serve
@@ -67,13 +70,19 @@ scripts/                    seed/clean/test-env、design build/serve
 3. **内容保真**
    - 保存/移动要保留 CRLF/LF/BOM/结尾换行（`parseDocument` + `composeDocument`）。
    - frontmatter 只改变化的 key；未知字段、注释行尽量原样保留。
-   - 写操作必须带 sha；409 映射为 CONFLICT，不得静默覆盖。
+   - 更新/删除/移动写操作必须带 sha；409 映射为 CONFLICT，不得静默覆盖。新建的首次创建是唯一例外（见提交协议）。
    - 路径一律经 `normalizeRepoPath`；排除规则支持前缀/glob；不信任用户输入。
 4. **提交协议**
+   - 新建文章：对话框只写 `usePendingPost`，**首次保存前禁止任何写 API**；首次 `writeFile` 不带 `sha`，只允许一次创建提交，消息用 `create` 模板；之后保存才带 `sha`、用 `update` 模板。
    - 移动/重命名必须是一个提交（Git Data API：blob → tree → commit → ref）。
    - 提交消息用设置里的模板；未知占位符保留原文。
    - 错误必须走 `mapError` 翻译成用户可执行的中文提示。
-5. **设计**
+5. **Frontmatter 字段**
+   - 字段配置是 `Settings.frontmatter.fields`；编辑器表单、新稿初始 frontmatter、必填校验都从它派生。
+   - 字段名必须通过 `validateFrontmatterFields`；不要硬编码某个字段（title/date 也只是默认 required）。
+   - 删除配置字段不等于删除文件里的键；未知字段保留；空可选字段回写时用 `null` 删除键块。
+   - 不把字段配置写进 `astro-blog` schema；它是应用层表单配置。
+6. **设计**
    - 组件样式优先用 `.abs-*` 设计系统；不要引入通用 SaaS 卡片网格/渐变/玻璃拟态。
    - 编辑器内部保持安静：无纹理、无旋转、无入场动画；动效尊重 `prefers-reduced-motion`。
    - 唯一实心樱粉按钮是「新建文章」；印章是唯一的红。
@@ -83,8 +92,8 @@ scripts/                    seed/clean/test-env、design build/serve
 
 1. `pnpm test:seed`（测试仓库为空或需要恢复种子）。
 2. `pnpm test` / `pnpm test:live`；live 会创建 `src/_e2e/<runId>/*` 并自动清理。
-3. `pnpm test:e2e`：setup 建本地加密保险库（`tests/e2e/.auth/`，已 gitignore），demo 验证 fixture，live 创建/清理 `src/_e2e/*`。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。
-4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；移动/删除/冲突；390px。
+3. `pnpm test:e2e`：setup 建本地加密保险库（`tests/e2e/.auth/`，已 gitignore），demo 验证 fixture/字段配置/新稿草稿，live 创建/清理 `src/_e2e/*`，并断言新稿保存前 404、保存后单提交。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。
+4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；移动/删除/冲突；390px。
 5. `pnpm verify`；`pnpm test:clean`；轮换测试 token。
 
 ## 代码风格

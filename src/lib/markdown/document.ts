@@ -175,6 +175,10 @@ export function updateFrontmatterRaw(raw: string, patch: Record<string, unknown>
     if (value === undefined) continue;
     const ranges = collectKeyRanges(lines);
     const existing = ranges.find((range) => range.key === key);
+    if (value === null) {
+      if (existing) lines.splice(existing.start, existing.end - existing.start);
+      continue;
+    }
     const replacement = serializeFieldLines(key, value);
     if (existing) {
       const block = lines.slice(existing.start, existing.end);

@@ -9,8 +9,15 @@ import { ArrowLeft, ArrowUpRight, Check, FileWarning, MoveRight, Trash2, X } fro
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { FrontmatterForm } from '@/components/frontmatter-form';
 import { Badge, ErrorNote, Field, Spinner } from '@/components/ui';
 import { useFile } from '@/hooks/use-data';
+import {
+  buildFrontmatterPatch,
+  type FrontmatterFormValue,
+  type FrontmatterFormValues,
+  formValuesFromData,
+} from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { mapError } from '@/lib/github/errors';
 import { composeDocument, type DocumentMeta, parseDocument, updateFrontmatterRaw } from '@/lib/markdown/document';
@@ -20,72 +27,8 @@ import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
 import { formatInTimeZone } from '@/lib/utils/date';
 import { useEditorGuard } from '@/stores/editor';
 import { useLastCommit } from '@/stores/last-commit';
+import { usePendingPost } from '@/stores/pending-post';
 import { useSettings } from '@/stores/settings';
-
-interface FrontForm {
-  title: string;
-  date: string;
-  updated: string;
-  categories: string;
-  tags: string;
-  draft: boolean;
-  sticky: boolean;
-}
-
-const KNOWN_FIELDS = new Set(['title', 'date', 'updated', 'categories', 'tags', 'draft', 'sticky']);
-
-function asString(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
-function categoriesToString(value: unknown): string {
-  if (!Array.isArray(value)) return '';
-  if (value.length === 1 && Array.isArray(value[0])) {
-    return (value[0] as unknown[]).filter((part): part is string => typeof part === 'string').join(' > ');
-  }
-  return value.filter((part): part is string => typeof part === 'string').join(', ');
-}
-
-function tagsToString(value: unknown): string {
-  return Array.isArray(value) ? value.filter((part): part is string => typeof part === 'string').join(', ') : '';
-}
-
-function formFromData(data: Record<string, unknown>): FrontForm {
-  return {
-    title: asString(data.title),
-    date: asString(data.date),
-    updated: asString(data.updated),
-    categories: categoriesToString(data.categories),
-    tags: tagsToString(data.tags),
-    draft: data.draft === true,
-    sticky: data.sticky === true,
-  };
-}
-
-function parseCategories(value: string): string[] | string[][] | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  if (trimmed.includes('>')) {
-    const path = trimmed
-      .split('>')
-      .map((part) => part.trim())
-      .filter(Boolean);
-    return path.length ? [path] : undefined;
-  }
-  const list = trimmed
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-  return list.length ? list : undefined;
-}
-
-function parseTags(value: string): string[] | undefined {
-  const list = value
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-  return list.length ? list : undefined;
-}
 
 function editorTheme(fontSize: number): ReturnType<typeof EditorView.theme> {
   return EditorView.theme(
@@ -112,29 +55,26 @@ function editorTheme(fontSize: number): ReturnType<typeof EditorView.theme> {
 export function EditorPage() {
   const [params] = useSearchParams();
   const path = params.get('path');
+  const isNew = params.get('new') === '1';
   const navigate = useNavigate();
   const { gateway, repo, config, key, mode } = useGateway();
   const settings = useSettings();
+  const fields = settings.frontmatter.fields;
   const queryClient = useQueryClient();
   const setLastCommit = useLastCommit((state) => state.setCommit);
-  const file = useFile(path);
+  const pendingDraft = usePendingPost((state) => state.draft);
+  const file = useFile(isNew ? null : path);
 
   const [body, setBody] = useState('');
   const [rawInner, setRawInner] = useState('');
   const [hasFrontmatter, setHasFrontmatter] = useState(true);
   const [meta, setMeta] = useState<DocumentMeta>({ eol: '\n', mixed: false, bom: false, trailingNewline: true });
-  const [form, setForm] = useState<FrontForm>({
-    title: '',
-    date: '',
-    updated: '',
-    categories: '',
-    tags: '',
-    draft: false,
-    sticky: false,
-  });
+  const [form, setForm] = useState<FrontmatterFormValues>({});
   const [originalData, setOriginalData] = useState<Record<string, unknown>>({});
   const [loadedSha, setLoadedSha] = useState('');
   const [fmError, setFmError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [draftLost, setDraftLost] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [stamping, setStamping] = useState(false);
@@ -147,31 +87,42 @@ export function EditorPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
-    if (!file.data || !path) return;
-    const parsed = parseDocument(file.data.text);
+    if (!path) return;
+    const source = isNew ? pendingDraft : file.data ? { path: file.data.path, text: file.data.text } : null;
+    if (isNew && (!source || source.path !== path)) {
+      setDraftLost(true);
+      return;
+    }
+    if (!source) return;
+
+    const parsed = parseDocument(source.text);
+    setDraftLost(false);
     setRawInner(parsed.frontmatterRaw);
     setHasFrontmatter(parsed.hasFrontmatter);
     setMeta(parsed.meta);
     setBody(parsed.body.replace(/\r\n?/g, '\n'));
-    setForm(formFromData(parsed.data));
+    setForm(formValuesFromData(fields, parsed.data));
     setOriginalData(parsed.data);
     setFmError(parsed.frontmatterError ?? null);
-    setLoadedSha(file.data.sha);
-    setDirty(false);
+    setFieldErrors({});
+    setLoadedSha(isNew ? '' : (file.data?.sha ?? ''));
+    setDirty(isNew);
     setConflictOpen(false);
     setSaveOpen(false);
-  }, [file.data, path]);
+  }, [isNew, pendingDraft, file.data, path, fields]);
 
   useEffect(() => {
     if (!path) return;
+    const template = isNew ? settings.commit.create : settings.commit.update;
+    const action = isNew ? 'create' : 'update';
     setMessage(
-      renderCommitMessage(settings.commit.update, {
+      renderCommitMessage(template, {
         path,
-        action: 'update',
+        action,
         date: formatInTimeZone(new Date(), config.timezone),
       }),
     );
-  }, [path, settings.commit.update, config.timezone]);
+  }, [path, isNew, settings.commit.create, settings.commit.update, config.timezone]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -188,108 +139,111 @@ export function EditorPage() {
     return () => useEditorGuard.getState().setDirty(false);
   }, [dirty]);
 
-  const extraFields = useMemo(() => Object.keys(originalData).filter((field) => !KNOWN_FIELDS.has(field)), [originalData]);
+  const extraFields = useMemo(() => {
+    const configured = new Set(fields.map((field) => field.name));
+    return Object.keys(originalData).filter((field) => !configured.has(field));
+  }, [originalData, fields]);
 
-  const buildText = (): string => {
-    if (fmError) {
-      return composeDocument({ meta, frontmatterRaw: rawInner, body, includeFrontmatter: hasFrontmatter });
-    }
-    const original = originalData;
-    const patch: Record<string, unknown> = {};
-    if (form.title !== asString(original.title)) patch.title = form.title;
-    if (form.date !== asString(original.date)) patch.date = form.date;
-    if (form.updated !== asString(original.updated)) patch.updated = form.updated;
-    if (
-      form.categories !==
-      (Array.isArray(original.categories)
-        ? original.categories.length === 1 && Array.isArray(original.categories[0])
-          ? (original.categories[0] as string[]).join(' > ')
-          : (original.categories as string[]).join(', ')
-        : '')
-    ) {
-      const categories = parseCategories(form.categories);
-      if (categories) patch.categories = categories;
-    }
-    if (form.tags !== tagsToString(original.tags)) {
-      const tags = parseTags(form.tags);
-      if (tags) patch.tags = tags;
-    }
-    if (form.draft !== (original.draft === true)) patch.draft = form.draft;
-    if (form.sticky !== (original.sticky === true)) patch.sticky = form.sticky;
-    if (settings.editor.updateUpdatedAt && dirty && form.updated === asString(original.updated)) {
-      patch.updated = formatInTimeZone(new Date(), config.timezone);
-    }
-    const raw = updateFrontmatterRaw(rawInner, patch);
-    return composeDocument({
-      meta,
-      frontmatterRaw: raw,
-      body,
-      includeFrontmatter: hasFrontmatter || Object.keys(patch).length > 0,
-    });
-  };
+  const isTrue = (name: string): boolean => form[name] === true;
 
   const markDirty = (): void => {
     setDirty(true);
     setSaveOpen(false);
   };
 
-  const updateForm = <Key extends keyof FrontForm>(field: Key, value: FrontForm[Key]): void => {
-    setForm((previous) => ({ ...previous, [field]: value }));
+  const updateField = (name: string, value: FrontmatterFormValue): void => {
+    setForm((previous) => ({ ...previous, [name]: value }));
+    setFieldErrors((previous) => {
+      if (!previous[name]) return previous;
+      const next = { ...previous };
+      delete next[name];
+      return next;
+    });
     markDirty();
   };
 
-  const applySaved = async (
-    resultSha: string,
-    contentSha: string | undefined,
-    text: string,
-    htmlUrl?: string,
-  ): Promise<void> => {
+  const buildText = (): { text: string; errors: Record<string, string> } => {
+    if (fmError) {
+      return {
+        text: composeDocument({ meta, frontmatterRaw: rawInner, body, includeFrontmatter: hasFrontmatter }),
+        errors: {},
+      };
+    }
+    const autoUpdatedAt = settings.editor.updateUpdatedAt && dirty ? formatInTimeZone(new Date(), config.timezone) : undefined;
+    const { patch, errors } = buildFrontmatterPatch(fields, form, originalData, { autoUpdatedAt });
+    if (Object.keys(errors).length) return { text: '', errors };
+    const raw = updateFrontmatterRaw(rawInner, patch);
+    return {
+      text: composeDocument({
+        meta,
+        frontmatterRaw: raw,
+        body,
+        includeFrontmatter: hasFrontmatter || Object.keys(patch).length > 0,
+      }),
+      errors: {},
+    };
+  };
+
+  const applySaved = async (result: { sha: string; contentSha?: string; htmlUrl?: string }, text: string): Promise<void> => {
+    const wasNew = isNew;
     setDirty(false);
     setSaveOpen(false);
     setConflictOpen(false);
-    if (contentSha) {
-      setLoadedSha(contentSha);
+    setFieldErrors({});
+    if (result.contentSha) setLoadedSha(result.contentSha);
+    if (path) {
       queryClient.setQueryData(['file', key, path], {
-        path: path as string,
+        path,
         text,
-        sha: contentSha,
+        sha: result.contentSha ?? loadedSha,
         size: new Blob([text]).size,
       });
     }
     await queryClient.invalidateQueries({ queryKey: ['tree', key] });
     setLastCommit({
-      sha: resultSha,
+      sha: result.sha,
       message,
       path: path ?? '',
       at: Date.now(),
-      ...(htmlUrl ? { htmlUrl } : {}),
+      ...(result.htmlUrl ? { htmlUrl: result.htmlUrl } : {}),
     });
-    toast.success('已提交 · 1 个提交');
+    if (wasNew) {
+      navigate(`/edit?path=${encodeURIComponent(path ?? '')}`, { replace: true });
+      usePendingPost.getState().clearDraft();
+      toast.success('已创建并提交 · 1 个提交');
+    } else {
+      toast.success('已提交 · 1 个提交');
+    }
   };
 
   const performSave = async (overrideSha?: string): Promise<void> => {
     if (!path) return;
-    if (!fmError && !form.title.trim()) {
-      toast.error('title 不能为空');
+    const { text, errors } = buildText();
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      toast.error('请先修正 frontmatter 字段', { description: '有必填字段为空或格式不正确。' });
       return;
     }
     setSaving(true);
     setStamping(true);
     window.setTimeout(() => setStamping(false), 900);
     try {
-      const text = buildText();
       const result = await gateway.writeFile({
         path,
         text,
         message,
         branch: repo.defaultBranch,
-        sha: overrideSha ?? loadedSha,
+        ...(isNew ? {} : { sha: overrideSha ?? loadedSha }),
       });
-      await applySaved(result.sha, result.contentSha, text, result.htmlUrl);
+      await applySaved(result, text);
     } catch (caught) {
       const error = mapError(caught);
       if (error.code === 'CONFLICT') {
-        setConflictOpen(true);
+        if (isNew) {
+          toast.error('远端已经有同名文件', { description: '请回到工作台换一个文件名或路径；当前草稿仍保留。' });
+        } else {
+          setConflictOpen(true);
+        }
       } else {
         toast.error(error.message, { description: error.detail });
       }
@@ -304,14 +258,15 @@ export function EditorPage() {
   };
 
   const handleOverwrite = async (): Promise<void> => {
-    if (!path) return;
-    if (!fmError && !form.title.trim()) {
-      toast.error('title 不能为空');
+    if (!path || isNew) return;
+    const { text, errors } = buildText();
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      toast.error('请先修正 frontmatter 字段');
       return;
     }
     try {
       const latest = await gateway.readFile(path);
-      const text = buildText();
       const result = await gateway.writeFile({
         path,
         text,
@@ -319,7 +274,7 @@ export function EditorPage() {
         branch: repo.defaultBranch,
         sha: latest.sha,
       });
-      await applySaved(result.sha, result.contentSha ?? latest.sha, text, result.htmlUrl);
+      await applySaved(result, text);
       toast.success('已覆盖远端并提交');
     } catch (caught) {
       toast.error(mapError(caught).message);
@@ -327,7 +282,7 @@ export function EditorPage() {
   };
 
   const handleDelete = async (): Promise<void> => {
-    if (!path) return;
+    if (!path || isNew) return;
     try {
       await gateway.deleteFile({
         path,
@@ -348,7 +303,7 @@ export function EditorPage() {
   };
 
   const handleMove = async (): Promise<void> => {
-    if (!path) return;
+    if (!path || isNew) return;
     const target = joinPath(normalizeRepoPath(moveTarget));
     if (!target || target === path) {
       setMoveError('请输入不同的目标路径');
@@ -356,7 +311,11 @@ export function EditorPage() {
     }
     setMoveError(null);
     try {
-      const text = buildText();
+      const { text, errors } = buildText();
+      if (Object.keys(errors).length) {
+        setMoveError('请先修正 frontmatter 字段');
+        return;
+      }
       const result = await gateway.moveFile({
         from: path,
         to: target,
@@ -389,7 +348,23 @@ export function EditorPage() {
 
   if (!path) return <Navigate to="/" replace />;
 
-  if (file.isLoading) {
+  if (isNew && draftLost) {
+    return (
+      <div className="abs-paper mx-auto max-w-[620px] p-6">
+        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">draft lost</p>
+        <h1 className="mt-1 font-display text-[24px] font-bold">新文章草稿已丢失</h1>
+        <p className="mt-2 text-[11.5px] leading-relaxed text-muted">
+          新文章草稿只保存在创建它的标签页里。刷新或直接打开这个链接后，草稿不会再恢复，也不会在仓库里留下空文件。
+        </p>
+        <button type="button" className="abs-btn abs-btn-primary mt-4 text-[11px]" onClick={() => navigate('/')}>
+          <ArrowLeft aria-hidden className="size-3.5" />
+          回到工作台重新新建
+        </button>
+      </div>
+    );
+  }
+
+  if (!isNew && file.isLoading) {
     return (
       <div className="abs-paper p-6">
         <Spinner label="读取文件" />
@@ -397,7 +372,7 @@ export function EditorPage() {
     );
   }
 
-  if (file.error) {
+  if (!isNew && file.error) {
     return (
       <div className="space-y-3">
         <ErrorNote error={file.error} onRetry={() => void file.refetch()} />
@@ -412,8 +387,16 @@ export function EditorPage() {
   const rendered = renderMarkdown(body);
   const words = body.replace(/\s+/g, '').length;
   const fileName = path.slice(path.lastIndexOf('/') + 1);
-  const githubUrl = `${repo.htmlUrl}/blob/${repo.defaultBranch}/${path.split('/').map(encodeURIComponent).join('/')}`;
+  const githubUrl = isNew
+    ? undefined
+    : `${repo.htmlUrl}/blob/${repo.defaultBranch}/${path.split('/').map(encodeURIComponent).join('/')}`;
   const isDemo = mode === 'demo';
+  const hasUpdatedField = fields.some((field) => field.name === 'updated' && field.type === 'date');
+  const updatedFieldHint = fieldErrors.updated
+    ? '格式错误'
+    : settings.editor.updateUpdatedAt
+      ? '未填写会自动更新'
+      : '按输入保存';
 
   return (
     <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -435,39 +418,56 @@ export function EditorPage() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h1 className="truncate font-display text-[18px] font-bold leading-tight">{fileName}</h1>
-                  {dirty ? <Badge tone="blush">未保存</Badge> : <Badge tone="mint">已保存</Badge>}
-                  {form.draft ? <Badge tone="butter">草稿</Badge> : null}
-                  {form.sticky ? <Badge tone="mint">置顶</Badge> : null}
+                  {isNew ? (
+                    <Badge tone="blush">未提交</Badge>
+                  ) : dirty ? (
+                    <Badge tone="blush">未保存</Badge>
+                  ) : (
+                    <Badge tone="mint">已保存</Badge>
+                  )}
+                  {isTrue('draft') ? <Badge tone="butter">草稿</Badge> : null}
+                  {isTrue('sticky') ? <Badge tone="mint">置顶</Badge> : null}
                   {fmError ? <Badge tone="blush">YAML 异常</Badge> : null}
                 </div>
                 <p className="mt-0.5 truncate font-mono text-[9px] text-muted">{path}</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <a className="abs-btn abs-btn-ghost h-8 text-[10.5px]" href={githubUrl} target="_blank" rel="noreferrer noopener">
-                GitHub
-                <ArrowUpRight aria-hidden className="size-3" />
-              </a>
-              <button
-                type="button"
-                className="abs-btn abs-btn-ghost h-8 text-[10.5px]"
-                onClick={() => {
-                  setMoveTarget(path);
-                  setMoveError(null);
-                  setMoveOpen(true);
-                }}
-              >
-                <MoveRight aria-hidden className="size-3" />
-                移动
-              </button>
-              <button
-                type="button"
-                className="abs-btn abs-btn-ghost h-8 border-danger/40 text-[10.5px] text-danger"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 aria-hidden className="size-3" />
-                删除
-              </button>
+              {githubUrl ? (
+                <a
+                  className="abs-btn abs-btn-ghost h-8 text-[10.5px]"
+                  href={githubUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  GitHub
+                  <ArrowUpRight aria-hidden className="size-3" />
+                </a>
+              ) : null}
+              {!isNew ? (
+                <>
+                  <button
+                    type="button"
+                    className="abs-btn abs-btn-ghost h-8 text-[10.5px]"
+                    onClick={() => {
+                      setMoveTarget(path);
+                      setMoveError(null);
+                      setMoveOpen(true);
+                    }}
+                  >
+                    <MoveRight aria-hidden className="size-3" />
+                    移动
+                  </button>
+                  <button
+                    type="button"
+                    className="abs-btn abs-btn-ghost h-8 border-danger/40 text-[10.5px] text-danger"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 aria-hidden className="size-3" />
+                    删除
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
         </header>
@@ -477,7 +477,7 @@ export function EditorPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">frontmatter</span>
             <span className="font-mono text-[9px] text-muted">
-              {hasFrontmatter ? `${Object.keys(originalData).length} fields` : '无（保存时创建）'}
+              {isNew ? '新文件 · 保存时创建' : hasFrontmatter ? `${Object.keys(originalData).length} fields` : '无'}
               {extraFields.length ? ` · ${extraFields.length} 个未知字段保留` : ''}
             </span>
           </div>
@@ -500,58 +500,14 @@ export function EditorPage() {
               <p className="text-[10px] text-muted">修好 YAML 后保存；正文改动会原样保留。</p>
             </div>
           ) : (
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <Field label="title" className="sm:col-span-2">
-                <input className="abs-input" value={form.title} onChange={(event) => updateForm('title', event.target.value)} />
-              </Field>
-              <Field label="date">
-                <input
-                  className="abs-input"
-                  value={form.date}
-                  onChange={(event) => updateForm('date', event.target.value)}
-                  placeholder="2024-07-21 20:10:28"
-                />
-              </Field>
-              <Field label="updated">
-                <input
-                  className="abs-input"
-                  value={form.updated}
-                  onChange={(event) => updateForm('updated', event.target.value)}
-                  placeholder="留空则按设置自动更新"
-                />
-              </Field>
-              <Field label="categories" hint="用 > 表示层级，或用逗号分隔多个">
-                <input
-                  className="abs-input"
-                  value={form.categories}
-                  onChange={(event) => updateForm('categories', event.target.value)}
-                />
-              </Field>
-              <Field label="tags" hint="逗号分隔">
-                <input className="abs-input" value={form.tags} onChange={(event) => updateForm('tags', event.target.value)} />
-              </Field>
-              <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
-                <label className="flex items-center gap-1.5 text-[11px]">
-                  <input
-                    type="checkbox"
-                    className="size-3.5 accent-[var(--abs-sakura)]"
-                    checked={form.draft}
-                    onChange={(event) => updateForm('draft', event.target.checked)}
-                  />
-                  草稿
-                </label>
-                <label className="flex items-center gap-1.5 text-[11px]">
-                  <input
-                    type="checkbox"
-                    className="size-3.5 accent-[var(--abs-sakura)]"
-                    checked={form.sticky}
-                    onChange={(event) => updateForm('sticky', event.target.checked)}
-                  />
-                  置顶
-                </label>
-                <span className="font-mono text-[9px] text-muted">{meta.eol === '\r\n' ? 'CRLF' : 'LF'} 保留</span>
+            <>
+              <FrontmatterForm fields={fields} values={form} errors={fieldErrors} onChange={updateField} />
+              <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-[9px] text-muted">
+                <span>{meta.eol === '\r\n' ? 'CRLF' : 'LF'} 保留</span>
+                {hasUpdatedField ? <span>{updatedFieldHint}</span> : null}
+                {isNew ? <span className="text-sakura">首次保存只调用一次创建 API</span> : null}
               </div>
-            </div>
+            </>
           )}
         </section>
 
@@ -593,7 +549,9 @@ export function EditorPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {dirty ? (
+              {isNew ? (
+                <span className="text-[10px] font-bold text-sakura">未提交</span>
+              ) : dirty ? (
                 <span className="text-[10px] font-bold text-sakura">未保存</span>
               ) : (
                 <span className="text-[10px] text-muted">已保存</span>
@@ -611,7 +569,7 @@ export function EditorPage() {
                       }
                     }}
                     disabled={saving || !repo.canPush}
-                    aria-label="保存并提交"
+                    aria-label={isNew ? '创建并提交' : '保存并提交'}
                   >
                     盖 章
                     <br />保 存
@@ -637,7 +595,7 @@ export function EditorPage() {
                       aria-label="提交消息"
                     />
                     <p className="mt-1.5 font-mono text-[9px] text-muted">
-                      {repo.defaultBranch} · 1 个提交 · {dirty ? '含未保存修改' : '无改动'}
+                      {repo.defaultBranch} · {isNew ? '将创建 1 个提交' : '1 个提交'} · {dirty ? '含未保存修改' : '无改动'}
                     </p>
                     <button
                       type="button"
@@ -646,7 +604,7 @@ export function EditorPage() {
                       disabled={saving}
                     >
                       <Check aria-hidden className="size-3.5" />
-                      {saving ? '提交中…' : '确认盖章'}
+                      {saving ? '提交中…' : isNew ? '确认创建' : '确认盖章'}
                     </button>
                   </Popover.Content>
                 </Popover.Portal>

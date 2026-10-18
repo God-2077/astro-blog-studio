@@ -33,7 +33,7 @@ export default defineConfig({
     },
     {
       name: 'live',
-      testMatch: /studio\.live\.spec\.ts/,
+      testMatch: /(studio\.live|new-post\.live)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], channel: 'msedge', storageState: authFile },
     },

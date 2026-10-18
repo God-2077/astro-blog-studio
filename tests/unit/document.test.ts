@@ -54,4 +54,14 @@ describe('frontmatter document handling', () => {
     expect(next).toContain("title: 'it''s a title'");
     expect(next).toContain("date: '2026-01-01 00:00:00'");
   });
+
+  it('removes a key block when the patch value is null', () => {
+    const raw = "title: 'x'\n# keep this\ntags:\n- a\n- b\nlegacy: keep";
+    const next = updateFrontmatterRaw(raw, { tags: null });
+    expect(next).not.toContain('tags:');
+    expect(next).not.toContain('- a');
+    expect(next).toContain('# keep this');
+    expect(next).toContain('legacy: keep');
+    expect(updateFrontmatterRaw(raw, { missing: null })).toBe(raw);
+  });
 });
