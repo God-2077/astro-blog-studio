@@ -24,6 +24,10 @@ test.describe('demo mode', () => {
     await page.getByRole('button', { name: '确认盖章' }).click();
     await expect(page.getByText('已提交 · 1 个提交')).toBeVisible();
 
+    // toast 右侧的 X 可以立即关闭提示，不必等自动消失。
+    await page.getByRole('button', { name: '关闭提示' }).click();
+    await expect(page.getByText('已提交 · 1 个提交')).toBeHidden();
+
     await page.locator('.abs-brand').click();
     await expect(page.getByText('已归档')).toBeVisible();
     await expect(page.locator('.abs-receipt')).toContainText('in-memory');

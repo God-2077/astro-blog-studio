@@ -107,7 +107,7 @@ pnpm verify                  # typecheck + lint + unit + build
 
 - 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、全库 frontmatter 索引与限流、更新检查的节流/并发/失败静默。
 - Live 测试覆盖：真实仓库读、批量读取（含 CJK 路径）、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射。
-- E2E 覆盖：demo 工作台保存、dashboard 全库 frontmatter 排序、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执；PWA 组验证 manifest/图标/SW 注册、断网从预缓存打开且 CacheStorage 里没有 `api.github.com`、新版本 waiting 时弹窗 → 「稍后」→ 顶栏徽标 → 「立即刷新」才 reload。
+- E2E 覆盖：demo 工作台保存（含 toast X 关闭）、dashboard 全库 frontmatter 排序、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执；PWA 组验证 manifest/图标/SW 注册、断网从预缓存打开且 CacheStorage 里没有 `api.github.com`、新版本 waiting 时弹窗 → 「稍后」→ 顶栏徽标 → 「立即刷新」才 reload。
 - 测试结束请**轮换测试 token**；`.env.local` 不要提交。
 
 **手动 E2E 清单**（或用 `pnpm test:e2e`，见下）：

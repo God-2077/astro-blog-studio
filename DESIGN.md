@@ -97,7 +97,7 @@
 - `.abs-paper` / `.abs-sheet` / `.abs-sticky` / `.abs-receipt` / `.abs-stamp` / `.abs-tape` / `.abs-seal` / `.abs-badge-*` / `.abs-tree-row` / `.abs-input` / `.abs-btn*` / `.abs-seg` / `.abs-progress` 是设计系统组件，集中定义在 `src/styles/app.css`，Tailwind 原子类只做布局与间距。
 - **主题**：`ThemeProvider` 把 `settings.appearance.theme`（`system / day / night`）解析为 `<html data-theme>`；`index.html` 内联脚本在首帧前应用，避免白闪；需要布尔值的组件（CodeMirror 的 dark 主题）用 `useResolvedTheme()`。不新增主题命名空间，也不允许组件里写夜间分支。
 - 状态：Zustand `settings`（persist）、`vault`（不持久化）、`ui`、`rate-limit`、`last-commit`、`editor guard`；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
-- 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。
+- 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。toast 右侧常驻 `.abs-toast-close` X（纸底、1.5px 线边框的 24px 方块，hover 转 ink），点击立即关闭；自动消失与滑动关闭保留。
 - **PWA 更新提示**：`PwaUpdate` 挂在 App 根部（`virtual:pwa-register/react`）。新版本进入 waiting 时用 Radix `AlertDialog` 弹「网站有新版本」，按钮「稍后」（`.abs-btn-ghost`）/「立即刷新」（默认 `.abs-btn`，**不用**实心樱粉——实心樱粉仍只属于「新建文章」）。点过「稍后」后顶栏出现带樱粉圆点的 `.abs-icon-btn`，可再次唤起弹窗；编辑器脏状态时弹窗内多一行 danger 提示，刷新时沿用现有 `beforeunload` 兜底。只有用户点「立即刷新」才整页 reload，**不自动刷新**。`pnpm dev` 不注册 Service Worker，PWA 只在构建产物里可见。
 
 ## 动效

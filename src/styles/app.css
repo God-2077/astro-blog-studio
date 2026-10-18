@@ -1040,3 +1040,41 @@
   overflow-y: hidden;
   padding: 2px 0;
 }
+
+/* toast 的关闭按钮。sonner 在运行时注入无层级的 CSS，这里的覆盖必须同样无层级（不能进 @layer），
+   并靠特异性取胜：基础 (0,4,0) > sonner 的 (0,3,0)，hover (0,6,0) > (0,5,0)。 */
+[data-sonner-toast][data-styled="true"] [data-close-button].abs-toast-close {
+  position: static;
+  order: 1;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--abs-line);
+  border-radius: 8px;
+  background: var(--abs-paper);
+  color: var(--abs-muted);
+  transform: none;
+  transition:
+    border-color 160ms,
+    color 160ms,
+    background 160ms;
+}
+
+[data-sonner-toast][data-styled="true"] [data-close-button].abs-toast-close svg {
+  width: 12px;
+  height: 12px;
+}
+
+[data-sonner-toast][data-styled="true"]:hover [data-close-button].abs-toast-close:hover {
+  border-color: var(--abs-ink);
+  background: var(--abs-blush-2);
+  color: var(--abs-ink);
+}
+
+[data-sonner-toast][data-styled="true"] [data-close-button].abs-toast-close:focus-visible {
+  outline: 2px solid var(--abs-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}

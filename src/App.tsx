@@ -66,8 +66,11 @@ export function App() {
           </HashRouter>
           <Toaster
             position="top-center"
+            closeButton
             toastOptions={{
               className: 'font-body text-[12px]',
+              classNames: { closeButton: 'abs-toast-close' },
+              closeButtonAriaLabel: '关闭提示',
               style: { background: 'var(--abs-paper)', border: '1.5px solid var(--abs-edge)', color: 'var(--abs-ink)' },
             }}
           />
