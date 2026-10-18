@@ -13,3 +13,6 @@ tests/e2e/.auth/
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+# codegraph
+.codegraph/
