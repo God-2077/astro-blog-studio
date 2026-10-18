@@ -22,10 +22,17 @@
     "test:clean": "tsx scripts/cleanup-test-repo.ts",
     "test:live": "vitest run tests/live",
     "test:e2e": "playwright test",
+    "test:e2e:pwa": "playwright test --project=pwa",
+    "pwa:icons": "node scripts/generate-pwa-icons.mjs",
     "design:build": "node scripts/build-directions.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
+    "@codemirror/lang-markdown": "^6.3.4",
+    "@codemirror/language-data": "^6.5.1",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.6",
+    "@fingerprintjs/fingerprintjs": "^5.3.0",
     "@fontsource-variable/baloo-2": "^5.0.0",
     "@fontsource/sometype-mono": "^5.0.0",
     "@hookform/resolvers": "^5.2.2",
@@ -40,10 +47,6 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-query": "^5.90.2",
     "@uiw/react-codemirror": "^4.25.12",
-    "@codemirror/lang-markdown": "^6.3.4",
-    "@codemirror/language-data": "^6.5.1",
-    "@codemirror/state": "^6.5.2",
-    "@codemirror/view": "^6.38.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -68,12 +71,12 @@
     "transliteration": "^2.6.1",
     "yaml": "^2.8.2",
     "zod": "^3.25.76",
-    "zustand": "^5.0.8",
-    "@fingerprintjs/fingerprintjs": "^5.3.0"
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.10",
     "@playwright/test": "^1.56.1",
+    "@tailwindcss/vite": "^4.1.17",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -88,10 +91,11 @@
     "fake-indexeddb": "^6.2.4",
     "jsdom": "^26.1.0",
     "tailwindcss": "^4.1.17",
-    "@tailwindcss/vite": "^4.1.17",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.5",
-    "vitest": "^4.0.16"
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^4.0.16",
+    "workbox-window": "^7.4.1"
   }
 }

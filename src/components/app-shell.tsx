@@ -1,4 +1,4 @@
-import { Github, LockKeyhole, Menu, Plus, Settings, Sparkles, X } from 'lucide-react';
+import { Github, LockKeyhole, Menu, Plus, RefreshCw, Settings, Sparkles, X } from 'lucide-react';
 import { type MouseEvent, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { TreePanel } from '@/components/tree-panel';
@@ -7,6 +7,7 @@ import { useTreeModel } from '@/hooks/use-data';
 import { useGateway } from '@/lib/gateway/context';
 import { cn } from '@/lib/utils/cn';
 import { useEditorGuard } from '@/stores/editor';
+import { usePwaUpdate } from '@/stores/pwa';
 import { useRateLimit } from '@/stores/rate-limit';
 import { useUi } from '@/stores/ui';
 import { useVault } from '@/stores/vault';
@@ -21,6 +22,8 @@ export function AppShell() {
   const rate = useRateLimit();
   const lock = useVault((state) => state.lock);
   const dirty = useEditorGuard((state) => state.dirty);
+  const updateReady = usePwaUpdate((state) => state.needRefresh);
+  const reopenUpdate = usePwaUpdate((state) => state.reopenPrompt);
   const activePath = new URLSearchParams(location.search).get('path');
 
   const confirmLeave = (): boolean => !dirty || window.confirm('当前文章有未保存的修改，确定离开吗？');
@@ -107,6 +110,18 @@ export function AppShell() {
           <Link to="/settings" onClick={guardLeave} className="abs-icon-btn" aria-label="设置" title="设置">
             <Settings aria-hidden className="size-3.5" />
           </Link>
+          {updateReady ? (
+            <button
+              type="button"
+              className="abs-icon-btn relative"
+              onClick={reopenUpdate}
+              aria-label="有新版本，查看更新提示"
+              title="有新版本"
+            >
+              <RefreshCw aria-hidden className="size-3.5" />
+              <span aria-hidden className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-sakura" />
+            </button>
+          ) : null}
           {mode === 'live' ? (
             <button type="button" className="abs-icon-btn" onClick={handleLock} aria-label="锁定" title="锁定">
               <LockKeyhole aria-hidden className="size-3.5" />

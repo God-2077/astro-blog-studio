@@ -56,7 +56,7 @@
 
 ### 工作台（`/`）
 
-- 顶栏 2 栏内边距 + 1.5px 墨线 + 纸面：左「樱」印章 + studio/repo，右「新建」、设置、锁定/GitHub。
+- 顶栏 2 栏内边距 + 1.5px 墨线 + 纸面：左「樱」印章 + studio/repo，右「新建」、设置、更新徽标（只在检测到新版本时出现）、锁定/GitHub。
 - 演示模式：顶栏下一条虚线提示条，含「看设置」「退出演示」。
 - 主体 `lg:grid-cols-[252px_1fr]`：
   - **索引卡**（左）：纸面、搜索、目录树、底部排除计数；移动端为抽屉。
@@ -98,12 +98,14 @@
 - **主题**：`ThemeProvider` 把 `settings.appearance.theme`（`system / day / night`）解析为 `<html data-theme>`；`index.html` 内联脚本在首帧前应用，避免白闪；需要布尔值的组件（CodeMirror 的 dark 主题）用 `useResolvedTheme()`。不新增主题命名空间，也不允许组件里写夜间分支。
 - 状态：Zustand `settings`（persist）、`vault`（不持久化）、`ui`、`rate-limit`、`last-commit`、`editor guard`；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
 - 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。
+- **PWA 更新提示**：`PwaUpdate` 挂在 App 根部（`virtual:pwa-register/react`）。新版本进入 waiting 时用 Radix `AlertDialog` 弹「网站有新版本」，按钮「稍后」（`.abs-btn-ghost`）/「立即刷新」（默认 `.abs-btn`，**不用**实心樱粉——实心樱粉仍只属于「新建文章」）。点过「稍后」后顶栏出现带樱粉圆点的 `.abs-icon-btn`，可再次唤起弹窗；编辑器脏状态时弹窗内多一行 danger 提示，刷新时沿用现有 `beforeunload` 兜底。只有用户点「立即刷新」才整页 reload，**不自动刷新**。`pnpm dev` 不注册 Service Worker，PWA 只在构建产物里可见。
 
 ## 动效
 
 - 只用于状态变化：抽屉滑入、弹层出现、印章按下 0.9s、保存时轻微旋转。
 - 时长 150–260ms；spring `cubic-bezier(0.34,1.56,0.64,1)` 只用于贴纸/印章。
 - `prefers-reduced-motion: reduce` 下关闭旋转/位移动画，只保留透明度。
+- 更新弹层沿用 Radix 的默认淡入，不加印章/位移/入场动画；顶栏圆点徽标不做脉冲。
 - 不做页面入场、不做滚动视差、不做自动播放。
 
 ## 无障碍
@@ -126,11 +128,13 @@
 - **frontmatter 字段可配置**：原型是固定字段；实现改为设置中的字段列表（名称/类型/必填），默认参考 hello-world 常用字段，超出字段作为未知字段保留。
 - **夜间模式按实验页落地**：暖墨夜纸、白色索引卡图标、danger 偏橙红与品牌粉分开；采用「跟随系统 + 手动昼夜」，没有做纯黑反转或第二套主题命名空间。实验页见 `design/night-mode.html`。
 - 设计台的「提交小票」在真实模式显示 GitHub 提交链接；demo 显示 `in-memory`。
+- **PWA 与更新提醒**：原型是纯静态页面；实现加了 manifest + Service Worker 预缓存（应用壳、字体、图标），二次打开与弱网/断网打开都读缓存。更新提醒是提醒不是自动升级：新 SW 进入 waiting 后弹窗，只有用户点「立即刷新」才 reload，「稍后」后顶栏留徽标。GitHub API 响应永不进 CacheStorage。
 
 ## 截图出处
 
 - `docs/screenshots/dashboard.png`、`editor.png`、`settings.png`、`mobile.png`：**生产构建**（`pnpm build` + `vite preview`）+ `?demo=1` 固定 fixture，1440px / 390px，2026-10-18，昼间主题。
 - `docs/screenshots/night-dashboard.png`、`night-editor.png`、`night-settings.png`、`night-mobile.png`：同一构建与 fixture 的夜间主题（设置里切「夜」），尺寸同上。
+- `docs/screenshots/pwa-update.png`：同一生产构建 + `?demo=1`，390px 昼间主题，模拟 waiting 新版本时的更新弹窗（顶栏可见带樱粉圆点的刷新徽标）。
 - `design/screenshots/`：决策台四个方向的工作台与对比板，以及夜间模式实验页的截图（`night-*.png`、`tree-icons-night.png`）。
 - 截图不使用真实私有内容；测试仓库只出现在 live 手动验证中，不进入仓库截图。
 - `editor.png`、`night-editor.png` 拍于「表单 / 源文件」切换控件加入之前（编辑器纸头新增分段控件）；重拍前以本文档「编辑器」段为准。
@@ -139,4 +143,6 @@
 
 **PASS（v1 + 字段/新稿 + 夜间模式）**：视觉语言在顶栏、索引、便签、纸张、印章、提交小票、设置/解锁页保持一致；编辑器安静规则成立；移动端可完成「找文件 → 改 → 盖章」；安全路径（设备/密码解锁、冲突、只读、空仓库）有明确反馈。新文章为本地草稿、首次保存单次创建；frontmatter 字段由设置驱动，必填校验和类型化输入可用；未配置字段继续保留。主题可跟随系统或手动固定昼/夜，首帧无白闪，CodeMirror 与预览随主题切换；夜间对比度达标（主文字 12.9:1、辅助 6.37:1、输入边框 3.96:1）。
 
-**未完成/下一步**：图片粘贴上传、跨文件搜索、命令面板、封面/日历视图、PWA、离线草稿、shiki 预览高亮、只读模式的自动探测（目前依赖写操作 403 提示）、新稿跨刷新持久化、昼模式输入框边框与占位符对比度的顺手修正。
+**未完成/下一步**：图片粘贴上传、跨文件搜索、命令面板、封面/日历视图、离线草稿与离线保存队列、shiki 预览高亮、只读模式的自动探测（目前依赖写操作 403 提示）、新稿跨刷新持久化、昼模式输入框边框与占位符对比度的顺手修正。
+
+**PWA（2026-10）**：manifest（name/short_name/display/theme_color/icons 含 maskable）+ Service Worker 预缓存 50 条 ≈ 2.3 MiB（html/js/css/woff2/图标）；断网从预缓存打开工作台；更新弹窗只在 waiting 新版本时出现，只有「立即刷新」会整页 reload，「稍后」后顶栏徽标可再唤起；顶栏在 390px 下仍一行。

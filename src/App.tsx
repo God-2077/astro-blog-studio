@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ProtectedLayout } from '@/components/protected-layout';
+import { PwaUpdate } from '@/components/pwa-update';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Spinner } from '@/components/ui';
 import { DashboardPage } from '@/pages/dashboard';
@@ -35,6 +36,7 @@ export function App() {
     <ErrorBoundary>
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
+          <PwaUpdate />
           <HashRouter>
             <Routes>
               <Route path="/setup" element={<SetupPage />} />

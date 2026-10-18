@@ -25,6 +25,7 @@
 - **保险库**：PAT 以 AES-GCM-256 加密后写 localStorage；密钥由 PBKDF2-SHA256（600k 次）派生；设备指纹（FingerprintJS）自动解锁；可选密码，支持「密码 + 设备」双因子；内存会话令牌；锁定清空。
 - **设置**：根目录、扩展名、排除规则、时区、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、自动锁定、密码更换、重置保险库、外观（跟随系统 / 昼 / 夜）。
 - **响应式**：桌面双栏、移动端抽屉索引；`prefers-reduced-motion` 降级。
+- **PWA**：构建产物带 `manifest.webmanifest` 与 Service Worker，应用壳（HTML/JS/CSS/字体/图标）预缓存，第二次打开与弱网/断网打开都不等网络；检测到新部署时弹窗提示刷新（不自动刷新）。详见 [PWA 与离线](#pwa-与离线)。
 
 ## 快速开始
 
@@ -76,23 +77,37 @@ pnpm dev
 - 预览用 DOMPurify 白名单净化；外链自动 `rel="noreferrer noopener"`；不加载第三方脚本、字体或 iframe。
 - `HashRouter` + 纯静态托管；无后端、无 Cookie、无服务端日志。
 - `.env.local` 只给 Node 测试用，已在 `.gitignore` 中；不要把真实 PAT 写进任何会被提交的文件。
-- 建议部署时加 CSP（至少限制 `script-src 'self'`、`connect-src 'self' https://api.github.com`、`img-src 'self' data: https:`），并保持依赖更新。
+- 建议部署时加 CSP（至少限制 `script-src 'self'`、`connect-src 'self' https://api.github.com`、`img-src 'self' data: https:`、`worker-src 'self'`、`manifest-src 'self'`），并保持依赖更新。
+
+## PWA 与离线
+
+- **可安装**：构建生成 `dist/manifest.webmanifest` 与 `dist/sw.js`；图标在 `public/`（`pnpm pwa:icons` 用零依赖脚本重画 `icon-192`、`icon-512`、`icon-maskable-512`、`apple-touch-icon`，生成结果要一起提交）。`pnpm dev` **不注册** Service Worker，PWA 只在 `pnpm build` + `pnpm preview` 或线上环境生效。
+- **预缓存**：Service Worker 在 `window.load` 之后才注册，避免和首屏资源抢带宽；预缓存入口 HTML、JS/CSS、`woff2` 字体与图标（当前 50 条、约 2.3 MiB，构建日志会打印确切值），`.woff`/`.ttf` 只在旧浏览器需要时按需缓存。首访是后台安装，二次打开、弱网与断网打开都直接读缓存。
+- **不缓存什么**：`api.github.com` 显式 `NetworkOnly`，私有内容与令牌语义都不会写进 CacheStorage。离线时界面能开，但文件树与正文仍然需要联网。
+- **更新提醒**：`sw.js` 内联了预缓存清单，任何构建产物变化都会让浏览器发现新版本；新 SW 进入 waiting 后弹出「网站有新版本」，点「立即刷新」才 reload，点「稍后」收起弹窗、顶栏保留带圆点的刷新按钮。检测时机是每 60s（仅页面可见且在线）+ 回到前台 / 窗口聚焦 / 网络恢复；弱网与离线时静默失败，不刷提示。
+- **不会自动刷新**：只有用户点击才会整页刷新；编辑器有未保存修改时，现有的 `beforeunload` 还会再拦一次。
+- **部署头**：`sw.js` 与 `index.html` 建议 `Cache-Control: no-cache`（浏览器对 SW 脚本本身会绕过 HTTP 缓存，但 CDN 边缘缓存仍可能拖慢更新）；`assets/*` 可以长缓存 + `immutable`。
+- **子路径**：`STUDIO_BASE=/studio/ pnpm build` 会生成 `/studio/sw.js`、`/studio/manifest.webmanifest`，manifest 的 `scope`/`start_url` 与图标路径都跟着 base 走。
+
+![更新提醒](docs/screenshots/pwa-update.png)
 
 ## 测试
 
 ```bash
 cp .env.example .env.local   # 填入测试 PAT / 仓库
 pnpm test:seed               # 测试仓库为空时也能创建首个提交
-pnpm test                    # 72 个单元测试（路径、frontmatter 字段、编码、vault、预览、批量读取）
+pnpm test                    # 80 个单元测试（路径、frontmatter 字段、编码、vault、预览、批量读取、全库索引、更新轮询）
 pnpm test:live               # 7 个真实 GitHub 集成测试（会创建/移动/删除 src/_e2e/*，最后清理）
-pnpm test:e2e                # 11 个 Playwright 测试（1 setup + 7 demo + 3 live；需 .env.local）
+pnpm test:e2e                # 14 个 Playwright 测试（1 setup + 7 demo + 3 live + 3 PWA；live 需 .env.local）
+pnpm test:e2e:pwa            # 只跑 PWA 组（会先 vite build 再 vite preview）
+pnpm pwa:icons               # 重新生成 public/icon-*.png（零依赖脚本）
 pnpm test:clean              # 兜底清理 src/_e2e/*
 pnpm verify                  # typecheck + lint + unit + build
 ```
 
-- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、全库 frontmatter 索引与限流。
+- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、全库 frontmatter 索引与限流、更新检查的节流/并发/失败静默。
 - Live 测试覆盖：真实仓库读、批量读取（含 CJK 路径）、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射。
-- E2E 覆盖：demo 工作台保存、dashboard 全库 frontmatter 排序、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执。
+- E2E 覆盖：demo 工作台保存、dashboard 全库 frontmatter 排序、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执；PWA 组验证 manifest/图标/SW 注册、断网从预缓存打开且 CacheStorage 里没有 `api.github.com`、新版本 waiting 时弹窗 → 「稍后」→ 顶栏徽标 → 「立即刷新」才 reload。
 - 测试结束请**轮换测试 token**；`.env.local` 不要提交。
 
 **手动 E2E 清单**（或用 `pnpm test:e2e`，见下）：
@@ -104,6 +119,7 @@ pnpm verify                  # typecheck + lint + unit + build
 5. 移动/删除对话框；冲突场景（用 GitHub 网页端先改同一文件，再在应用里保存）。
 6. 编辑器切到「源文件」→ 直接改 frontmatter 的引号/键顺序与正文 → 盖章 → 在 GitHub 看 diff 只有改动行、CRLF/BOM 保留；切回表单确认字段来自源文本；写入非法 YAML 时看到红色提示仍可保存。
 7. 390px 视口：抽屉索引、编辑器、预览、设置；检查无横向滚动。
+8. PWA：`pnpm build && pnpm preview` → 等 SW 安装完 → DevTools 切 Offline 刷新仍能开工作台；改一行 `dist/sw.js` 后 `registration.update()` → 弹窗出现 → 「稍后」看顶栏徽标 → 「立即刷新」；Edge/Chrome 地址栏可出现「安装」。
 
 `pnpm test:e2e` 使用 Playwright，当前配置走系统 **Microsoft Edge**（`channel: 'msedge'`），不需要下载浏览器。若机器没有 Edge，可 `pnpm exec playwright install chromium` 并把 `playwright.config.ts` 里的 channel 改为 `'chromium'`。首次运行会在 `tests/e2e/.auth/` 生成一个本地加密保险库状态（已 gitignore），live 组会创建并清理 `src/_e2e/*`。
 
@@ -120,7 +136,7 @@ pnpm preview   # http://localhost:4174
 STUDIO_BASE=/studio/ pnpm build
 ```
 
-> 项目已验证到 `dist` 构建与 `vite preview` 产物；生产域名的 DNS/TLS/CSP 由部署平台负责。
+> 项目已验证到 `dist` 构建与 `vite preview` 产物；生产域名的 DNS/TLS/CSP 由部署平台负责。构建会额外产出 `dist/sw.js`、`dist/manifest.webmanifest` 与 `dist/icon-*.png`（PWA），部署时把它们和 `dist/index.html` 一起发布即可；缓存与 CSP 头的要求见 [PWA 与离线](#pwa-与离线)。
 
 ## 目录
 
@@ -128,9 +144,10 @@ STUDIO_BASE=/studio/ pnpm build
 astro-blog-studio/
 ├─ design/                 # 决策台 HTML、截图、方向契约
 ├─ docs/screenshots/       # 成品截图（demo fixture）
-├─ scripts/                # 设计台构建、静态预览、测试仓库 seed/clean
+├─ public/                 # robots.txt + PWA 图标（pnpm pwa:icons 生成）
+├─ scripts/                # 设计台构建、静态预览、PWA 图标生成、测试仓库 seed/clean
 ├─ src/
-│  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、UI 原子
+│  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、PWA 更新弹窗、UI 原子
 │  ├─ hooks/               # 数据查询、自动锁定
 │  ├─ lib/
 │  │  ├─ config/           # zod 设置 schema、默认值
@@ -140,16 +157,17 @@ astro-blog-studio/
 │  │  ├─ github/           # LiveGateway（Octokit）、fixture、错误映射
 │  │  ├─ markdown/         # frontmatter 文档模型、marked + DOMPurify 渲染
 │  │  ├─ paths/            # 路径归一化、排除匹配、提交模板
+│  │  ├─ pwa/              # 版本检测（节流/可见性/在线状态）
 │  │  ├─ tree/             # 文件树模型
 │  │  ├─ utils/            # 日期、编码、cn
 │  │  └─ vault/            # WebCrypto 加解密、设备指纹、会话、keystore
 │  ├─ pages/               # 工作台、编辑器、设置、Setup、Unlock
-│  ├─ stores/              # settings / vault / ui / rate-limit / editor guard / pending-post
+│  ├─ stores/              # settings / vault / ui / rate-limit / editor guard / pending-post / pwa
 │  └─ styles/              # Tailwind v4 tokens + abs-* 组件样式
 ├─ tests/
 │  ├─ unit/                # Vitest 单元测试
 │  ├─ live/                # 真实 GitHub 测试
-│  └─ e2e/                 # Playwright
+│  └─ e2e/                 # Playwright（demo / live / pwa）
 ├─ AGENTS.md               # 本子项目的 agent 约束
 ├─ DESIGN.md               # 视觉/交互实现规范
 ├─ PRODUCT.md              # 产品事实与目标
@@ -164,7 +182,9 @@ astro-blog-studio/
 - GitHub Contents API 单文件约 1 MB / 100 MB 仓库限制；分支保护、只读 token 会在写时返回 403 并提示。
 - 设备指纹不是安全边界；共享电脑上请设置密码并启用双因子，或使用后锁定。
 - 自动锁定只在有活动事件时重置计时；后台标签页的计时可能被浏览器节流。
-- 产品路线：图片粘贴上传、命令面板、封面/日历视图、主题切换、PWA、离线草稿。
+- 离线只缓存前端：断网能打开界面，但文件树/正文/提交仍要连 `api.github.com`；还没有离线草稿或离线保存队列。
+- 更新提示依赖 Service Worker 的更新机制：首次访问当次不接管页面；多个标签页各自在下次导航时切换版本，不会互相强制刷新。
+- 产品路线：图片粘贴上传、命令面板、封面/日历视图、离线草稿、主题切换的扩展预设。
 
 ## 设计出处
 

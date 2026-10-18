@@ -18,9 +18,13 @@ pnpm test             # 单元测试
 pnpm test:seed        # 测试仓库为空时创建首个提交并写入种子
 pnpm test:live        # 真实 GitHub 集成测试（会写 src/_e2e/*，最后清理）
 pnpm test:clean       # 兜底清理 src/_e2e/*
-pnpm test:e2e         # Playwright：setup + demo + live（默认用系统 Edge；需要 .env.local）
+pnpm test:e2e         # Playwright：setup + demo + live + pwa（默认用系统 Edge；live 需要 .env.local）
+pnpm test:e2e:pwa     # 只跑 PWA 组：会先 vite build 再 vite preview 验证真实产物
+pnpm pwa:icons        # 重新生成 public/icon-*.png（scripts/generate-pwa-icons.mjs，零依赖）
 pnpm verify           # typecheck + lint + test + build
 ```
+
+> `pnpm dev` 不注册 Service Worker（`devOptions.enabled:false`，虚拟模块是 no-op stub）；PWA 只能在 `pnpm build` + `vite preview` 或线上验证。
 
 **pnpm only。** Node ≥ 20.19。
 
@@ -36,6 +40,8 @@ src/
     new-post-dialog.tsx     新建文章 → 本地草稿（不写 API）
     frontmatter-form.tsx    按设置字段配置渲染的动态 frontmatter 表单
     frontmatter-fields-editor.tsx  设置页的字段增删/类型/必填编辑
+    pwa-update.tsx          注册 SW、轮询更新、把状态同步进 store（dev 下是 no-op）
+    pwa-update-dialog.tsx   「网站有新版本」AlertDialog（只提醒，不自动刷新）
     ui.tsx                  Badge / Field / Spinner / ErrorNote / EmptyState / Skeleton
   pages/                    dashboard / editor / settings / setup / unlock
   lib/
@@ -48,14 +54,18 @@ src/
     markdown/render.ts      marked + katex + DOMPurify + shoka 预处理
     paths/commit-message.ts 提交模板（含 {title}）/ title 回退
     paths/                  normalize / exclusion matcher
+    pwa/update-polling.ts   SW 更新检测：节流 + single-flight + 可见/在线判断
     tree/model.ts           文件树模型（相对根目录显示，路径保留全路径；按 tree 引用 memo）
     vault/                  crypto / fingerprint / keystore / session
     demo/fixtures.ts         演示仓库与 12 篇示例
-  stores/                   zustand：settings(persist)、vault、ui、rate-limit、last-commit、editor guard、pending-post
+  stores/                   zustand：settings(persist)、vault、ui、rate-limit、last-commit、editor guard、pending-post、pwa
   styles/app.css            Tailwind v4 tokens + .abs-* 设计系统
+  vite-env.d.ts             virtual:pwa-register/react 的类型引用
 tests/unit | live | e2e
-scripts/                    seed/clean/test-env、design build/serve
+public/                     robots.txt + PWA 图标（由 pnpm pwa:icons 生成并提交）
+scripts/                    seed/clean/test-env、design build/serve、generate-pwa-icons
 ```
+
 
 ## 不可违反的约束
 
@@ -94,13 +104,18 @@ scripts/                    seed/clean/test-env、design build/serve
    - 编辑器内部保持安静：无纹理、无旋转、无入场动画；动效尊重 `prefers-reduced-motion`。
    - 唯一实心樱粉按钮是「新建文章」；印章是唯一的红。
    - 改视觉先看 `DESIGN.md` 和 `design/directions.html`，不要另起一套主题。
+8. **PWA 与缓存**
+   - Service Worker 只预缓存同源构建产物（html/js/css/woff2/图标）；`api.github.com` 必须保持 `NetworkOnly`，**不得把 API 响应写进 CacheStorage**（私有内容与令牌语义）。
+   - 更新只能由用户点击「立即刷新」触发，禁止自动 reload、禁止把 `skipWaiting`/`clientsClaim` 打开来“自动升级”；「稍后」必须始终可用。
+   - `pnpm dev` 不注册 SW；PWA 的任何行为只在 `pnpm build` + `pnpm preview` 或线上验证（e2e 的 `pwa` 组就是这么跑的）。
+   - `public/icon-*.png` 是生成物：改图标要改 `scripts/generate-pwa-icons.mjs` 并重跑 `pnpm pwa:icons`，不要手改 PNG。
 
 ## 测试协议
 
 1. `pnpm test:seed`（测试仓库为空或需要恢复种子）。
 2. `pnpm test` / `pnpm test:live`；live 会创建 `src/_e2e/<runId>/*` 并自动清理。
-3. `pnpm test:e2e`：setup 建本地加密保险库（`tests/e2e/.auth/`，已 gitignore），demo 验证 fixture/字段配置/源文件模式/新稿草稿/`{title}`，live 创建/清理 `src/_e2e/*`，并断言新稿保存前 404、保存后单提交、dashboard 1 次 GraphQL 批量且 0 次 summary Contents 请求。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。
-4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；源文件模式改整份文件并切回表单；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；移动/删除/冲突；390px。
+3. `pnpm test:e2e`：setup 建本地加密保险库（`tests/e2e/.auth/`，已 gitignore），demo 验证 fixture/字段配置/源文件模式/新稿草稿/`{title}`，live 创建/清理 `src/_e2e/*`，并断言新稿保存前 404、保存后单提交、dashboard 1 次 GraphQL 批量且 0 次 summary Contents 请求。`pwa` 组会先用 `vite build` 构建再 `vite preview`：断言 manifest/图标/SW、断网从预缓存打开、以及 waiting 新版本 → 弹窗 → 「稍后」→ 徽标 → 「立即刷新」才 reload（会临时 append `dist/sw.js` 并在 afterAll 还原）。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。只想验 PWA 用 `pnpm test:e2e:pwa`。
+4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；源文件模式改整份文件并切回表单；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；移动/删除/冲突；390px；`pnpm build` 后 `pnpm preview` 断网重载与更新弹窗。
 5. `pnpm verify`；`pnpm test:clean`；轮换测试 token。
 
 ## 代码风格
