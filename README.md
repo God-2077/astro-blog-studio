@@ -15,6 +15,7 @@
 
 - **文件索引**：树形浏览、路径搜索、排除规则过滤、刷新；显示目录内 Markdown 数量与被排除数量。
 - **编辑**：CodeMirror 6 Markdown 编辑 + 实时预览；**表单 / 源文件**双模式——表单按 frontmatter 字段编辑，源文件模式直接编辑整份文件（含 frontmatter），保存时原样写回。GFM、表格、代码、KaTeX 数学、剧透 `!!x!!`、高亮 `==x==`、插入 `++x++`、ruby、`:::info` 容器、`<!-- more -->` 摘要分隔。
+- **未保存备份**：编辑时约 600ms 防抖把整份文件快照写进本机 IndexedDB（同一文件只留最新一份），底栏显示「本机已备份 HH:mm」。再次进入同一文件（含刷新后的 `new=1` 新稿）时检查备份并弹窗，提供「稍后 / 丢弃备份 / 恢复备份」；恢复已有文件保留原 blob sha，保存仍走 409 冲突；恢复新稿回到「未提交」，首次保存前不写仓库。保存、移动、删除成功后自动清除；设置里可关闭或清除本仓库备份。
 - **frontmatter**：字段可在设置中增删；每个字段有名称、类型（`string / date / number / boolean / list`）和必填开关。默认预置 hello-world 常用字段（title、date、updated、description、categories、tags、draft、sticky、password、cover、keywords）；必填为空会阻止保存；未知字段原样保留；YAML 损坏时降级为原文编辑。
 - **写操作**：新建、保存、删除、移动/重命名。新建先在本地起草，**第一次保存才创建文件，只调用一次创建 API**；移动用 Git Data API 在**一个提交**里完成；更新带 `sha` 乐观锁，冲突时弹出「重新加载 / 覆盖远端 / 取消」。
 - **格式保真**：保留 CRLF / LF / BOM / 结尾换行；分块 base64 处理，避免大文件栈溢出；UTF-8 解码替换字符检测。
@@ -23,7 +24,7 @@
 - **真实 / 演示双模式**：`?demo=1` 使用内存 fixture，不联网、不写仓库，适合评审 UI 和录屏。
 - **外观 / 夜间模式**：默认跟随系统，也可在设置里固定为昼或夜；`<html data-theme>` 在首帧前由内联脚本应用，避免刷新白闪。夜间是暖墨纸与米白墨（不是反相、不用纯黑），CodeMirror、Markdown 预览、设置、解锁与移动端共用同一套 `--abs-*` token。
 - **保险库**：PAT 以 AES-GCM-256 加密后写 localStorage；密钥由 PBKDF2-SHA256（600k 次）派生；设备指纹（FingerprintJS）自动解锁；可选密码，支持「密码 + 设备」双因子；内存会话令牌；锁定清空。
-- **设置**：根目录、扩展名、排除规则、时区、索引并发（1–10）、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、自动锁定、密码更换、重置保险库、外观（跟随系统 / 昼 / 夜）。
+- **设置**：根目录、扩展名、排除规则、时区、索引并发（1–10）、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、未保存备份开关与清除、自动锁定、密码更换、重置保险库、外观（跟随系统 / 昼 / 夜）。
 - **响应式**：桌面双栏、移动端抽屉索引；`prefers-reduced-motion` 降级。
 - **PWA**：构建产物带 `manifest.webmanifest` 与 Service Worker，应用壳（HTML/JS/CSS/字体/图标）预缓存，第二次打开与弱网/断网打开都不等网络；检测到新部署时弹窗提示刷新（不自动刷新）。详见 [PWA 与离线](#pwa-与离线)。
 
@@ -63,7 +64,8 @@ pnpm dev
 - **可见文件**：根目录下、扩展名匹配、且不命中排除规则的文件。排除支持目录前缀与 glob（如 `src/content/blog/en`、`src/content/**/draft/**`）。
 - **frontmatter**：编辑器表单由设置中的字段列表动态生成；字段类型、必填、增删都在设置页维护。只改表单里变化的键；未识别字段、注释行、键顺序尽量原样保留。保存时按原文件的换行风格重新拼接。
 - **源文件模式**：编辑器纸头的「表单 / 源文件」切换。源文件下一块编辑器就是仓库里的那份文件（frontmatter 围栏 + 正文），保存按输入原样写回：只按原文件风格还原 CRLF/LF 与 BOM，不解析 frontmatter、不改写键、不自动补 `updated`、不折叠结尾空行，所以能直接改引号、键顺序、注释、未知字段与缩进。从表单切过去时未保存的表单改动会先组合进源文本（表单里有无效字段则拒绝切换）；切回表单会重新解析源文本，YAML 损坏时落到「原文 textarea」降级编辑，YAML 不合法也仍允许保存（只给红色提示，博客构建可能失败）。
-- **新建**：标题生成文件名（可手改），目录从现有文件夹中选择或直接输入；生成初始 frontmatter 后进入**本地草稿**。此时不会写仓库；盖章保存时才用 `create` 模板做唯一一次创建提交。刷新/直接打开链接不会创建空文件。
+- **新建**：标题生成文件名（可手改），目录从现有文件夹中选择或直接输入；生成初始 frontmatter 后进入**本地草稿**。此时不会写仓库；盖章保存时才用 `create` 模板做唯一一次创建提交。刷新/直接打开链接不会创建空文件；刷新后若本机有备份，进入编辑器会先提示恢复草稿。
+- **未保存备份**：编辑器只在本机保存最新一份草稿，按「模式 + 仓库 + 分支 + 路径」隔离；同一文件多次编辑只保留最后一次。进入编辑器时只检查一次：有备份就弹窗（显示保存时间、字数、路径；远端已变化会额外提示），没有就正常打开。选择「稍后」会保留备份并在文件头显示恢复条，这期间自动备份暂停，避免覆盖旧草稿。恢复已有文件后保存仍使用备份里的 blob sha，远端变化会触发既有 409 冲突；恢复新稿后仍是本地草稿，首次保存才创建文件。多标签页编辑同一文件时，后写入的备份胜出，不做合并。
 - **保存**：带上次读到的 blob sha 写入；远端已变化时返回 409，应用显示冲突对话框，不会静默覆盖。新建路径若在草稿期间被远端占用，保存会提示换路径并保留草稿。
 - **移动**：读取旧 blob → 建新树 → 新提交（父提交为当前 HEAD）→ 更新分支 ref；一个提交完成，不会出现「先加后删」的中间状态。
 - **删除**：创建一个删除提交；Git 历史仍可恢复。
@@ -74,6 +76,7 @@ pnpm dev
 - 令牌**只存在浏览器**：Setup 时用随机数据密钥加密，数据密钥再由设备指纹（或密码）派生的 KEK 包装；localStorage 里看不到明文 PAT。
 - 设备指纹、localStorage 都不是秘密；**密码才是安全边界**。需要更强隔离时请设置密码并启用双因子。
 - 解锁后的 PAT 只在内存里；锁定会清空内存、React Query 缓存和编辑会话。
+- **未保存备份是明文**：只写本机 IndexedDB（键含模式/仓库/分支/路径），不包含 PAT，但可能包含文章正文与 frontmatter 密码字段；它不会上传，也不会进入 Service Worker 缓存。共享设备上可关闭备份或「清除本仓库的本机备份」，浏览器清站点数据也会一并清除。
 - 预览用 DOMPurify 白名单净化；外链自动 `rel="noreferrer noopener"`；不加载第三方脚本、字体或 iframe。
 - `HashRouter` + 纯静态托管；无后端、无 Cookie、无服务端日志。
 - `.env.local` 只给 Node 测试用，已在 `.gitignore` 中；不要把真实 PAT 写进任何会被提交的文件。
@@ -96,18 +99,18 @@ pnpm dev
 ```bash
 cp .env.example .env.local   # 填入测试 PAT / 仓库
 pnpm test:seed               # 测试仓库为空时也能创建首个提交
-pnpm test                    # 80 个单元测试（路径、frontmatter 字段、编码、vault、预览、批量读取、全库索引、更新轮询）
+pnpm test                    # 108 个单元测试（路径、frontmatter 字段、编码、vault、预览、批量读取、全库索引与索引并发、更新轮询、未保存备份）
 pnpm test:live               # 7 个真实 GitHub 集成测试（会创建/移动/删除 src/_e2e/*，最后清理）
-pnpm test:e2e                # 14 个 Playwright 测试（1 setup + 7 demo + 3 live + 3 PWA；live 需 .env.local）
+pnpm test:e2e                # 19 个 Playwright 测试（1 setup + 12 demo + 3 live + 3 PWA；live 需 .env.local）
 pnpm test:e2e:pwa            # 只跑 PWA 组（会先 vite build 再 vite preview）
 pnpm pwa:icons               # 重新生成 public/icon-*.png（零依赖脚本）
 pnpm test:clean              # 兜底清理 src/_e2e/*
 pnpm verify                  # typecheck + lint + unit + build
 ```
 
-- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、全库 frontmatter 索引与限流、更新检查的节流/并发/失败静默。
+- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、全库 frontmatter 索引、索引并发与限流、更新检查的节流/并发/失败静默、未保存备份的校验/快照/恢复映射/IndexedDB 上限/防抖与卸载清理。
 - Live 测试覆盖：真实仓库读、批量读取（含 CJK 路径）、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射。
-- E2E 覆盖：demo 工作台保存（含 toast X 关闭）、dashboard 全库 frontmatter 排序、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执；PWA 组验证 manifest/图标/SW 注册、断网从预缓存打开且 CacheStorage 里没有 `api.github.com`、新版本 waiting 时弹窗 → 「稍后」→ 顶栏徽标 → 「立即刷新」才 reload。
+- E2E 覆盖：demo 工作台保存（含 toast X 关闭）、dashboard 全库 frontmatter 排序、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板、未保存备份的表单/源文件恢复、稍后恢复条、丢弃后不再提示、新稿刷新恢复；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执；PWA 组验证 manifest/图标/SW 注册、断网从预缓存打开且 CacheStorage 里没有 `api.github.com`、新版本 waiting 时弹窗 → 「稍后」→ 顶栏徽标 → 「立即刷新」才 reload。
 - 测试结束请**轮换测试 token**；`.env.local` 不要提交。
 
 **手动 E2E 清单**（或用 `pnpm test:e2e`，见下）：
@@ -120,6 +123,7 @@ pnpm verify                  # typecheck + lint + unit + build
 6. 编辑器切到「源文件」→ 直接改 frontmatter 的引号/键顺序与正文 → 盖章 → 在 GitHub 看 diff 只有改动行、CRLF/BOM 保留；切回表单确认字段来自源文本；写入非法 YAML 时看到红色提示仍可保存。
 7. 390px 视口：抽屉索引、编辑器、预览、设置；检查无横向滚动。
 8. PWA：`pnpm build && pnpm preview` → 等 SW 安装完 → DevTools 切 Offline 刷新仍能开工作台；改一行 `dist/sw.js` 后 `registration.update()` → 弹窗出现 → 「稍后」看顶栏徽标 → 「立即刷新」；Edge/Chrome 地址栏可出现「安装」。
+9. 未保存备份：改标题/正文或「源文件」内容 → 底栏出现「本机已备份」→ 刷新 → 弹窗「发现未保存的备份」→「稍后」出现恢复条 →「恢复」→ 内容回来且仍是「未保存」；再刷新 →「丢弃备份」→ 回到远端内容且不再弹窗。新稿同样刷新后恢复；保存/移动/删除后确认不再提示；设置里关闭备份并清除本仓库备份。
 
 `pnpm test:e2e` 使用 Playwright，当前配置走系统 **Microsoft Edge**（`channel: 'msedge'`），不需要下载浏览器。若机器没有 Edge，可 `pnpm exec playwright install chromium` 并把 `playwright.config.ts` 里的 channel 改为 `'chromium'`。首次运行会在 `tests/e2e/.auth/` 生成一个本地加密保险库状态（已 gitignore），live 组会创建并清理 `src/_e2e/*`。
 
@@ -147,9 +151,10 @@ astro-blog-studio/
 ├─ public/                 # robots.txt + PWA 图标（pnpm pwa:icons 生成）
 ├─ scripts/                # 设计台构建、静态预览、PWA 图标生成、测试仓库 seed/clean
 ├─ src/
-│  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、PWA 更新弹窗、UI 原子
-│  ├─ hooks/               # 数据查询、自动锁定
+│  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、备份恢复弹窗、PWA 更新弹窗、UI 原子
+│  ├─ hooks/               # 数据查询、自动锁定、未保存备份
 │  ├─ lib/
+│  │  ├─ backup/           # 备份记录校验、整文件快照、IndexedDB 存放与清理
 │  │  ├─ config/           # zod 设置 schema、默认值
 │  │  ├─ demo/             # 演示数据
 │  │  ├─ frontmatter/      # 字段定义/默认集/校验/新稿初始文档
@@ -182,9 +187,10 @@ astro-blog-studio/
 - GitHub Contents API 单文件约 1 MB / 100 MB 仓库限制；分支保护、只读 token 会在写时返回 403 并提示。
 - 设备指纹不是安全边界；共享电脑上请设置密码并启用双因子，或使用后锁定。
 - 自动锁定只在有活动事件时重置计时；后台标签页的计时可能被浏览器节流。
-- 离线只缓存前端：断网能打开界面，但文件树/正文/提交仍要连 `api.github.com`；还没有离线草稿或离线保存队列。
+- 未保存备份只在本机：换设备/换浏览器不会同步；同一文件多标签页编辑时最后写入者胜出，不做合并；清除站点数据会一并清除。
+- 离线只缓存前端：断网能打开界面，但文件树/正文/提交仍要连 `api.github.com`；未保存备份能在本机恢复，但断网刷新后仍无法读取文件树与正文，不是完整的离线编辑；没有离线保存队列。
 - 更新提示依赖 Service Worker 的更新机制：首次访问当次不接管页面；多个标签页各自在下次导航时切换版本，不会互相强制刷新。
-- 产品路线：图片粘贴上传、命令面板、封面/日历视图、离线草稿、主题切换的扩展预设。
+- 产品路线：图片粘贴上传、命令面板、封面/日历视图、离线编辑与保存队列、主题切换的扩展预设。
 
 ## 设计出处
 

@@ -143,7 +143,7 @@ export function AppShell() {
 
       {mode === 'demo' ? (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-line bg-paper/70 px-3 py-2 text-[10.5px] text-ink-soft">
-          <span>演示模式：数据只存在内存里，不会连接 GitHub；刷新后恢复初始内容。</span>
+          <span>演示模式：示例仓库只在内存里，不会连接 GitHub；未保存备份保存在本机演示键。刷新后恢复初始示例。</span>
           <div className="flex items-center gap-3">
             <Link
               to="/settings"

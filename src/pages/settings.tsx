@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Field } from '@/components/ui';
+import { backupKeyPrefix } from '@/lib/backup/model';
+import { clearBackupsByPrefix } from '@/lib/backup/store';
 import { clampIndexConcurrency, INDEX_CONCURRENCY_MAX, INDEX_CONCURRENCY_MIN } from '@/lib/config/schema';
 import {
   cloneFrontmatterFields,
@@ -41,6 +43,7 @@ export function SettingsPage() {
   const [updateUpdatedAt, setUpdateUpdatedAt] = useState(settings.editor.updateUpdatedAt);
   const [fontSize, setFontSize] = useState(String(settings.editor.fontSize));
   const [showLineNumbers, setShowLineNumbers] = useState(settings.editor.showLineNumbers);
+  const [backupUnsaved, setBackupUnsaved] = useState(settings.editor.backupUnsaved);
   const [autoLockMinutes, setAutoLockMinutes] = useState(String(settings.security.autoLockMinutes));
   const [newPassword, setNewPassword] = useState('');
   const [requireDevice, setRequireDevice] = useState(settings.security.deviceBindingForPassword);
@@ -100,6 +103,7 @@ export function SettingsPage() {
           updateUpdatedAt,
           fontSize: Math.min(20, Math.max(12, Number(fontSize) || 15)),
           showLineNumbers,
+          backupUnsaved,
         },
         frontmatter: {
           fields: normalizedFields,
@@ -148,6 +152,13 @@ export function SettingsPage() {
   const lockNow = (): void => {
     vault.lock();
     navigate('/unlock');
+  };
+
+  const clearLocalBackups = async (): Promise<void> => {
+    if (!window.confirm('清除本仓库在这台设备上的未保存备份？此操作不可恢复。')) return;
+    const ok = await clearBackupsByPrefix(backupKeyPrefix(mode, repo));
+    if (ok) toast.success('已清除本仓库的本机备份');
+    else toast.error('清除失败，请稍后再试');
   };
 
   const resetVault = (): void => {
@@ -362,6 +373,27 @@ export function SettingsPage() {
             <p className="mt-2 text-[10px] leading-relaxed text-muted">
               预览支持 GFM、代码、数学、剧透、ruby 与 ::: 容器；原始 HTML 会被净化，链接卡片降级为普通链接。
             </p>
+            <div className="mt-3 border-t border-dashed border-line pt-3">
+              <label className="flex items-center gap-2 text-[11px]">
+                <input
+                  type="checkbox"
+                  className="size-3.5 accent-[var(--abs-sakura)]"
+                  checked={backupUnsaved}
+                  onChange={(event) => setBackupUnsaved(event.target.checked)}
+                />
+                备份未保存的修改
+              </label>
+              <p className="mt-1 text-[10px] leading-relaxed text-muted">
+                明文写在本机 IndexedDB；进入编辑器时会检查并提示恢复。关闭后不再写入新备份。
+              </p>
+              <button
+                type="button"
+                className="abs-btn abs-btn-ghost mt-2 text-[10.5px]"
+                onClick={() => void clearLocalBackups()}
+              >
+                清除本仓库的本机备份
+              </button>
+            </div>
           </section>
           <section className="abs-paper p-3.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -474,7 +506,9 @@ export function SettingsPage() {
               <br />
               {config.excludes.length} 条排除
             </p>
-            <p className="mt-2 text-[9px]">演示模式的数据只存在内存里。</p>
+            <p className="mt-2 text-[9px]">
+              {isDemo ? '演示模式的仓库内容只在内存里；未保存备份保存在本机演示键。' : '备份只写本机 IndexedDB，不会上传。'}
+            </p>
           </section>
         </aside>
       </div>

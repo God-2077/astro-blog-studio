@@ -70,7 +70,8 @@
 - 三张纸：文件头（返回、文件名、状态、GitHub/移动/删除）、frontmatter 纸、Markdown 纸；右栏实时预览。
 - **frontmatter 纸由设置中的字段配置动态生成**：名称、类型（string/date/number/boolean/list）、必填标记；string 单行、date 文本 + 格式提示、number 数字、boolean 复选、list 逗号分隔（categories 支持 `>` 层级）；password 字段掩码。必填为空或格式错误时在字段下就地提示并阻止提交。
 - **表单 / 源文件切换**：Markdown 纸头右侧「N 字 · 约 N 分钟」旁复用 `.abs-seg` 分段控件（`aria-pressed`，与设置页主题切换同一组件）。源文件模式把整份文件（`---` frontmatter + 正文）放进同一块 CodeMirror、隐藏 frontmatter 纸，眉题改为 `SOURCE · 整份文件`；页脚细条显示换行风格、字段数、未知字段数、缺少必填与「源文件模式不改写 updated」。源文件模式保存只还原原文件的 CRLF/LF 与 BOM，不解析 frontmatter、不改写键、不折叠结尾空行；YAML 损坏时纸头出现红色细条提示但仍允许保存。来源就是仓库里的那份文件，所以没有新增纹理/动画，安静规则照旧。模式是会话内视图状态（默认表单），刷新回到表单。
-- **新稿状态**：新建文章先在本地起草，URL 带 `new=1`；头部显示「未提交」，隐藏 GitHub/移动/删除，底栏提示「未提交」。第一次盖章保存才创建文件（一次 API），成功后 URL 去掉 `new` 并切换为普通编辑态。刷新/直接打开没有草稿的 `new=1` 时显示「草稿已丢失」，绝不创建空文件。
+- **新稿状态**：新建文章先在本地起草，URL 带 `new=1`；头部显示「未提交」，隐藏 GitHub/移动/删除，底栏提示「未提交」。第一次盖章保存才创建文件（一次 API），成功后 URL 去掉 `new` 并切换为普通编辑态。刷新/直接打开没有内存草稿的 `new=1` 时先检查本机备份：有备份就弹窗恢复，没有才显示「草稿已丢失」，绝不创建空文件。
+- **未保存备份**：编辑时约 600ms 防抖把整份文件快照写入本机 IndexedDB（同一文件只留最新一份；键含 mode + repo + branch + path），底栏在「未保存」旁显示「本机已备份 HH:mm」。进入编辑器时读取备份并弹 `AlertDialog`「发现未保存的备份」：显示保存时间、字数、路径，远端已变化时多一条 danger 提示；操作为「稍后 / 丢弃备份 / 恢复备份」。恢复用 `.abs-btn`（**不引入实心樱粉**），丢弃为 ghost + `border-danger/40 text-danger`，稍后为 ghost；「稍后」后文件头下方出现 butter 细条（恢复 / 丢弃），期间暂停覆盖式备份。恢复已有文件保留备份的 base sha，保存仍走 409；恢复新稿回到「未提交」，只写 pending draft。保存/移动/删除成功后删除备份；设置里可关闭或清除本仓库备份。弹窗不开入场动画，安静规则照旧。
 - **安静规则**：编辑纸无纹理、无旋转、无入场动画；只有 CodeMirror 的活动行/选区使用极浅腮红。印章是唯一的实心红。
 - 提交：底栏「盖章保存」旋转印章；开启确认时弹出提交消息纸片；新稿按钮为「确认创建」，普通保存为「确认盖章」；成功后回执 toast。
 - 冲突：Radix Dialog，提供「重新加载远端 / 覆盖远端 / 取消」；新稿的远端同名冲突只提示换路径并保留草稿，不提供覆盖。
@@ -97,7 +98,7 @@
 
 - `.abs-paper` / `.abs-sheet` / `.abs-sticky` / `.abs-receipt` / `.abs-stamp` / `.abs-tape` / `.abs-seal` / `.abs-badge-*` / `.abs-tree-row` / `.abs-input` / `.abs-btn*` / `.abs-seg` / `.abs-progress` 是设计系统组件，集中定义在 `src/styles/app.css`，Tailwind 原子类只做布局与间距。
 - **主题**：`ThemeProvider` 把 `settings.appearance.theme`（`system / day / night`）解析为 `<html data-theme>`；`index.html` 内联脚本在首帧前应用，避免白闪；需要布尔值的组件（CodeMirror 的 dark 主题）用 `useResolvedTheme()`。不新增主题命名空间，也不允许组件里写夜间分支。
-- 状态：Zustand `settings`（persist）、`vault`（不持久化）、`ui`、`rate-limit`、`last-commit`、`editor guard`；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
+- 状态：Zustand `settings`（persist）、`vault`（不持久化）、`ui`、`rate-limit`、`last-commit`、`editor guard`、`pending-post`、`pwa`；未保存备份走 `useEditorBackup` + `lib/backup`（IndexedDB），不放进 service worker 缓存；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
 - 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。toast 右侧常驻 `.abs-toast-close` X（纸底、1.5px 线边框的 24px 方块，hover 转 ink），点击立即关闭；自动消失与滑动关闭保留。
 - **PWA 更新提示**：`PwaUpdate` 挂在 App 根部（`virtual:pwa-register/react`）。新版本进入 waiting 时用 Radix `AlertDialog` 弹「网站有新版本」，按钮「稍后」（`.abs-btn-ghost`）/「立即刷新」（默认 `.abs-btn`，**不用**实心樱粉——实心樱粉仍只属于「新建文章」）。点过「稍后」后顶栏出现带樱粉圆点的 `.abs-icon-btn`，可再次唤起弹窗；编辑器脏状态时弹窗内多一行 danger 提示，刷新时沿用现有 `beforeunload` 兜底。只有用户点「立即刷新」才整页 reload，**不自动刷新**。`pnpm dev` 不注册 Service Worker，PWA 只在构建产物里可见。
 
@@ -125,7 +126,8 @@
 - 代码高亮在编辑器中用 CodeMirror 的 Markdown 语法；预览用深色代码块，不使用 shiki 高亮（依赖已装但未接入，避免首屏膨胀）。
 - 预览对「表格单元格内含未转义 `|` 的行内代码」这类 GFM 边界会按标准表格解析；生产内容写作时请用 `\|`。这是解析器行为，不是安全降级。
 - 新建文章通过对话框而不是独立页面；移动/删除在编辑器中完成。
-- **新稿先在本地起草**：对话框不写仓库；进入编辑器时显示「未提交」，第一次盖章才创建文件（一次 API）。这比原型里「先建文件再编辑」更克制，也避免空文件提交。
+- **新稿先在本地起草**：对话框不写仓库；进入编辑器时显示「未提交」，第一次盖章才创建文件（一次 API）。这比原型里「先建文件再编辑」更克制，也避免空文件提交。刷新后若本机有备份，进入编辑器会先提示恢复草稿，而不是直接丢失。
+- **未保存备份**：原型没有本地草稿恢复；实现增加 IndexedDB 备份与进入检查。它只在本机、可关闭/清除，不改变 GitHub 写协议；恢复旧草稿时保留 base sha，冲突处理仍由现有 409 流程负责。
 - **frontmatter 字段可配置**：原型是固定字段；实现改为设置中的字段列表（名称/类型/必填），默认参考 hello-world 常用字段，超出字段作为未知字段保留。
 - **夜间模式按实验页落地**：暖墨夜纸、白色索引卡图标、danger 偏橙红与品牌粉分开；采用「跟随系统 + 手动昼夜」，没有做纯黑反转或第二套主题命名空间。实验页见 `design/night-mode.html`。
 - 设计台的「提交小票」在真实模式显示 GitHub 提交链接；demo 显示 `in-memory`。
@@ -138,12 +140,14 @@
 - `docs/screenshots/pwa-update.png`：同一生产构建 + `?demo=1`，390px 昼间主题，模拟 waiting 新版本时的更新弹窗（顶栏可见带樱粉圆点的刷新徽标）。
 - `design/screenshots/`：决策台四个方向的工作台与对比板，以及夜间模式实验页的截图（`night-*.png`、`tree-icons-night.png`）。
 - 截图不使用真实私有内容；测试仓库只出现在 live 手动验证中，不进入仓库截图。
-- `editor.png`、`night-editor.png` 拍于「表单 / 源文件」切换控件加入之前（编辑器纸头新增分段控件）；重拍前以本文档「编辑器」段为准。
+- `editor.png`、`night-editor.png` 拍于「表单 / 源文件」切换控件加入之前（编辑器纸头新增分段控件）；未保存备份弹窗与恢复条也未进入现有截图；重拍前以本文档「编辑器」段为准。
 
 ## 验收 verdict
 
 **PASS（v1 + 字段/新稿 + 夜间模式）**：视觉语言在顶栏、索引、便签、纸张、印章、提交小票、设置/解锁页保持一致；编辑器安静规则成立；移动端可完成「找文件 → 改 → 盖章」；安全路径（设备/密码解锁、冲突、只读、空仓库）有明确反馈。新文章为本地草稿、首次保存单次创建；frontmatter 字段由设置驱动，必填校验和类型化输入可用；未配置字段继续保留。主题可跟随系统或手动固定昼/夜，首帧无白闪，CodeMirror 与预览随主题切换；夜间对比度达标（主文字 12.9:1、辅助 6.37:1、输入边框 3.96:1）。
 
-**未完成/下一步**：图片粘贴上传、跨文件搜索、命令面板、封面/日历视图、离线草稿与离线保存队列、shiki 预览高亮、只读模式的自动探测（目前依赖写操作 403 提示）、新稿跨刷新持久化、昼模式输入框边框与占位符对比度的顺手修正。
+**未完成/下一步**：图片粘贴上传、跨文件搜索、命令面板、封面/日历视图、离线编辑与离线保存队列、shiki 预览高亮、只读模式的自动探测（目前依赖写操作 403 提示）、昼模式输入框边框与占位符对比度的顺手修正。
 
 **PWA（2026-10）**：manifest（name/short_name/display/theme_color/icons 含 maskable）+ Service Worker 预缓存 50 条 ≈ 2.3 MiB（html/js/css/woff2/图标）；断网从预缓存打开工作台；更新弹窗只在 waiting 新版本时出现，只有「立即刷新」会整页 reload，「稍后」后顶栏徽标可再唤起；顶栏在 390px 下仍一行。
+
+**未保存备份（2026-10）**：编辑后约 600ms 底栏出现「本机已备份」，进入编辑器检查备份并弹窗；「稍后」保留 butter 恢复条，「恢复」支持表单/源文件/新稿，「丢弃」后不再提示；保存/移动/删除成功即清除；恢复旧草稿保留 base sha，保存仍走 409。备份是 IndexedDB 明文，设置可关闭与清除。

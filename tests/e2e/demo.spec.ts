@@ -185,4 +185,119 @@ test.describe('demo mode', () => {
     await page.getByRole('button', { name: '跟随系统', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
   });
+
+  test('restores a form backup after reload, then clears it on save', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+
+    await page.goto('/?demo=1');
+    await page.locator('.abs-tree-row').filter({ hasText: 'note' }).first().click();
+    await page.locator('.abs-tree-row').filter({ hasText: '便笺-Markdown-备忘单.md' }).click();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
+    const title = frontmatter.locator('input.abs-input').first();
+    await title.fill('本机备份标题');
+    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+
+    await page.reload();
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: '稍后' }).click();
+    await expect(page.getByText('本机有一份未保存的备份', { exact: false }).first()).toBeVisible();
+    await page.getByRole('button', { name: '恢复', exact: true }).click();
+
+    await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('本机备份标题');
+    await expect(page.getByText('未保存').first()).toBeVisible();
+
+    await page.locator('.abs-stamp').click();
+    await expect(page.getByRole('button', { name: '确认盖章' })).toBeVisible();
+    await page.getByRole('button', { name: '确认盖章' }).click();
+    await expect(page.getByText('已提交 · 1 个提交')).toBeVisible();
+
+    await page.reload();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  });
+
+  test('restores a source-mode backup and keeps the source view', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+
+    await page.goto('/?demo=1');
+    await page.locator('.abs-tree-row').filter({ hasText: 'note' }).first().click();
+    await page.locator('.abs-tree-row').filter({ hasText: '便笺-Markdown-备忘单.md' }).click();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    await page.getByRole('button', { name: '源文件' }).click();
+    await expect(page.getByRole('button', { name: '源文件' })).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type('\n\n源文件备份标记');
+    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+
+    await page.reload();
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: '恢复备份' }).click();
+
+    await expect(page.getByRole('button', { name: '源文件' })).toHaveAttribute('aria-pressed', 'true');
+    // CodeMirror 只渲染可见行；跳到文末让打字标记进入 DOM 再断言。
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await expect(page.locator('.cm-content')).toContainText('源文件备份标记');
+  });
+
+  test('discards a local backup and does not ask again', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+
+    await page.goto('/?demo=1');
+    await page.locator('.abs-tree-row').filter({ hasText: 'note' }).first().click();
+    await page.locator('.abs-tree-row').filter({ hasText: '便笺-Markdown-备忘单.md' }).click();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
+    const title = frontmatter.locator('input.abs-input').first();
+    const originalTitle = await title.inputValue();
+    await title.fill('会被丢弃的标题');
+    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+
+    await page.reload();
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: '丢弃备份' }).click();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(title).toHaveValue(originalTitle);
+    await expect(page.getByText('已丢弃本机备份')).toBeVisible();
+
+    await page.reload();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  });
+
+  test('restores a new-post draft from a local backup after a reload', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+
+    await page.goto('/?demo=1');
+    await page.getByRole('button', { name: '新建文章' }).first().click();
+    const newPostDialog = page.getByRole('dialog');
+    await newPostDialog.locator('input.abs-input').first().fill('E2E 备份新稿');
+    await newPostDialog.getByRole('button', { name: '开始起草' }).click();
+    await expect(page).toHaveURL(/new=1/);
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type('\n\n新稿备份正文');
+    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+
+    await page.reload();
+    await expect(page).toHaveURL(/new=1/);
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: '恢复备份' }).click();
+
+    await expect(page.getByText('未提交').first()).toBeVisible();
+    const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
+    await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('E2E 备份新稿');
+    await expect(page.locator('.cm-content')).toContainText('新稿备份正文');
+  });
 });

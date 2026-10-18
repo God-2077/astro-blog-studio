@@ -56,6 +56,7 @@ export const settingsSchema = z.object({
     showLineNumbers: z.boolean(),
     fontSize: z.number().min(12).max(20),
     externalImages: z.boolean(),
+    backupUnsaved: z.boolean().default(true),
   }),
   frontmatter: frontmatterSettingsSchema,
   appearance: z.object({

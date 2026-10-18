@@ -28,6 +28,7 @@ export const defaultSettings: Settings = {
     showLineNumbers: false,
     fontSize: 15,
     externalImages: true,
+    backupUnsaved: true,
   },
   frontmatter: {
     fields: cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS),

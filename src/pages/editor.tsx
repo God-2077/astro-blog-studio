@@ -9,10 +9,20 @@ import { ArrowLeft, ArrowUpRight, Check, FileWarning, MoveRight, Trash2, X } fro
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { BackupDialog } from '@/components/backup-dialog';
 import { FrontmatterForm } from '@/components/frontmatter-form';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Badge, ErrorNote, Field, Spinner } from '@/components/ui';
 import { useFile } from '@/hooks/use-data';
+import { type BackupSnapshot, useEditorBackup } from '@/hooks/use-editor-backup';
+import {
+  type BackupRecord,
+  backupCharCount,
+  backupRemoteChanged,
+  backupRepoKey,
+  buildBackupText,
+  restoreToEditorState,
+} from '@/lib/backup/model';
 import {
   buildFrontmatterPatch,
   type FrontmatterFormValue,
@@ -63,10 +73,19 @@ function editorTheme(fontSize: number, dark: boolean): ReturnType<typeof EditorV
 
 type EditorMode = 'form' | 'source';
 
+/**
+ * The route entry is keyed by file (and draft state): switching files unmounts
+ * the previous session so its unsaved snapshot can be flushed before the new
+ * state replaces it, and each entry checks local backups exactly once.
+ */
 export function EditorPage() {
   const [params] = useSearchParams();
   const path = params.get('path');
   const isNew = params.get('new') === '1';
+  return <EditorSession key={`${path ?? ''}|${isNew ? 'new' : 'edit'}`} path={path} isNew={isNew} />;
+}
+
+function EditorSession({ path, isNew }: { path: string | null; isNew: boolean }) {
   const navigate = useNavigate();
   const { gateway, repo, config, key, mode } = useGateway();
   const settings = useSettings();
@@ -103,6 +122,8 @@ export function EditorPage() {
   const [sourceText, setSourceText] = useState('');
   const [originalText, setOriginalText] = useState('');
   const [pristine, setPristine] = useState(false);
+  /** Set when a restored new-post backup was in source mode; consumed by the load effect. */
+  const pendingNewRestoreRef = useRef<{ path: string; sourceText: string } | null>(null);
 
   useEffect(() => {
     if (!path) return;
@@ -129,6 +150,12 @@ export function EditorPage() {
     setSaveOpen(false);
     setOriginalText(source.text);
     setSourceText(toEditingText(source.text));
+    const pendingNewRestore = pendingNewRestoreRef.current;
+    if (isNew && pendingNewRestore?.path === path) {
+      pendingNewRestoreRef.current = null;
+      setSourceText(pendingNewRestore.sourceText);
+      setEditorMode('source');
+    }
     setPristine(true);
   }, [isNew, pendingDraft, file.data, path, fields]);
 
@@ -181,6 +208,71 @@ export function EditorPage() {
     useEditorGuard.getState().setDirty(dirty);
     return () => useEditorGuard.getState().setDirty(false);
   }, [dirty]);
+
+  const backupEnabled = settings.editor.backupUnsaved;
+  const repoKey = backupRepoKey(mode, repo);
+  const backupSnapshot = useMemo<BackupSnapshot | null>(() => {
+    if (!backupEnabled || !path || !dirty || saving || draftLost) return null;
+    const snapshotMode = sourceActive ? 'source' : 'form';
+    return {
+      path,
+      isNew,
+      baseSha: isNew ? '' : loadedSha,
+      mode: snapshotMode,
+      text: buildBackupText({
+        mode: snapshotMode,
+        sourceText,
+        meta,
+        rawInner,
+        body,
+        hasFrontmatter,
+        fields,
+        form,
+        originalData,
+      }),
+      state: { body, rawInner, hasFrontmatter, fmError, form, sourceText },
+    };
+  }, [
+    backupEnabled,
+    path,
+    dirty,
+    saving,
+    draftLost,
+    isNew,
+    loadedSha,
+    sourceActive,
+    sourceText,
+    meta,
+    rawInner,
+    body,
+    hasFrontmatter,
+    fmError,
+    form,
+    fields,
+    originalData,
+  ]);
+
+  const backup = useEditorBackup({
+    enabled: backupEnabled,
+    repoKey,
+    path,
+    isNew,
+    ready: isNew ? true : Boolean(file.data) && !file.error && !file.isFetching,
+    skipPrompt: isNew && pendingDraft?.path === path,
+    snapshot: backupSnapshot,
+  });
+
+  const backupFailureNotified = useRef(false);
+  useEffect(() => {
+    if (backup.status !== 'failed' || backupFailureNotified.current) return;
+    backupFailureNotified.current = true;
+    toast.error('本机备份失败', {
+      description:
+        backup.failure === 'too-large'
+          ? '文件太大，未写入本机备份；编辑不受影响。'
+          : '浏览器存储不可用或空间不足；编辑不受影响，但刷新后可能无法恢复未保存内容。',
+    });
+  }, [backup.status, backup.failure]);
 
   const extraFields = useMemo(() => {
     const configured = new Set(fields.map((field) => field.name));
@@ -264,6 +356,46 @@ export function EditorPage() {
     setEditorMode('form');
   };
 
+  const handleRestoreBackup = (record: BackupRecord): void => {
+    if (record.isNew) {
+      pendingNewRestoreRef.current =
+        record.mode === 'source' ? { path: path ?? record.path, sourceText: record.state.sourceText } : null;
+      usePendingPost.getState().setDraft({ path: path ?? record.path, text: record.text });
+      setDraftLost(false);
+      backup.acknowledgeRestored();
+      toast.success('已恢复本机草稿', { description: '首次盖章保存时才会在仓库里创建文件。' });
+      return;
+    }
+
+    const remoteText = file.data?.text ?? originalText;
+    const restored = restoreToEditorState(record, remoteText);
+    setBody(restored.body);
+    setRawInner(restored.rawInner);
+    setHasFrontmatter(restored.hasFrontmatter);
+    setFmError(restored.fmError);
+    setForm({ ...restored.form });
+    setSourceText(restored.sourceText);
+    setOriginalData(restored.originalData);
+    setLoadedSha(restored.loadedSha);
+    setEditorMode(restored.mode);
+    setDirty(true);
+    setPristine(false);
+    setSaveOpen(false);
+    setConflictOpen(false);
+    setMoveOpen(false);
+    setFieldErrors({});
+    backup.acknowledgeRestored();
+    toast.success('已恢复本机备份', { description: '保存前不会提交；确认后再盖章。' });
+  };
+
+  const handleDiscardBackup = (): void => {
+    void backup.discard().then(() => toast.success('已丢弃本机备份'));
+  };
+
+  const handleDeferBackup = (): void => {
+    backup.defer();
+  };
+
   const applySaved = async (result: { sha: string; contentSha?: string; htmlUrl?: string }, text: string): Promise<void> => {
     const wasNew = isNew;
     setDirty(false);
@@ -273,6 +405,7 @@ export function EditorPage() {
     setSaveOpen(false);
     setConflictOpen(false);
     setFieldErrors({});
+    await backup.markSaved();
     if (result.contentSha) setLoadedSha(result.contentSha);
     if (path) {
       queryClient.setQueryData(['file', key, path], {
@@ -378,6 +511,7 @@ export function EditorPage() {
         branch: repo.defaultBranch,
         sha: loadedSha,
       });
+      await backup.markSaved();
       await queryClient.invalidateQueries({ queryKey: ['tree', key] });
       toast.success('已删除并提交');
       navigate('/');
@@ -422,6 +556,7 @@ export function EditorPage() {
         at: Date.now(),
         ...(result.htmlUrl ? { htmlUrl: result.htmlUrl } : {}),
       });
+      await backup.markSaved();
       await queryClient.invalidateQueries({ queryKey: ['tree', key] });
       toast.success('已移动并提交');
       setMoveOpen(false);
@@ -433,19 +568,55 @@ export function EditorPage() {
 
   if (!path) return <Navigate to="/" replace />;
 
-  if (isNew && draftLost) {
+  const candidate = backup.candidate;
+  const candidateSavedAtLabel = candidate ? formatInTimeZone(new Date(candidate.savedAt), config.timezone) : '';
+  const candidateCharCount = candidate ? backupCharCount(candidate.text) : 0;
+  const backupStatusLabel =
+    backup.status === 'saved' && backup.savedAt
+      ? `本机已备份 ${formatInTimeZone(new Date(backup.savedAt), config.timezone).slice(11, 16)}`
+      : backup.status === 'pending'
+        ? '备份中…'
+        : backup.status === 'failed'
+          ? '备份失败'
+          : '';
+  const draftUnavailable = isNew && (!pendingDraft || pendingDraft.path !== path);
+
+  if (draftUnavailable && backup.checking) {
     return (
-      <div className="abs-paper mx-auto max-w-[620px] p-6">
-        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">draft lost</p>
-        <h1 className="mt-1 font-display text-[24px] font-bold">新文章草稿已丢失</h1>
-        <p className="mt-2 text-[11.5px] leading-relaxed text-muted">
-          新文章草稿只保存在创建它的标签页里。刷新或直接打开这个链接后，草稿不会再恢复，也不会在仓库里留下空文件。
-        </p>
-        <button type="button" className="abs-btn abs-btn-primary mt-4 text-[11px]" onClick={() => navigate('/')}>
-          <ArrowLeft aria-hidden className="size-3.5" />
-          回到工作台重新新建
-        </button>
+      <div className="abs-paper p-6">
+        <Spinner label="检查本机备份" />
       </div>
+    );
+  }
+
+  if (draftUnavailable) {
+    return (
+      <>
+        <div className="abs-paper mx-auto max-w-[620px] p-6">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">draft lost</p>
+          <h1 className="mt-1 font-display text-[24px] font-bold">没有找到这篇新文章的草稿</h1>
+          <p className="mt-2 text-[11.5px] leading-relaxed text-muted">
+            新文章草稿只保存在创建它的标签页和这台设备的浏览器备份里。没有找到内存草稿或本机备份后，不会再恢复，也不会在仓库里留下空文件。
+          </p>
+          <button type="button" className="abs-btn abs-btn-primary mt-4 text-[11px]" onClick={() => navigate('/')}>
+            <ArrowLeft aria-hidden className="size-3.5" />
+            回到工作台重新新建
+          </button>
+        </div>
+        {candidate ? (
+          <BackupDialog
+            backup={candidate}
+            open={!backup.deferred}
+            allowDefer={false}
+            remoteChanged={false}
+            savedAtLabel={candidateSavedAtLabel}
+            charCount={candidateCharCount}
+            onRestore={() => handleRestoreBackup(candidate)}
+            onDiscard={handleDiscardBackup}
+            onDefer={handleDeferBackup}
+          />
+        ) : null}
+      </>
     );
   }
 
@@ -557,6 +728,19 @@ export function EditorPage() {
           </div>
         </header>
 
+        {candidate && backup.deferred ? (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-butter bg-butter/40 px-3 py-2 text-[10.5px] text-ink-soft">
+            <span className="font-semibold text-ink">本机有一份未保存的备份（{candidateSavedAtLabel}）</span>
+            <span className="text-muted">恢复前不会再自动覆盖。</span>
+            <button type="button" className="abs-btn h-7 px-2.5 text-[10.5px]" onClick={() => handleRestoreBackup(candidate)}>
+              恢复
+            </button>
+            <button type="button" className="abs-btn abs-btn-ghost h-7 px-2.5 text-[10.5px]" onClick={handleDiscardBackup}>
+              丢弃
+            </button>
+          </div>
+        ) : null}
+
         {sourceActive ? null : (
           <section className="abs-paper relative p-3.5">
             <span className="abs-tape" aria-hidden />
@@ -665,6 +849,9 @@ export function EditorPage() {
                   <span className="text-warning">混用换行符，保存将统一为 {meta.eol === '\r\n' ? 'CRLF' : 'LF'}</span>
                 ) : null}
                 {!isDemo && !repo.canPush ? <span className="text-danger">只读令牌</span> : null}
+                {backupEnabled && dirty && backup.status !== 'idle' ? (
+                  <span className={backup.status === 'failed' ? 'text-warning' : undefined}>{backupStatusLabel}</span>
+                ) : null}
               </p>
               {sourceActive ? (
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[9px] text-muted">
@@ -852,6 +1039,20 @@ export function EditorPage() {
           </AlarmDialog.Content>
         </AlarmDialog.Portal>
       </AlarmDialog.Root>
+
+      {candidate ? (
+        <BackupDialog
+          backup={candidate}
+          open={!backup.deferred}
+          allowDefer
+          remoteChanged={backupRemoteChanged(candidate, file.data?.sha ?? null)}
+          savedAtLabel={candidateSavedAtLabel}
+          charCount={candidateCharCount}
+          onRestore={() => handleRestoreBackup(candidate)}
+          onDiscard={handleDiscardBackup}
+          onDefer={handleDeferBackup}
+        />
+      ) : null}
     </div>
   );
 }
