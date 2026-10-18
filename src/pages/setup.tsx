@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Github, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Github, KeyRound, NotebookPen, ShieldCheck, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Field, Spinner } from '@/components/ui';
@@ -262,6 +262,20 @@ export function SetupPage() {
               <ArrowUpRight aria-hidden className="size-3 shrink-0" />
             </a>
           </div>
+          <a
+            className="group rounded-xl border border-line bg-paper px-4 py-3.5 text-[11px] leading-relaxed transition hover:border-sakura/40"
+            href="https://blog.ksable.top/"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            <p className="flex items-center gap-1.5 font-display text-[13px] font-bold">
+              <NotebookPen aria-hidden className="size-3.5 text-sakura" />
+              人家的博客喵
+              <ArrowUpRight aria-hidden className="ml-auto size-3.5 text-muted transition group-hover:text-sakura" />
+            </p>
+            <p className="mt-1.5 text-muted">想先偷偷瞄一眼人家的博客嘛喵~ </p>
+            <p className="mt-1.5 text-muted">快戳 blog.ksable.top 来玩玩呀 (｡･ω･｡)ﾉ♡</p>
+          </a>
         </aside>
       </div>
     </div>
