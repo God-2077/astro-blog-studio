@@ -1,5 +1,5 @@
 import { cloneFrontmatterFields, DEFAULT_FRONTMATTER_FIELDS } from '@/lib/frontmatter/fields';
-import type { Settings } from './schema';
+import { INDEX_CONCURRENCY_DEFAULT, type Settings } from './schema';
 
 export const SUGGESTED_EXCLUDES = ['src/content/blog/en', 'src/content/blog/ja', 'src/pages/en', 'src/pages/ja'];
 
@@ -11,6 +11,7 @@ export const defaultSettings: Settings = {
     extensions: ['.md', '.mdx'],
     excludes: [],
     timezone: 'Asia/Shanghai',
+    indexConcurrency: INDEX_CONCURRENCY_DEFAULT,
   },
   commit: {
     create: 'create: {path}',

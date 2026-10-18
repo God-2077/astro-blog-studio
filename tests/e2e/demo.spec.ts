@@ -67,6 +67,18 @@ test.describe('demo mode', () => {
     await expect(frontmatter.getByText('1 个未知字段保留')).toBeVisible();
   });
 
+  test('persists the index concurrency setting', async ({ page }) => {
+    await page.goto('/?demo=1#/settings');
+    const concurrency = page.locator('label.abs-field').filter({ hasText: '索引并发' }).locator('input');
+    await expect(concurrency).toHaveValue('3');
+    await concurrency.fill('6');
+    await page.getByRole('button', { name: '保存设置' }).click();
+    await expect(page.getByText('设置已保存')).toBeVisible();
+
+    await page.reload();
+    await expect(page.locator('label.abs-field').filter({ hasText: '索引并发' }).locator('input')).toHaveValue('6');
+  });
+
   test('edits the whole file in source mode and keeps the frontmatter intact', async ({ page }) => {
     await page.goto('/?demo=1');
     await page.locator('.abs-tree-row').filter({ hasText: 'note' }).first().click();

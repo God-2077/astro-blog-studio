@@ -1,0 +1,7 @@
+# 文本文件统一 LF。
+# 即使在 Windows 上开着 core.autocrlf=true，eol=lf 也让检出保持 LF，
+# 与 Biome（formatter.lineEnding = "lf"）一致，避免 `pnpm lint` 报满屏 CRLF。
+* text=auto eol=lf
+
+# 二进制文件显式声明，避免被 text=auto 当成文本转换。
+*.png binary

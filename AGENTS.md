@@ -98,6 +98,7 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
    - dashboard 的 frontmatter 索引必须走 `gateway.readFiles` 批量接口（20 篇 / 批，一次 GraphQL；失败回退 Contents REST）；不要回到逐文件 `useQueries`。
    - 索引必须覆盖全库（`MAX_INDEX_FILES = 1000` 上限并对用户明示），排序发生在截断之前；不要在文件树路径切片上做「最近」。
    - 批量结果要回填 `['file']` cache，并以 tree sha 作查询键；同一 tree 不重复请求，tree 变化时只重读 blob sha 改变的批次。
+   - 并发数来自设置 `content.indexConcurrency`（1–10，默认 3，`clampIndexConcurrency` 兜底），不要在 hook 里硬编码；改 schema 字段必须给旧持久化数据留默认值（zod `.catch`），否则 store merge 会把用户设置整体重置。
    - 改动 gateway 批量逻辑必须同时验证 CORS/权限、CJK 路径、超大/缺失文件和 REST 回退。
 7. **设计**
    - 组件样式优先用 `.abs-*` 设计系统；不要引入通用 SaaS 卡片网格/渐变/玻璃拟态。

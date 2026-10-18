@@ -1,5 +1,6 @@
 import { type UseQueryResult, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { clampIndexConcurrency } from '@/lib/config/schema';
 import { useGateway } from '@/lib/gateway/context';
 import type { FileContent, GitHubGateway, RepoInfo, TreeResult } from '@/lib/github/types';
 import {
@@ -12,6 +13,7 @@ import {
 } from '@/lib/posts/summary';
 import { buildTreeModel, type TreeModel } from '@/lib/tree/model';
 import { createLimiter } from '@/lib/utils/limiter';
+import { useSettings } from '@/stores/settings';
 
 export type { PostSummary } from '@/lib/posts/summary';
 
@@ -84,7 +86,6 @@ export interface FrontmatterIndex {
   refetchFailed: () => void;
 }
 
-const INDEX_CONCURRENCY = 3;
 const INDEX_STALE_MS = 10 * 60_000;
 const INDEX_GC_MS = 30 * 60_000;
 
@@ -163,7 +164,8 @@ async function readChunkSummary(
 export function useFrontmatterIndex(files: IndexEntry[], treeSha?: string): FrontmatterIndex {
   const { gateway, key } = useGateway();
   const queryClient = useQueryClient();
-  const [limit] = useState(() => createLimiter(INDEX_CONCURRENCY));
+  const indexConcurrency = useSettings((state) => state.content.indexConcurrency);
+  const limit = useMemo(() => createLimiter(clampIndexConcurrency(indexConcurrency)), [indexConcurrency]);
 
   const plan = useMemo(() => planIndex(files, INDEX_CHUNK_SIZE, MAX_INDEX_FILES), [files]);
   const enabled = Boolean(treeSha);

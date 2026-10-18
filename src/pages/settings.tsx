@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Field } from '@/components/ui';
+import { clampIndexConcurrency, INDEX_CONCURRENCY_MAX, INDEX_CONCURRENCY_MIN } from '@/lib/config/schema';
 import {
   cloneFrontmatterFields,
   DEFAULT_FRONTMATTER_FIELDS,
@@ -31,6 +32,7 @@ export function SettingsPage() {
   const [extensions, setExtensions] = useState(settings.content.extensions.join(', '));
   const [excludes, setExcludes] = useState(settings.content.excludes.join('\n'));
   const [timezone, setTimezone] = useState(settings.content.timezone);
+  const [indexConcurrency, setIndexConcurrency] = useState(String(settings.content.indexConcurrency));
   const [createTemplate, setCreateTemplate] = useState(settings.commit.create);
   const [updateTemplate, setUpdateTemplate] = useState(settings.commit.update);
   const [deleteTemplate, setDeleteTemplate] = useState(settings.commit.delete);
@@ -83,6 +85,7 @@ export function SettingsPage() {
             .map((line) => line.trim())
             .filter(Boolean),
           timezone: timezone.trim() || 'Asia/Shanghai',
+          indexConcurrency: clampIndexConcurrency(Number(indexConcurrency)),
         },
         commit: {
           ...settings.commit,
@@ -223,6 +226,20 @@ export function SettingsPage() {
                 <input className="abs-input font-mono text-[11px]" value={isDemo ? '示例数据' : '见文件树'} disabled />
               </Field>
             </div>
+            <Field
+              label="索引并发"
+              hint={`${INDEX_CONCURRENCY_MIN}–${INDEX_CONCURRENCY_MAX}，默认 3。首页索引同时读取的批次数（每批 20 篇）；调高更快，过高可能触发 GitHub 限流。`}
+              className="mt-3"
+            >
+              <input
+                className="abs-input"
+                type="number"
+                min={INDEX_CONCURRENCY_MIN}
+                max={INDEX_CONCURRENCY_MAX}
+                value={indexConcurrency}
+                onChange={(event) => setIndexConcurrency(event.target.value)}
+              />
+            </Field>
             <Field label="排除规则" hint={<span className="font-mono">一行一条；前缀或 glob</span>} className="mt-3">
               <textarea
                 className="abs-textarea min-h-[110px] font-mono text-[10.5px]"
