@@ -69,6 +69,7 @@
 
 - 三张纸：文件头（返回、文件名、状态、GitHub/移动/删除）、frontmatter 纸、Markdown 纸；右栏实时预览。
 - **frontmatter 纸由设置中的字段配置动态生成**：名称、类型（string/date/number/boolean/list）、必填标记；string 单行、date 文本 + 格式提示、number 数字、boolean 复选、list 逗号分隔（categories 支持 `>` 层级）；password 字段掩码。必填为空或格式错误时在字段下就地提示并阻止提交。
+- **表单 / 源文件切换**：Markdown 纸头右侧「N 字 · 约 N 分钟」旁复用 `.abs-seg` 分段控件（`aria-pressed`，与设置页主题切换同一组件）。源文件模式把整份文件（`---` frontmatter + 正文）放进同一块 CodeMirror、隐藏 frontmatter 纸，眉题改为 `SOURCE · 整份文件`；页脚细条显示换行风格、字段数、未知字段数、缺少必填与「源文件模式不改写 updated」。源文件模式保存只还原原文件的 CRLF/LF 与 BOM，不解析 frontmatter、不改写键、不折叠结尾空行；YAML 损坏时纸头出现红色细条提示但仍允许保存。来源就是仓库里的那份文件，所以没有新增纹理/动画，安静规则照旧。模式是会话内视图状态（默认表单），刷新回到表单。
 - **新稿状态**：新建文章先在本地起草，URL 带 `new=1`；头部显示「未提交」，隐藏 GitHub/移动/删除，底栏提示「未提交」。第一次盖章保存才创建文件（一次 API），成功后 URL 去掉 `new` 并切换为普通编辑态。刷新/直接打开没有草稿的 `new=1` 时显示「草稿已丢失」，绝不创建空文件。
 - **安静规则**：编辑纸无纹理、无旋转、无入场动画；只有 CodeMirror 的活动行/选区使用极浅腮红。印章是唯一的实心红。
 - 提交：底栏「盖章保存」旋转印章；开启确认时弹出提交消息纸片；新稿按钮为「确认创建」，普通保存为「确认盖章」；成功后回执 toast。
@@ -132,6 +133,7 @@
 - `docs/screenshots/night-dashboard.png`、`night-editor.png`、`night-settings.png`、`night-mobile.png`：同一构建与 fixture 的夜间主题（设置里切「夜」），尺寸同上。
 - `design/screenshots/`：决策台四个方向的工作台与对比板，以及夜间模式实验页的截图（`night-*.png`、`tree-icons-night.png`）。
 - 截图不使用真实私有内容；测试仓库只出现在 live 手动验证中，不进入仓库截图。
+- `editor.png`、`night-editor.png` 拍于「表单 / 源文件」切换控件加入之前（编辑器纸头新增分段控件）；重拍前以本文档「编辑器」段为准。
 
 ## 验收 verdict
 

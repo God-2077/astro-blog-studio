@@ -70,6 +70,7 @@ scripts/                    seed/clean/test-env、design build/serve
    - 预览必须经 `renderMarkdown`（DOMPurify）；禁止直接 `dangerouslySetInnerHTML` 原始 Markdown。
 3. **内容保真**
    - 保存/移动要保留 CRLF/LF/BOM/结尾换行（`parseDocument` + `composeDocument`）。
+   - 源文件模式（编辑器「表单 / 源文件」）直接写整份文件：只还原原文件的 EOL/BOM（`toEditingText` + `composeSourceDocument`），不解析 frontmatter 重写、不校验字段、不自动补 `updated`、不折叠结尾空行。
    - frontmatter 只改变化的 key；未知字段、注释行尽量原样保留。
    - 更新/删除/移动写操作必须带 sha；409 映射为 CONFLICT，不得静默覆盖。新建的首次创建是唯一例外（见提交协议）。
    - 路径一律经 `normalizeRepoPath`；排除规则支持前缀/glob；不信任用户输入。
@@ -98,8 +99,8 @@ scripts/                    seed/clean/test-env、design build/serve
 
 1. `pnpm test:seed`（测试仓库为空或需要恢复种子）。
 2. `pnpm test` / `pnpm test:live`；live 会创建 `src/_e2e/<runId>/*` 并自动清理。
-3. `pnpm test:e2e`：setup 建本地加密保险库（`tests/e2e/.auth/`，已 gitignore），demo 验证 fixture/字段配置/新稿草稿/`{title}`，live 创建/清理 `src/_e2e/*`，并断言新稿保存前 404、保存后单提交、dashboard 1 次 GraphQL 批量且 0 次 summary Contents 请求。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。
-4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；移动/删除/冲突；390px。
+3. `pnpm test:e2e`：setup 建本地加密保险库（`tests/e2e/.auth/`，已 gitignore），demo 验证 fixture/字段配置/源文件模式/新稿草稿/`{title}`，live 创建/清理 `src/_e2e/*`，并断言新稿保存前 404、保存后单提交、dashboard 1 次 GraphQL 批量且 0 次 summary Contents 请求。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。
+4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；源文件模式改整份文件并切回表单；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；移动/删除/冲突；390px。
 5. `pnpm verify`；`pnpm test:clean`；轮换测试 token。
 
 ## 代码风格

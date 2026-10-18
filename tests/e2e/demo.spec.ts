@@ -63,6 +63,47 @@ test.describe('demo mode', () => {
     await expect(frontmatter.getByText('1 个未知字段保留')).toBeVisible();
   });
 
+  test('edits the whole file in source mode and keeps the frontmatter intact', async ({ page }) => {
+    await page.goto('/?demo=1');
+    await page.locator('.abs-tree-row').filter({ hasText: 'note' }).first().click();
+    await page.locator('.abs-tree-row').filter({ hasText: '便笺-Markdown-备忘单.md' }).click();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
+    await frontmatter.locator('input.abs-input').first().fill('源文件标题');
+
+    // 表单里未保存的改动会带进源文件。
+    await page.getByRole('button', { name: '源文件' }).click();
+    await expect(frontmatter).toHaveCount(0);
+    await expect(page.locator('.cm-content')).toContainText('title: 源文件标题');
+
+    // 直接改写整份文件：frontmatter、未知字段与正文一起写。
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+a');
+    for (const line of [
+      '---',
+      "title: '源文件改写'",
+      "date: '2024-07-21 20:10:28'",
+      'custom_key: keep',
+      '---',
+      '',
+      '源文件正文',
+    ]) {
+      await page.keyboard.type(line);
+      await page.keyboard.press('Enter');
+    }
+
+    // 切回表单：字段与未知字段都来自源文件。
+    await page.getByRole('button', { name: '表单' }).click();
+    await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('源文件改写');
+    await expect(frontmatter.getByText('1 个未知字段保留')).toBeVisible();
+    await expect(page.locator('.abs-preview')).toContainText('源文件正文');
+
+    await page.locator('.abs-stamp').click();
+    await page.getByRole('button', { name: '确认盖章' }).click();
+    await expect(page.getByText('已提交 · 1 个提交')).toBeVisible();
+  });
+
   test('creates a new article locally and commits it only on save', async ({ page }) => {
     await page.goto('/?demo=1');
     await page.getByRole('button', { name: '新建文章' }).first().click();

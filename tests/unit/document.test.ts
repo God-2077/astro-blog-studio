@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { composeDocument, detectMeta, parseDocument, updateFrontmatterRaw } from '@/lib/markdown/document';
+import {
+  composeDocument,
+  composeSourceDocument,
+  detectMeta,
+  parseDocument,
+  toEditingText,
+  updateFrontmatterRaw,
+} from '@/lib/markdown/document';
 
 describe('frontmatter document handling', () => {
   it('parses LF documents and keeps unknown fields', () => {
@@ -63,5 +70,39 @@ describe('frontmatter document handling', () => {
     expect(next).toContain('# keep this');
     expect(next).toContain('legacy: keep');
     expect(updateFrontmatterRaw(raw, { missing: null })).toBe(raw);
+  });
+});
+
+describe('source mode document handling', () => {
+  const crlfWithBom = { eol: '\r\n', mixed: false, bom: true, trailingNewline: true } as const;
+
+  it('writes the whole buffer back apart from BOM and EOL', () => {
+    const buffer = "---\ntitle: 'x'\n# keep this comment\nlegacy_key:\n- a\n  - b\n---\n\n\nbody  \n\n\n";
+    const written = composeSourceDocument({ text: buffer, meta: crlfWithBom });
+    expect(written).toBe(`\uFEFF${buffer.replaceAll('\n', '\r\n')}`);
+    expect(written.endsWith('\r\n\r\n\r\n')).toBe(true);
+    expect(composeSourceDocument({ text: buffer, meta: { ...crlfWithBom, bom: false, eol: '\n' } })).toBe(buffer);
+  });
+
+  it('never adds or trims a trailing newline', () => {
+    const meta = { eol: '\n', mixed: false, bom: false, trailingNewline: true } as const;
+    expect(composeSourceDocument({ text: '---\ntitle: x\n---', meta })).toBe('---\ntitle: x\n---');
+    expect(composeSourceDocument({ text: 'body', meta })).toBe('body');
+  });
+
+  it('unifies stray line endings in the buffer to the file EOL', () => {
+    const meta = { eol: '\n', mixed: true, bom: false, trailingNewline: true } as const;
+    expect(composeSourceDocument({ text: 'a\r\nb\nc', meta })).toBe('a\nb\nc');
+  });
+
+  it('strips BOM and CRLF when seeding the editor buffer', () => {
+    expect(toEditingText('\uFEFF---\r\ntitle: x\r\n---\r\n')).toBe('---\ntitle: x\n---\n');
+    expect(toEditingText("title: 'x'")).toBe("title: 'x'");
+  });
+
+  it('round-trips a CRLF document through source mode write-back', () => {
+    const original = "---\r\ntitle: 'x'\r\ntags:\r\n- a\r\n---\r\n\r\nbody\r\n";
+    const written = composeSourceDocument({ text: toEditingText(original), meta: detectMeta(original) });
+    expect(written).toBe(original);
   });
 });

@@ -8,6 +8,7 @@ import {
   DEFAULT_FRONTMATTER_FIELDS,
   type FrontmatterField,
   formValuesFromData,
+  missingRequiredFieldNames,
   validateFrontmatterFields,
   valueToDisplay,
 } from '@/lib/frontmatter/fields';
@@ -148,6 +149,14 @@ describe('frontmatter form mapping', () => {
       { password: '', tags: [] },
     );
     expect(result.patch).toEqual({});
+  });
+
+  it('lists missing required fields for the source mode hint', () => {
+    expect(missingRequiredFieldNames(DEFAULT_FRONTMATTER_FIELDS, { title: 'x' })).toEqual(['date']);
+    expect(missingRequiredFieldNames(DEFAULT_FRONTMATTER_FIELDS, { title: 'x', date: '2024-01-01 00:00:00' })).toEqual([]);
+    expect(missingRequiredFieldNames([{ name: 'draft', type: 'boolean', required: true }], {})).toEqual([]);
+    expect(missingRequiredFieldNames([{ name: 'tags', type: 'list', required: true }], { tags: [] })).toEqual(['tags']);
+    expect(missingRequiredFieldNames([{ name: 'order', type: 'number', required: true }], { order: 0 })).toEqual([]);
   });
 });
 

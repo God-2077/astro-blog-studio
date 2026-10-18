@@ -18,10 +18,18 @@ import {
   type FrontmatterFormValue,
   type FrontmatterFormValues,
   formValuesFromData,
+  missingRequiredFieldNames,
 } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { mapError } from '@/lib/github/errors';
-import { composeDocument, type DocumentMeta, parseDocument, updateFrontmatterRaw } from '@/lib/markdown/document';
+import {
+  composeDocument,
+  composeSourceDocument,
+  type DocumentMeta,
+  parseDocument,
+  toEditingText,
+  updateFrontmatterRaw,
+} from '@/lib/markdown/document';
 import { renderMarkdown } from '@/lib/markdown/render';
 import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
 import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
@@ -52,6 +60,8 @@ function editorTheme(fontSize: number, dark: boolean): ReturnType<typeof EditorV
     { dark },
   );
 }
+
+type EditorMode = 'form' | 'source';
 
 export function EditorPage() {
   const [params] = useSearchParams();
@@ -89,6 +99,10 @@ export function EditorPage() {
   const [moveTarget, setMoveTarget] = useState('');
   const [moveError, setMoveError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<EditorMode>('form');
+  const [sourceText, setSourceText] = useState('');
+  const [originalText, setOriginalText] = useState('');
+  const [pristine, setPristine] = useState(false);
 
   useEffect(() => {
     if (!path) return;
@@ -113,11 +127,24 @@ export function EditorPage() {
     setDirty(isNew);
     setConflictOpen(false);
     setSaveOpen(false);
+    setOriginalText(source.text);
+    setSourceText(toEditingText(source.text));
+    setPristine(true);
   }, [isNew, pendingDraft, file.data, path, fields]);
 
-  const currentTitle =
-    (typeof form.title === 'string' ? form.title.trim() : '') ||
-    (typeof originalData.title === 'string' ? originalData.title.trim() : '');
+  const sourceActive = editorMode === 'source';
+  const sourceParsed = useMemo(() => parseDocument(sourceText), [sourceText]);
+  const frontmatterData = sourceActive ? sourceParsed.data : originalData;
+  const effectiveBody = sourceActive ? sourceParsed.body : body;
+  const yamlBroken = sourceActive ? Boolean(sourceParsed.frontmatterError) : Boolean(fmError);
+  const missingRequired = sourceActive ? missingRequiredFieldNames(fields, sourceParsed.data) : [];
+
+  const currentTitle = sourceActive
+    ? typeof sourceParsed.data.title === 'string'
+      ? sourceParsed.data.title.trim()
+      : ''
+    : (typeof form.title === 'string' ? form.title.trim() : '') ||
+      (typeof originalData.title === 'string' ? originalData.title.trim() : '');
   const messageSourceKey = `${path ?? ''}|${isNew}|${settings.commit.create}|${settings.commit.update}|${config.timezone}`;
   const defaultMessage = useMemo(() => {
     if (!path) return '';
@@ -157,13 +184,14 @@ export function EditorPage() {
 
   const extraFields = useMemo(() => {
     const configured = new Set(fields.map((field) => field.name));
-    return Object.keys(originalData).filter((field) => !configured.has(field));
-  }, [originalData, fields]);
+    return Object.keys(frontmatterData).filter((field) => !configured.has(field));
+  }, [frontmatterData, fields]);
 
-  const isTrue = (name: string): boolean => form[name] === true;
+  const isTrue = (name: string): boolean => (sourceActive ? frontmatterData[name] === true : form[name] === true);
 
   const markDirty = (): void => {
     setDirty(true);
+    setPristine(false);
     setSaveOpen(false);
   };
 
@@ -178,14 +206,21 @@ export function EditorPage() {
     markDirty();
   };
 
-  const buildText = (): { text: string; errors: Record<string, string> } => {
+  const buildText = (options: { autoUpdatedAt?: boolean } = {}): { text: string; errors: Record<string, string> } => {
+    if (sourceActive) {
+      // Source mode writes the whole file back, byte for byte apart from BOM/EOL.
+      return { text: composeSourceDocument({ text: sourceText, meta }), errors: {} };
+    }
     if (fmError) {
       return {
         text: composeDocument({ meta, frontmatterRaw: rawInner, body, includeFrontmatter: hasFrontmatter }),
         errors: {},
       };
     }
-    const autoUpdatedAt = settings.editor.updateUpdatedAt && dirty ? formatInTimeZone(new Date(), config.timezone) : undefined;
+    const autoUpdatedAt =
+      options.autoUpdatedAt !== false && settings.editor.updateUpdatedAt && dirty
+        ? formatInTimeZone(new Date(), config.timezone)
+        : undefined;
     const { patch, errors } = buildFrontmatterPatch(fields, form, originalData, { autoUpdatedAt });
     if (Object.keys(errors).length) return { text: '', errors };
     const raw = updateFrontmatterRaw(rawInner, patch);
@@ -200,9 +235,41 @@ export function EditorPage() {
     };
   };
 
+  const switchToSource = (): void => {
+    if (sourceActive) return;
+    let text = originalText;
+    if (!pristine) {
+      const built = buildText({ autoUpdatedAt: false });
+      if (Object.keys(built.errors).length) {
+        setFieldErrors(built.errors);
+        toast.error('表单里有无效字段', { description: '修好后再切到源文件。' });
+        return;
+      }
+      text = built.text;
+    }
+    setSourceText(toEditingText(text));
+    setEditorMode('source');
+  };
+
+  const switchToForm = (): void => {
+    if (!sourceActive) return;
+    const parsed = parseDocument(sourceText);
+    setRawInner(parsed.frontmatterRaw);
+    setHasFrontmatter(parsed.hasFrontmatter);
+    setBody(parsed.body.replace(/\r\n?/g, '\n'));
+    setForm(formValuesFromData(fields, parsed.data));
+    setOriginalData(parsed.data);
+    setFmError(parsed.frontmatterError ?? null);
+    setFieldErrors({});
+    setEditorMode('form');
+  };
+
   const applySaved = async (result: { sha: string; contentSha?: string; htmlUrl?: string }, text: string): Promise<void> => {
     const wasNew = isNew;
     setDirty(false);
+    setPristine(true);
+    setOriginalText(text);
+    setSourceText(toEditingText(text));
     setSaveOpen(false);
     setConflictOpen(false);
     setFieldErrors({});
@@ -402,8 +469,8 @@ export function EditorPage() {
     );
   }
 
-  const rendered = renderMarkdown(body);
-  const words = body.replace(/\s+/g, '').length;
+  const rendered = renderMarkdown(effectiveBody);
+  const words = effectiveBody.replace(/\s+/g, '').length;
   const fileName = path.slice(path.lastIndexOf('/') + 1);
   const githubUrl = isNew
     ? undefined
@@ -445,7 +512,7 @@ export function EditorPage() {
                   )}
                   {isTrue('draft') ? <Badge tone="butter">草稿</Badge> : null}
                   {isTrue('sticky') ? <Badge tone="mint">置顶</Badge> : null}
-                  {fmError ? <Badge tone="blush">YAML 异常</Badge> : null}
+                  {yamlBroken ? <Badge tone="blush">YAML 异常</Badge> : null}
                 </div>
                 <p className="mt-0.5 truncate font-mono text-[9px] text-muted">{path}</p>
               </div>
@@ -490,55 +557,82 @@ export function EditorPage() {
           </div>
         </header>
 
-        <section className="abs-paper relative p-3.5">
-          <span className="abs-tape" aria-hidden />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">frontmatter</span>
-            <span className="font-mono text-[9px] text-muted">
-              {isNew ? '新文件 · 保存时创建' : hasFrontmatter ? `${Object.keys(originalData).length} fields` : '无'}
-              {extraFields.length ? ` · ${extraFields.length} 个未知字段保留` : ''}
-            </span>
-          </div>
-
-          {fmError ? (
-            <div className="mt-2 space-y-2">
-              <p className="flex items-start gap-1.5 text-[11px] text-danger">
-                <FileWarning aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                YAML 解析失败：{fmError}
-              </p>
-              <textarea
-                className="abs-textarea min-h-[150px] font-mono text-[11px]"
-                value={rawInner}
-                onChange={(event) => {
-                  setRawInner(event.target.value);
-                  markDirty();
-                }}
-                aria-label="原始 frontmatter"
-              />
-              <p className="text-[10px] text-muted">修好 YAML 后保存；正文改动会原样保留。</p>
+        {sourceActive ? null : (
+          <section className="abs-paper relative p-3.5">
+            <span className="abs-tape" aria-hidden />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">frontmatter</span>
+              <span className="font-mono text-[9px] text-muted">
+                {isNew ? '新文件 · 保存时创建' : hasFrontmatter ? `${Object.keys(originalData).length} fields` : '无'}
+                {extraFields.length ? ` · ${extraFields.length} 个未知字段保留` : ''}
+              </span>
             </div>
-          ) : (
-            <>
-              <FrontmatterForm fields={fields} values={form} errors={fieldErrors} onChange={updateField} />
-              <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-[9px] text-muted">
-                <span>{meta.eol === '\r\n' ? 'CRLF' : 'LF'} 保留</span>
-                {hasUpdatedField ? <span>{updatedFieldHint}</span> : null}
-                {isNew ? <span className="text-sakura">首次保存只调用一次创建 API</span> : null}
+
+            {fmError ? (
+              <div className="mt-2 space-y-2">
+                <p className="flex items-start gap-1.5 text-[11px] text-danger">
+                  <FileWarning aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+                  YAML 解析失败：{fmError}
+                </p>
+                <textarea
+                  className="abs-textarea min-h-[150px] font-mono text-[11px]"
+                  value={rawInner}
+                  onChange={(event) => {
+                    setRawInner(event.target.value);
+                    markDirty();
+                  }}
+                  aria-label="原始 frontmatter"
+                />
+                <p className="text-[10px] text-muted">修好 YAML 后保存；正文改动会原样保留。</p>
               </div>
-            </>
-          )}
-        </section>
+            ) : (
+              <>
+                <FrontmatterForm fields={fields} values={form} errors={fieldErrors} onChange={updateField} />
+                <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-[9px] text-muted">
+                  <span>{meta.eol === '\r\n' ? 'CRLF' : 'LF'} 保留</span>
+                  {hasUpdatedField ? <span>{updatedFieldHint}</span> : null}
+                  {isNew ? <span className="text-sakura">首次保存只调用一次创建 API</span> : null}
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
         <section className="abs-sheet min-w-0 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft px-3 py-2">
-            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">markdown</span>
-            <span className="font-mono text-[9px] text-muted">
-              {words.toLocaleString('en-US')} 字 · 约 {Math.max(1, Math.round(words / 300))} 分钟
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
+              {sourceActive ? 'source · 整份文件' : 'markdown'}
             </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-[9px] text-muted">
+                {words.toLocaleString('en-US')} 字 · 约 {Math.max(1, Math.round(words / 300))} 分钟
+              </span>
+              <fieldset className="abs-seg" aria-label="编辑模式">
+                <legend className="sr-only">编辑模式</legend>
+                <button type="button" aria-pressed={!sourceActive} title="按 frontmatter 字段编辑" onClick={switchToForm}>
+                  表单
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={sourceActive}
+                  title="直接编辑整份文件（含 frontmatter），保存时原样写回"
+                  onClick={switchToSource}
+                >
+                  源文件
+                </button>
+              </fieldset>
+            </div>
           </div>
+          {sourceActive && sourceParsed.frontmatterError ? (
+            <p className="flex items-start gap-1.5 border-b border-line-soft bg-butter/50 px-3 py-1.5 text-[10px] leading-relaxed text-warning">
+              <FileWarning aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+              frontmatter YAML 解析失败：{sourceParsed.frontmatterError}；仍可保存，但博客构建可能失败。
+            </p>
+          ) : null}
           <div className="min-w-0 px-2">
             <CodeMirror
-              value={body}
+              key={editorMode}
+              value={sourceActive ? sourceText : body}
               height="520px"
               theme={editorTheme(settings.editor.fontSize, resolvedTheme === 'night')}
               extensions={[markdown(), EditorView.lineWrapping]}
@@ -551,6 +645,13 @@ export function EditorPage() {
                 closeBrackets: true,
               }}
               onChange={(value) => {
+                if (sourceActive) {
+                  if (value === sourceText) return;
+                  setSourceText(value);
+                  markDirty();
+                  return;
+                }
+                if (value === body) return;
                 setBody(value);
                 markDirty();
               }}
@@ -565,6 +666,20 @@ export function EditorPage() {
                 ) : null}
                 {!isDemo && !repo.canPush ? <span className="text-danger">只读令牌</span> : null}
               </p>
+              {sourceActive ? (
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[9px] text-muted">
+                  <span>{meta.eol === '\r\n' ? 'CRLF' : 'LF'} 保留</span>
+                  {sourceParsed.frontmatterError ? null : (
+                    <span>
+                      {sourceParsed.hasFrontmatter ? `${Object.keys(sourceParsed.data).length} fields` : '无 frontmatter'}
+                    </span>
+                  )}
+                  {extraFields.length ? <span>{extraFields.length} 个未知字段保留</span> : null}
+                  {missingRequired.length ? <span className="text-warning">缺少必填：{missingRequired.join('、')}</span> : null}
+                  {settings.editor.updateUpdatedAt && hasUpdatedField ? <span>源文件模式不改写 updated</span> : null}
+                  {isNew ? <span className="text-sakura">首次保存只调用一次创建 API</span> : null}
+                </p>
+              ) : null}
             </div>
             <div className="flex items-center gap-2">
               {isNew ? (
@@ -617,6 +732,7 @@ export function EditorPage() {
                     />
                     <p className="mt-1.5 font-mono text-[9px] text-muted">
                       {repo.defaultBranch} · {isNew ? '将创建 1 个提交' : '1 个提交'} · {dirty ? '含未保存修改' : '无改动'}
+                      {sourceActive ? ' · 源文件' : ''}
                     </p>
                     <button
                       type="button"

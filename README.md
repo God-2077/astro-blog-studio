@@ -14,7 +14,7 @@
 ## 已实现
 
 - **文件索引**：树形浏览、路径搜索、排除规则过滤、刷新；显示目录内 Markdown 数量与被排除数量。
-- **编辑**：CodeMirror 6 Markdown 编辑 + 实时预览；GFM、表格、代码、KaTeX 数学、剧透 `!!x!!`、高亮 `==x==`、插入 `++x++`、ruby、`:::info` 容器、`<!-- more -->` 摘要分隔。
+- **编辑**：CodeMirror 6 Markdown 编辑 + 实时预览；**表单 / 源文件**双模式——表单按 frontmatter 字段编辑，源文件模式直接编辑整份文件（含 frontmatter），保存时原样写回。GFM、表格、代码、KaTeX 数学、剧透 `!!x!!`、高亮 `==x==`、插入 `++x++`、ruby、`:::info` 容器、`<!-- more -->` 摘要分隔。
 - **frontmatter**：字段可在设置中增删；每个字段有名称、类型（`string / date / number / boolean / list`）和必填开关。默认预置 hello-world 常用字段（title、date、updated、description、categories、tags、draft、sticky、password、cover、keywords）；必填为空会阻止保存；未知字段原样保留；YAML 损坏时降级为原文编辑。
 - **写操作**：新建、保存、删除、移动/重命名。新建先在本地起草，**第一次保存才创建文件，只调用一次创建 API**；移动用 Git Data API 在**一个提交**里完成；更新带 `sha` 乐观锁，冲突时弹出「重新加载 / 覆盖远端 / 取消」。
 - **格式保真**：保留 CRLF / LF / BOM / 结尾换行；分块 base64 处理，避免大文件栈溢出；UTF-8 解码替换字符检测。
@@ -61,6 +61,7 @@ pnpm dev
 
 - **可见文件**：根目录下、扩展名匹配、且不命中排除规则的文件。排除支持目录前缀与 glob（如 `src/content/blog/en`、`src/content/**/draft/**`）。
 - **frontmatter**：编辑器表单由设置中的字段列表动态生成；字段类型、必填、增删都在设置页维护。只改表单里变化的键；未识别字段、注释行、键顺序尽量原样保留。保存时按原文件的换行风格重新拼接。
+- **源文件模式**：编辑器纸头的「表单 / 源文件」切换。源文件下一块编辑器就是仓库里的那份文件（frontmatter 围栏 + 正文），保存按输入原样写回：只按原文件风格还原 CRLF/LF 与 BOM，不解析 frontmatter、不改写键、不自动补 `updated`、不折叠结尾空行，所以能直接改引号、键顺序、注释、未知字段与缩进。从表单切过去时未保存的表单改动会先组合进源文本（表单里有无效字段则拒绝切换）；切回表单会重新解析源文本，YAML 损坏时落到「原文 textarea」降级编辑，YAML 不合法也仍允许保存（只给红色提示，博客构建可能失败）。
 - **新建**：标题生成文件名（可手改），目录从现有文件夹中选择或直接输入；生成初始 frontmatter 后进入**本地草稿**。此时不会写仓库；盖章保存时才用 `create` 模板做唯一一次创建提交。刷新/直接打开链接不会创建空文件。
 - **保存**：带上次读到的 blob sha 写入；远端已变化时返回 409，应用显示冲突对话框，不会静默覆盖。新建路径若在草稿期间被远端占用，保存会提示换路径并保留草稿。
 - **移动**：读取旧 blob → 建新树 → 新提交（父提交为当前 HEAD）→ 更新分支 ref；一个提交完成，不会出现「先加后删」的中间状态。
@@ -82,16 +83,16 @@ pnpm dev
 ```bash
 cp .env.example .env.local   # 填入测试 PAT / 仓库
 pnpm test:seed               # 测试仓库为空时也能创建首个提交
-pnpm test                    # 41 个单元测试（路径、frontmatter 字段、编码、vault、预览、批量读取）
+pnpm test                    # 72 个单元测试（路径、frontmatter 字段、编码、vault、预览、批量读取）
 pnpm test:live               # 7 个真实 GitHub 集成测试（会创建/移动/删除 src/_e2e/*，最后清理）
-pnpm test:e2e                # 8 个 Playwright 测试（1 setup + 4 demo + 3 live；需 .env.local）
+pnpm test:e2e                # 11 个 Playwright 测试（1 setup + 7 demo + 3 live；需 .env.local）
 pnpm test:clean              # 兜底清理 src/_e2e/*
 pnpm verify                  # typecheck + lint + unit + build
 ```
 
-- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、字段定义/类型/必填/删除、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退。
+- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 加解密与篡改检测、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、全库 frontmatter 索引与限流。
 - Live 测试覆盖：真实仓库读、批量读取（含 CJK 路径）、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射。
-- E2E 覆盖：demo 工作台保存、设置中增删字段并反映到编辑器、新稿本地起草后一次创建、`{title}` 提交模板；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执。
+- E2E 覆盖：demo 工作台保存、dashboard 全库 frontmatter 排序、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执。
 - 测试结束请**轮换测试 token**；`.env.local` 不要提交。
 
 **手动 E2E 清单**（或用 `pnpm test:e2e`，见下）：
@@ -101,7 +102,8 @@ pnpm verify                  # typecheck + lint + unit + build
 3. 设置 → 改提交模板/字号 → 保存；回工作台确认预览变化。
 4. 真实模式：连接测试仓库 → 打开 `便笺-测试.md`（CRLF）→ 保存 → 回工作台看 GitHub 链接；在设置里锁定 → 重新加载 → 设备/密码解锁。
 5. 移动/删除对话框；冲突场景（用 GitHub 网页端先改同一文件，再在应用里保存）。
-6. 390px 视口：抽屉索引、编辑器、预览、设置；检查无横向滚动。
+6. 编辑器切到「源文件」→ 直接改 frontmatter 的引号/键顺序与正文 → 盖章 → 在 GitHub 看 diff 只有改动行、CRLF/BOM 保留；切回表单确认字段来自源文本；写入非法 YAML 时看到红色提示仍可保存。
+7. 390px 视口：抽屉索引、编辑器、预览、设置；检查无横向滚动。
 
 `pnpm test:e2e` 使用 Playwright，当前配置走系统 **Microsoft Edge**（`channel: 'msedge'`），不需要下载浏览器。若机器没有 Edge，可 `pnpm exec playwright install chromium` 并把 `playwright.config.ts` 里的 channel 改为 `'chromium'`。首次运行会在 `tests/e2e/.auth/` 生成一个本地加密保险库状态（已 gitignore），live 组会创建并清理 `src/_e2e/*`。
 

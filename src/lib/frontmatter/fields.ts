@@ -182,6 +182,17 @@ export function isFormValueEmpty(field: FrontmatterField, value: FrontmatterForm
   return (typeof value === 'string' ? value : '').trim() === '';
 }
 
+/**
+ * Source mode writes the file as typed and never runs form validation; this only
+ * backs the non-blocking "缺少必填" hint. Required booleans are never missing.
+ */
+export function missingRequiredFieldNames(fields: readonly FrontmatterField[], data: Record<string, unknown>): string[] {
+  return fields
+    .filter((field) => field.required && field.type !== 'boolean')
+    .filter((field) => isFormValueEmpty(field, valueToDisplay(field, data[field.name])))
+    .map((field) => field.name);
+}
+
 function validateFieldValue(field: FrontmatterField, value: FrontmatterFormValue): string | null {
   if (field.type === 'boolean') return null;
   const text = typeof value === 'string' ? value.trim() : '';

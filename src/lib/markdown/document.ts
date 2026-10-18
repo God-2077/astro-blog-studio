@@ -106,6 +106,22 @@ export function composeDocument({ meta, frontmatterRaw, body, includeFrontmatter
   return `${bom}${front}${bodyEol}${trailing}`;
 }
 
+/** Source mode: the editor buffer is LF-only and BOM-free; both are restored on write. */
+export function toEditingText(text: string): string {
+  const withoutBom = text.startsWith('\uFEFF') ? text.slice(1) : text;
+  return withoutBom.replace(/\r\n?/g, '\n');
+}
+
+/**
+ * Source mode write-back: restore the file's BOM and line-ending style without
+ * re-fencing, trimming or rewriting anything else. Mixed EOLs are unified to
+ * `meta.eol`, matching the form path's "保存将统一为…" promise.
+ */
+export function composeSourceDocument({ text, meta }: { text: string; meta: DocumentMeta }): string {
+  const bom = meta.bom ? '\uFEFF' : '';
+  return bom + text.replace(/\r\n?/g, '\n').replace(/\n/g, meta.eol);
+}
+
 const TOP_LEVEL_KEY = /^([A-Za-z0-9_$-]+)[ \t]*:/;
 
 export function isQuotableString(value: string): boolean {
