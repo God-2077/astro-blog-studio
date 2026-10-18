@@ -30,6 +30,21 @@ test.describe('demo mode', () => {
     expect(githubCalls).toEqual([]);
   });
 
+  test('dashboard ranks the whole demo corpus by frontmatter date', async ({ page }) => {
+    await page.goto('/?demo=1');
+
+    const sheet = page.locator('.abs-sheet').filter({ hasText: '最近动过' });
+    const rows = sheet.locator('ul button');
+    await expect(rows.first()).toBeVisible();
+
+    // 12 demo files, 3 hidden by the default exclusions.
+    await expect(rows).toHaveCount(9);
+    // 便笺-Markdown-备忘单 carries updated 2026-10-17, newer than every other seed.
+    // A path-sliced 12-file sample would have skipped this ranking entirely.
+    await expect(rows.first()).toContainText('便笺：Markdown 备忘单');
+    await expect(sheet).toContainText('全库 9 篇');
+  });
+
   test('adds a frontmatter field in settings and renders it in the editor', async ({ page }) => {
     await page.goto('/?demo=1#/settings');
     const fieldsSection = page.locator('section.abs-paper').filter({ hasText: 'Frontmatter 字段' });

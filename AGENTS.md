@@ -84,8 +84,9 @@ scripts/                    seed/clean/test-env、design build/serve
    - 删除配置字段不等于删除文件里的键；未知字段保留；空可选字段回写时用 `null` 删除键块。
    - 不把字段配置写进 `astro-blog` schema；它是应用层表单配置。
 6. **Dashboard 数据读取**
-   - dashboard 的 frontmatter 采样必须走 `gateway.readFiles` 批量接口（LiveGateway 优先一次 GraphQL，失败回退 Contents REST）；不要回到逐文件 `useQueries`。
-   - 批量结果要回填 `['file']` cache；采样上限保持 12 篇，不为了统计全量读取。
+   - dashboard 的 frontmatter 索引必须走 `gateway.readFiles` 批量接口（20 篇 / 批，一次 GraphQL；失败回退 Contents REST）；不要回到逐文件 `useQueries`。
+   - 索引必须覆盖全库（`MAX_INDEX_FILES = 1000` 上限并对用户明示），排序发生在截断之前；不要在文件树路径切片上做「最近」。
+   - 批量结果要回填 `['file']` cache，并以 tree sha 作查询键；同一 tree 不重复请求，tree 变化时只重读 blob sha 改变的批次。
    - 改动 gateway 批量逻辑必须同时验证 CORS/权限、CJK 路径、超大/缺失文件和 REST 回退。
 7. **设计**
    - 组件样式优先用 `.abs-*` 设计系统；不要引入通用 SaaS 卡片网格/渐变/玻璃拟态。

@@ -65,7 +65,7 @@ test.describe('live new-post flow', () => {
     await apiContext.dispose();
   });
 
-  test('dashboard summarizes the recent list with one GraphQL batch', async ({ page }) => {
+  test('dashboard indexes every visible post with one GraphQL batch and no Contents reads', async ({ page }) => {
     const requests: Array<{ url: string; method: string }> = [];
     page.on('request', (request) => {
       if (request.url().startsWith('https://api.github.com')) {
@@ -74,12 +74,21 @@ test.describe('live new-post flow', () => {
     });
 
     await unlock(page);
-    await expect(page.locator('.abs-sheet').filter({ hasText: '最近动过' }).locator('ul button').first()).toBeVisible({
-      timeout: 30_000,
-    });
+    const sheet = page.locator('.abs-sheet').filter({ hasText: '最近动过' });
+    const rows = sheet.locator('ul button');
+    await expect(rows.first()).toBeVisible({ timeout: 30_000 });
+
+    // The whole visible tree is indexed; the header stops saying "12 篇 sample".
+    const label = sheet.locator('span[title="按 frontmatter 的 updated / date 排序"]');
+    await expect(label).toContainText(/全库 \d+ 篇/, { timeout: 30_000 });
+    const total = Number(/全库 (\d+) 篇/.exec(await label.innerText())?.[1] ?? 0);
+    expect(total).toBeGreaterThan(0);
+    // At most twelve rows, and every readable post when the repo is smaller.
+    await expect(rows).toHaveCount(Math.min(total, 12));
 
     const graphql = requests.filter((request) => request.url.endsWith('/graphql'));
     const contents = requests.filter((request) => /\/contents\//.test(request.url));
+    // The seed repo has fewer than one batch (20) of visible files.
     expect(graphql).toHaveLength(1);
     expect(contents).toHaveLength(0);
   });

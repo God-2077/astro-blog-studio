@@ -27,6 +27,8 @@ const MAX_FILE_BYTES = 900_000;
 const API_VERSION = '2022-11-28';
 const GRAPHQL_URL = 'https://api.github.com/graphql';
 const GRAPHQL_BATCH_SIZE = 20;
+/** Keep the Contents fallback from firing one burst per indexed batch. */
+const REST_FALLBACK_CONCURRENCY = 4;
 
 interface GraphqlBlob {
   oid: string;
@@ -186,8 +188,13 @@ export class LiveGateway implements GitHubGateway {
   }
 
   private async readFilesRest(paths: string[]): Promise<FileContent[]> {
-    const results = await Promise.allSettled(paths.map((path) => this.readFile(path)));
-    return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+    const files: FileContent[] = [];
+    for (let index = 0; index < paths.length; index += REST_FALLBACK_CONCURRENCY) {
+      const slice = paths.slice(index, index + REST_FALLBACK_CONCURRENCY);
+      const results = await Promise.allSettled(slice.map((path) => this.readFile(path)));
+      files.push(...results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : [])));
+    }
+    return files;
   }
 
   private async readFilesGraphql(paths: string[]): Promise<FileContent[]> {

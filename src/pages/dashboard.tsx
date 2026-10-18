@@ -3,8 +3,9 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NewPostDialog } from '@/components/new-post-dialog';
 import { Badge, EmptyState, ErrorNote, SkeletonList } from '@/components/ui';
-import { usePostSummaries, useTreeModel } from '@/hooks/use-data';
+import { useFrontmatterIndex, useTreeModel } from '@/hooks/use-data';
 import { useGateway } from '@/lib/gateway/context';
+import { pickRecent } from '@/lib/posts/summary';
 import { displayDate } from '@/lib/utils/date';
 import { useLastCommit } from '@/stores/last-commit';
 import { useRateLimit } from '@/stores/rate-limit';
@@ -18,23 +19,18 @@ export function DashboardPage() {
   const lastCommit = useLastCommit((state) => state.commit);
   const rate = useRateLimit();
 
-  const paths = useMemo(() => (model ? model.files.map((file) => file.path) : []), [model]);
-  const {
-    summaries,
-    isLoading: summariesLoading,
-    isError: summariesError,
-    error: summariesErrorDetail,
-    refetch: refetchSummaries,
-    scanned,
-  } = usePostSummaries(paths, 12, tree.data?.sha);
+  const files = useMemo(() => model?.files ?? [], [model]);
+  const index = useFrontmatterIndex(files, tree.data?.sha);
 
-  const sorted = useMemo(
-    () => [...summaries].sort((a, b) => (b.updated ?? b.date).localeCompare(a.updated ?? a.date)),
-    [summaries],
-  );
-  const drafts = summaries.filter((item) => item.draft).length;
-  const encrypted = summaries.filter((item) => item.encrypted).length;
-  const scanLimit = Math.min(12, model?.files.length ?? 0);
+  const recent = useMemo(() => pickRecent(index.summaries, 12), [index.summaries]);
+  const drafts = index.summaries.filter((item) => item.draft).length;
+  const encrypted = index.summaries.filter((item) => item.encrypted).length;
+  const statsLoading = index.isLoadingFirst;
+  const summaryLabel = index.isIndexing
+    ? `读取中 ${index.scanned} / ${index.indexed}`
+    : index.indexed > 0
+      ? `全库 ${index.indexed} 篇`
+      : '读取 frontmatter';
   const today = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full', timeZone: config.timezone }).format(new Date());
 
   const openDialog = params.get('new') === '1' || dialogOpen;
@@ -67,12 +63,9 @@ export function DashboardPage() {
         </section>
 
         {tree.error ? <ErrorNote error={tree.error} onRetry={() => void tree.refetch()} className="mt-4" /> : null}
-        {summariesError ? (
-          <ErrorNote
-            error={summariesErrorDetail ?? new Error('frontmatter 读取失败')}
-            onRetry={() => void refetchSummaries()}
-            className="mt-3"
-          />
+        {index.error ? <ErrorNote error={index.error} onRetry={index.refetchFailed} className="mt-3" /> : null}
+        {tree.data?.truncated ? (
+          <p className="mt-2 px-1 font-mono text-[9.5px] text-muted">文件树被 GitHub 截断，索引可能不完整。</p>
         ) : null}
 
         <section className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5" aria-label="统计">
@@ -83,13 +76,17 @@ export function DashboardPage() {
           </div>
           <div className="abs-sticky bg-butter rotate-[0.5deg]">
             <span className="abs-sticky-label">草稿</span>
-            <strong className="abs-sticky-value">{summariesLoading ? '—' : drafts}</strong>
-            <span className="abs-sticky-hint">基于已扫描的 {scanned} 篇</span>
+            <strong className="abs-sticky-value">{statsLoading ? '—' : drafts}</strong>
+            <span className="abs-sticky-hint">
+              {index.isIndexing ? `读取中 ${index.scanned} / ${index.indexed}` : `基于全库 ${index.indexed} 篇`}
+            </span>
           </div>
           <div className="abs-sticky bg-blush rotate-[-0.3deg]">
             <span className="abs-sticky-label">加密</span>
-            <strong className="abs-sticky-value">{summariesLoading ? '—' : encrypted}</strong>
-            <span className="abs-sticky-hint">发布时需输入密码</span>
+            <strong className="abs-sticky-value">{statsLoading ? '—' : encrypted}</strong>
+            <span className="abs-sticky-hint">
+              {index.isIndexing ? `读取中 ${index.scanned} / ${index.indexed}` : `基于全库 ${index.indexed} 篇`}
+            </span>
           </div>
         </section>
 
@@ -97,12 +94,21 @@ export function DashboardPage() {
           <span className="abs-tape" aria-hidden />
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-dashed border-line pb-2">
             <h2 className="font-display text-[16px] font-bold">最近动过</h2>
-            <span className="font-mono text-[9.5px] text-muted">
-              {scanned ? `已扫描 ${scanned} / ${scanLimit}` : '读取 frontmatter'}
+            <span className="font-mono text-[9.5px] text-muted" title="按 frontmatter 的 updated / date 排序">
+              {summaryLabel} · updated / date
             </span>
           </div>
 
-          {tree.isLoading || (summariesLoading && !sorted.length) ? (
+          {index.total > index.indexed ? (
+            <p className="mt-2 text-[10px] leading-relaxed text-muted">
+              内容仓库共 {index.total} 篇，仅索引前 {index.indexed} 篇，避免一次性读完整库。
+            </p>
+          ) : null}
+          {!index.isIndexing && index.skipped > 0 ? (
+            <p className="mt-1 text-[10px] leading-relaxed text-muted">{index.skipped} 篇未读取（超大、二进制或权限不足）。</p>
+          ) : null}
+
+          {tree.isLoading || index.isLoadingFirst ? (
             <div className="py-4">
               <SkeletonList rows={5} />
             </div>
@@ -119,13 +125,13 @@ export function DashboardPage() {
                 当前根目录 {config.rootDir} 下没有可见的 .md / .mdx。也可能是排除规则把内容全部隐藏了。
               </EmptyState>
             </div>
-          ) : sorted.length === 0 ? (
+          ) : recent.length === 0 ? (
             <p className="py-8 text-center text-[11.5px] text-muted">
               文件树里有 {model.totalMarkdown} 个文件，但还没读到 frontmatter。
             </p>
           ) : (
             <ul>
-              {sorted.map((post) => (
+              {recent.map((post) => (
                 <li key={post.path}>
                   <button
                     type="button"

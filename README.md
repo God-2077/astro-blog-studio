@@ -19,7 +19,7 @@
 - **写操作**：新建、保存、删除、移动/重命名。新建先在本地起草，**第一次保存才创建文件，只调用一次创建 API**；移动用 Git Data API 在**一个提交**里完成；更新带 `sha` 乐观锁，冲突时弹出「重新加载 / 覆盖远端 / 取消」。
 - **格式保真**：保留 CRLF / LF / BOM / 结尾换行；分块 base64 处理，避免大文件栈溢出；UTF-8 解码替换字符检测。
 - **提交体验**：提交消息模板（`{path}`、`{title}`、`{oldPath}`、`{newPath}`、`{dir}`、`{name}`、`{date}`、`{action}`）；提交前确认；提交小票（sha、路径、时间、GitHub 链接）；API 配额显示。
-- **Dashboard 性能**：首屏只发起 1 次 tree 请求 + 1 次 GraphQL 批量 frontmatter 读取；GraphQL 不可用时自动回退到 REST。最近/草稿/加密仍基于前 12 篇采样，避免为了统计读取整库。
+- **Dashboard 索引**：tree 之后按 20 篇 / 批用 GraphQL 批量读取 frontmatter，分批完成即渲染；「最近动过」、草稿与加密计数都基于全库，排序依据是 frontmatter 的 `updated` / `date`。同一 tree 命中缓存，tree 变化时只重读 blob sha 改变的批次；超过 1000 篇时只索引前 1000 篇并提示；GraphQL 不可用时回退 Contents REST。
 - **真实 / 演示双模式**：`?demo=1` 使用内存 fixture，不联网、不写仓库，适合评审 UI 和录屏。
 - **外观 / 夜间模式**：默认跟随系统，也可在设置里固定为昼或夜；`<html data-theme>` 在首帧前由内联脚本应用，避免刷新白闪。夜间是暖墨纸与米白墨（不是反相、不用纯黑），CodeMirror、Markdown 预览、设置、解锁与移动端共用同一套 `--abs-*` token。
 - **保险库**：PAT 以 AES-GCM-256 加密后写 localStorage；密钥由 PBKDF2-SHA256（600k 次）派生；设备指纹（FingerprintJS）自动解锁；可选密码，支持「密码 + 设备」双因子；内存会话令牌；锁定清空。

@@ -51,7 +51,10 @@ export class FixtureGateway implements GitHubGateway {
       sha: file.sha,
       size: new Blob([file.text]).size,
     }));
-    return { entries, truncated: false, sha: `demo-tree-${entries.length}` };
+    // Content-derived so a demo write changes the tree sha and the dashboard
+    // re-indexes instead of serving the previous summaries.
+    const signature = entries.map((entry) => `${entry.path}:${entry.sha}`).join('\n');
+    return { entries, truncated: false, sha: `demo-tree-${fnv1a(signature)}` };
   }
 
   async readFile(path: string): Promise<FileContent> {
