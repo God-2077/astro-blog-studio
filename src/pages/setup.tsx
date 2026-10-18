@@ -1,7 +1,8 @@
-import { ArrowRight, Fingerprint, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Github, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Field, Spinner } from '@/components/ui';
+import { APP_DESCRIPTION, APP_NAME, APP_URL, APP_URL_LABEL } from '@/lib/config/app-meta';
 import { SUGGESTED_EXCLUDES } from '@/lib/config/defaults';
 import { mapError } from '@/lib/github/errors';
 import { LiveGateway } from '@/lib/github/live';
@@ -247,13 +248,19 @@ export function SetupPage() {
           <div className="relative rotate-[0.6deg] rounded-[14px] border-[1.5px] border-edge bg-butter px-4 py-3.5 text-[10.5px] leading-relaxed shadow-sticker">
             <span className="abs-tape abs-tape-mint" aria-hidden />
             <p className="flex items-center gap-1.5 font-display text-[13px] font-bold">
-              <Fingerprint aria-hidden className="size-3.5" />
-              测试仓库
+              <Github aria-hidden className="size-3.5" />
+              {APP_NAME}
             </p>
-            <p className="mt-1.5">
-              <code className="font-mono">God-2077/astro-blog-content-test</code> 当前是空仓库；先在 studio
-              目录跑一次种子脚本，或在应用里用演示模式先看界面。
-            </p>
+            <p className="mt-1.5">{APP_DESCRIPTION}</p>
+            <a
+              className="mt-2 inline-flex items-center gap-1 break-all font-mono text-[10px] text-ink-soft underline decoration-line underline-offset-2 hover:text-sakura"
+              href={APP_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {APP_URL_LABEL}
+              <ArrowUpRight aria-hidden className="size-3 shrink-0" />
+            </a>
           </div>
         </aside>
       </div>

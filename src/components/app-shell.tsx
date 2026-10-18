@@ -4,6 +4,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { TreePanel } from '@/components/tree-panel';
 import { useAutoLock } from '@/hooks/use-auto-lock';
 import { useTreeModel } from '@/hooks/use-data';
+import { APP_NAME, APP_URL, APP_VERSION } from '@/lib/config/app-meta';
 import { useGateway } from '@/lib/gateway/context';
 import { cn } from '@/lib/utils/cn';
 import { useEditorGuard } from '@/stores/editor';
@@ -191,7 +192,15 @@ export function AppShell() {
           API {rate.remaining.toLocaleString('en-US')} / {rate.limit.toLocaleString('en-US')} ·{' '}
           {rate.limit ? Math.round((rate.remaining / rate.limit) * 100) : 0}%
         </span>
-        <span>Astro Blog Studio v0.1.0</span>
+        <a
+          className="underline decoration-line underline-offset-2 hover:text-sakura"
+          href={APP_URL}
+          target="_blank"
+          rel="noreferrer noopener"
+          title="在 GitHub 打开项目源码"
+        >
+          {APP_NAME} v{APP_VERSION}
+        </a>
       </footer>
 
       {sidebarOpen ? (
