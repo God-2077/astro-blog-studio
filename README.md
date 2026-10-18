@@ -19,11 +19,11 @@
 - **写操作**：新建、保存、删除、移动/重命名。新建先在本地起草，**第一次保存才创建文件，只调用一次创建 API**；移动用 Git Data API 在**一个提交**里完成；更新带 `sha` 乐观锁，冲突时弹出「重新加载 / 覆盖远端 / 取消」。
 - **格式保真**：保留 CRLF / LF / BOM / 结尾换行；分块 base64 处理，避免大文件栈溢出；UTF-8 解码替换字符检测。
 - **提交体验**：提交消息模板（`{path}`、`{title}`、`{oldPath}`、`{newPath}`、`{dir}`、`{name}`、`{date}`、`{action}`）；提交前确认；提交小票（sha、路径、时间、GitHub 链接）；API 配额显示。
-- **Dashboard 索引**：tree 之后按 20 篇 / 批用 GraphQL 批量读取 frontmatter，分批完成即渲染；「最近动过」、草稿与加密计数都基于全库，排序依据是 frontmatter 的 `updated` / `date`。同一 tree 命中缓存，tree 变化时只重读 blob sha 改变的批次；超过 1000 篇时只索引前 1000 篇并提示；GraphQL 不可用时回退 Contents REST。
+- **Dashboard 索引**：tree 之后按 20 篇 / 批用 GraphQL 批量读取 frontmatter，分批完成即渲染；「最近动过」、草稿与加密计数都基于全库，排序依据是 frontmatter 的 `updated` / `date`。同一 tree 命中缓存，tree 变化时只重读 blob sha 改变的批次；超过 1000 篇时只索引前 1000 篇并提示；GraphQL 不可用时回退 Contents REST。同时读取的批次数由设置里的「索引并发」控制（1–10，默认 3）。
 - **真实 / 演示双模式**：`?demo=1` 使用内存 fixture，不联网、不写仓库，适合评审 UI 和录屏。
 - **外观 / 夜间模式**：默认跟随系统，也可在设置里固定为昼或夜；`<html data-theme>` 在首帧前由内联脚本应用，避免刷新白闪。夜间是暖墨纸与米白墨（不是反相、不用纯黑），CodeMirror、Markdown 预览、设置、解锁与移动端共用同一套 `--abs-*` token。
 - **保险库**：PAT 以 AES-GCM-256 加密后写 localStorage；密钥由 PBKDF2-SHA256（600k 次）派生；设备指纹（FingerprintJS）自动解锁；可选密码，支持「密码 + 设备」双因子；内存会话令牌；锁定清空。
-- **设置**：根目录、扩展名、排除规则、时区、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、自动锁定、密码更换、重置保险库、外观（跟随系统 / 昼 / 夜）。
+- **设置**：根目录、扩展名、排除规则、时区、索引并发（1–10）、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、自动锁定、密码更换、重置保险库、外观（跟随系统 / 昼 / 夜）。
 - **响应式**：桌面双栏、移动端抽屉索引；`prefers-reduced-motion` 降级。
 - **PWA**：构建产物带 `manifest.webmanifest` 与 Service Worker，应用壳（HTML/JS/CSS/字体/图标）预缓存，第二次打开与弱网/断网打开都不等网络；检测到新部署时弹窗提示刷新（不自动刷新）。详见 [PWA 与离线](#pwa-与离线)。
 

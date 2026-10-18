@@ -7,6 +7,16 @@ export const repoSchema = z.object({
   branch: z.string().min(1),
 });
 
+/** Home-page frontmatter index: how many 20-file batches may be in flight. */
+export const INDEX_CONCURRENCY_MIN = 1;
+export const INDEX_CONCURRENCY_MAX = 10;
+export const INDEX_CONCURRENCY_DEFAULT = 3;
+
+export function clampIndexConcurrency(value: number): number {
+  if (!Number.isFinite(value)) return INDEX_CONCURRENCY_DEFAULT;
+  return Math.min(INDEX_CONCURRENCY_MAX, Math.max(INDEX_CONCURRENCY_MIN, Math.trunc(value)));
+}
+
 export const frontmatterFieldSchema = z.object({
   name: z.string().min(1).max(64),
   type: z.enum(FRONTMATTER_FIELD_TYPES),
@@ -27,6 +37,9 @@ export const settingsSchema = z.object({
     extensions: z.array(z.string()),
     excludes: z.array(z.string()),
     timezone: z.string().min(1),
+    // `.catch` keeps settings saved by older versions (and junk values) usable
+    // instead of resetting the whole persisted object in the store merge.
+    indexConcurrency: z.number().int().min(INDEX_CONCURRENCY_MIN).max(INDEX_CONCURRENCY_MAX).catch(INDEX_CONCURRENCY_DEFAULT),
   }),
   commit: z.object({
     create: z.string(),

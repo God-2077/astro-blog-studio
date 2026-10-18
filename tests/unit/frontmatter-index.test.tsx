@@ -4,13 +4,18 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { useMemo } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useFrontmatterIndex, useTreeModel } from '@/hooks/use-data';
+import { defaultSettings } from '@/lib/config/defaults';
 import { demoContentConfig, demoRepo } from '@/lib/demo/fixtures';
 import { GatewayProvider } from '@/lib/gateway/context';
 import { FixtureGateway } from '@/lib/github/fixture';
 import type { FileContent } from '@/lib/github/types';
 import { pickRecent } from '@/lib/posts/summary';
+import { useSettings } from '@/stores/settings';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  useSettings.setState({ content: { ...defaultSettings.content } });
+});
 
 function buildSeed(count: number): Record<string, string> {
   const seed: Record<string, string> = {};
@@ -40,6 +45,22 @@ class FlakyGateway extends CountingGateway {
       throw new Error('batch down');
     }
     return super.readFiles(paths);
+  }
+}
+
+class ConcurrencyGateway extends CountingGateway {
+  active = 0;
+  peak = 0;
+
+  override async readFiles(paths: string[]): Promise<FileContent[]> {
+    this.active += 1;
+    this.peak = Math.max(this.peak, this.active);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return await super.readFiles(paths);
+    } finally {
+      this.active -= 1;
+    }
   }
 }
 
@@ -120,6 +141,16 @@ describe('useFrontmatterIndex', () => {
     // Only the batch containing the changed blob hits the gateway, and only for
     // that one blob: the other 19 files are served from the ['file'] cache.
     expect(gateway.batchCalls).toBe(before + 1);
+  });
+
+  it('honours the configured index concurrency', async () => {
+    useSettings.setState({ content: { ...defaultSettings.content, indexConcurrency: 2 } });
+    const gateway = new ConcurrencyGateway(buildSeed(140));
+    renderProbe(gateway);
+
+    await waitFor(() => expect(screen.getByTestId('scanned').textContent).toBe('140'), { timeout: 10_000 });
+    expect(gateway.batchCalls).toBe(7);
+    expect(gateway.peak).toBe(2);
   });
 
   it('keeps the other batches when one batch fails, then recovers on retry', async () => {
