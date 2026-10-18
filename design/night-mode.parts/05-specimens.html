@@ -1,0 +1,196 @@
+<section class="view" data-view="specimens">
+  <div class="view-cap">
+    <div><strong class="view-cap-title">组件标本</strong><span class="view-cap-note"> · 夜里的每一件小东西：按钮、输入、徽章、树行、贴纸、印章、预览排版</span></div>
+    <span class="view-cap-meta">SPECIMEN · <span data-theme-name>夜间</span></span>
+  </div>
+  <div class="stage">
+    <div class="mock" data-theme="night">
+      <div class="m-shell">
+        <div class="m-spec-head">
+          <div>
+            <p class="m-kicker">COMPONENT SPECIMEN</p>
+            <h2 class="m-spec-title">夜里的零件</h2>
+            <p class="m-spec-sub">全部来自同一条 token 链；不新增第二种阴影、第二种圆角或第二种强调色。</p>
+          </div>
+          <span class="m-badge m-badge-mint">night tokens</span>
+        </div>
+
+        <div class="m-spec-grid">
+          <section class="m-paper m-spec" aria-label="按钮">
+            <h3>按钮<span>BUTTON</span></h3>
+            <div class="m-spec-col">
+              <div class="m-spec-row">
+                <button type="button" class="m-btn m-btn-primary"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-plus"/></svg>新建文章</button>
+                <button type="button" class="m-btn">保存配置</button>
+              </div>
+              <div class="m-spec-row">
+                <button type="button" class="m-btn m-btn-ghost"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-external"/></svg>GitHub</button>
+                <button type="button" class="m-btn m-btn-danger"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-trash"/></svg>删除</button>
+              </div>
+              <div class="m-spec-row">
+                <button type="button" class="m-icon-btn" aria-label="设置"><svg class="m-ico" aria-hidden="true"><use href="#i-gear"/></svg></button>
+                <button type="button" class="m-icon-btn" aria-label="锁定"><svg class="m-ico" aria-hidden="true"><use href="#i-lock"/></svg></button>
+                <button type="button" class="m-btn" disabled>只读 · 不可保存</button>
+              </div>
+              <span class="m-spec-label">唯一实心樱粉按钮仍然是「新建文章」；危险操作只用描边。</span>
+            </div>
+          </section>
+
+          <section class="m-paper m-spec" aria-label="输入">
+            <h3>输入与焦点<span>INPUT</span></h3>
+            <div class="m-spec-col">
+              <label class="m-field"><span class="m-field-label">标题</span><input class="m-input" value="便笺：Markdown 备忘单"></label>
+              <label class="m-field"><span class="m-field-label">焦点态</span><input class="m-input is-focus" value="正在编辑这一格"></label>
+              <label class="m-field"><span class="m-field-label">占位符</span><input class="m-input" placeholder="写点什么…"></label>
+              <div class="m-spec-row">
+                <label class="m-field" style="flex:1 1 120px"><span class="m-field-label">类型</span><div class="m-select-wrap"><select class="m-select"><option>string</option><option>date</option><option>list</option></select></div></label>
+                <label class="m-field" style="flex:1 1 120px"><span class="m-field-label">必填</span><span class="m-check-row"><span class="m-check is-on"><svg class="m-ico" aria-hidden="true"><use href="#i-check"/></svg></span><span class="m-check-text">TRUE</span></span></label>
+              </div>
+              <label class="m-field"><span class="m-field-label">排除规则</span><textarea class="m-textarea" rows="2">src/content/blog/en
+**/draft/**</textarea></label>
+            </div>
+          </section>
+
+          <section class="m-paper m-spec" aria-label="徽章与状态">
+            <h3>徽章与状态<span>BADGE · KBD</span></h3>
+            <div class="m-spec-col">
+              <div class="m-spec-row">
+                <span class="m-badge m-badge-mint"><span class="m-badge-dot"></span>已保存</span>
+                <span class="m-badge m-badge-mint">置顶</span>
+                <span class="m-badge m-badge-butter">草稿</span>
+                <span class="m-badge m-badge-blush">加密</span>
+                <span class="m-badge m-badge-ghost">文章</span>
+                <span class="m-badge m-badge-ink">main</span>
+              </div>
+              <div class="m-spec-row">
+                <span class="m-kbd">⌘K</span><span class="m-kbd">Esc</span><span class="m-kbd">←</span><span class="m-kbd">→</span>
+                <a class="m-link" href="#" onclick="return false">提交与设置</a>
+                <a class="m-link-dotted" href="#" onclick="return false">退出演示</a>
+              </div>
+              <div class="m-spec-row">
+                <span class="m-toggle is-on"><i></i></span><span class="m-spec-label">开</span>
+                <span class="m-toggle"><i></i></span><span class="m-spec-label">关</span>
+                <span class="m-check is-on"><svg class="m-ico" aria-hidden="true"><use href="#i-check"/></svg></span><span class="m-spec-label">复选</span>
+                <span class="m-check"></span><span class="m-spec-label">未选</span>
+              </div>
+              <span class="m-spec-label">颜色不是唯一状态：勾选、描边、文案同时承担含义。</span>
+            </div>
+          </section>
+
+          <section class="m-paper m-spec" aria-label="文件树">
+            <h3>文件树行<span>TREE</span></h3>
+            <ul class="m-tree-list">
+              <li><button type="button" class="m-tree-row" style="--depth:0"><svg class="m-tree-caret" aria-hidden="true"><use href="#i-chev-down"/></svg><svg class="m-tree-ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="m-tree-name">content</span><span class="m-tree-count">8</span></button></li>
+              <li><button type="button" class="m-tree-row m-spec-hover" style="--depth:1;margin-left:15px;width:calc(100% - 15px)"><svg class="m-tree-caret" aria-hidden="true"><use href="#i-chev-down"/></svg><svg class="m-tree-ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="m-tree-name">blog</span><span class="m-tree-count">8</span></button></li>
+              <li><button type="button" class="m-tree-row is-selected" style="--depth:2;margin-left:30px;width:calc(100% - 30px)"><svg class="m-tree-caret" aria-hidden="true"><use href="#i-chev"/></svg><svg class="m-tree-ico" aria-hidden="true"><use href="#i-folder"/></svg><span class="m-tree-name">note</span><span class="m-tree-count">3</span></button></li>
+              <li><button type="button" class="m-tree-row" style="--depth:3;margin-left:45px;width:calc(100% - 45px)"><svg class="m-tree-caret" aria-hidden="true"><use href="#i-chev"/></svg><svg class="m-tree-ico m-tree-ico-file" aria-hidden="true"><use href="#i-file"/></svg><span class="m-tree-name">about.md</span></button></li>
+            </ul>
+            <span class="m-spec-label">默认 / 悬停 / 选中；选中用腮红底 + 3px 樱线，不使用纯色填充。</span>
+          </section>
+
+          <section class="m-paper m-spec" aria-label="纸张与贴纸">
+            <h3>纸张与贴纸<span>PAPER</span></h3>
+            <div class="m-spec-paper-grid">
+              <div class="m-sticky m-sticky-mint" style="min-height:88px">
+                <span class="m-sticky-label">全部文章</span>
+                <strong class="m-sticky-value" style="font-size:26px">9</strong>
+                <span class="m-sticky-hint">3 个被排除</span>
+              </div>
+              <div class="m-receipt" style="font-size:8.5px">
+                <div class="m-receipt-head"><strong>提交小票</strong><span class="m-badge m-badge-mint">已提交</span></div>
+                <div class="m-receipt-rows"><div class="m-receipt-row"><span>提交</span><span>a1b2c3d</span></div><div class="m-receipt-row"><span>改动</span><span>+12 −3</span></div></div>
+              </div>
+            </div>
+            <div class="m-tape-row"><span class="m-tape m-tape-mint"></span><span class="m-tape"></span><span class="m-spec-label">纸胶带：夜里的胶带是半透明的，不是发光的。</span></div>
+          </section>
+
+          <section class="m-paper m-spec" aria-label="印章与提交">
+            <h3>印章与提交<span>STAMP</span></h3>
+            <div class="m-spec-col">
+              <div class="m-stamp-row">
+                <button type="button" class="m-stamp" data-stamp aria-label="盖章保存">盖章<br>保存</button>
+                <div class="m-stamp-info">
+                  <span class="m-saved" data-saved>已保存 · 刚刚</span>
+                  <span class="m-spec-label">按一下印章试试；夜间仍是唯一的红。</span>
+                </div>
+              </div>
+              <div class="m-commit-mini">
+                <span class="m-msg-preview-label">提交消息</span>
+                <code>update: src/content/blog/note/便笺-Markdown-备忘单.md</code>
+              </div>
+            </div>
+          </section>
+
+          <section class="m-paper m-spec" aria-label="反馈状态">
+            <h3>反馈状态<span>STATE</span></h3>
+            <div class="m-spec-col">
+              <div class="m-note-danger" role="alert"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-info"/></svg><span>远端已被修改 · 重新加载后再保存</span></div>
+              <div class="m-empty">
+                <svg class="m-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                <strong>这个目录里还没有 Markdown</strong>
+                <span>换个目录，或从「新建文章」开始。</span>
+              </div>
+              <div class="m-skeleton-list"><span class="m-skeleton" style="width:82%"></span><span class="m-skeleton" style="width:64%"></span><span class="m-skeleton" style="width:74%"></span></div>
+              <div class="m-toast-demo"><span class="m-toast-dot"></span>已保存 · 1 个提交到 main</div>
+            </div>
+          </section>
+
+          <section class="m-paper m-spec m-spec-wide" aria-label="预览排版">
+            <h3>预览排版<span>PROSE</span></h3>
+            <div class="m-prose m-prose-compact">
+              <h2>一条给自己的规矩 <mark>更新</mark></h2>
+              <p>先写，再排版。写完就忘的，通常不是语法，是当时想写的那句话。行内 <code>## 标题</code>、链接 <a href="#" onclick="return false">设计决策</a> 和 <del>删掉的行</del> 都要在夜里读得清。</p>
+              <blockquote>不要因为「夜间模式」很酷就加；先确认它解决了夜里写两小时的眼睛。</blockquote>
+              <pre><code>const studio = { eol: 'crlf', theme: 'night' };</code></pre>
+            </div>
+          </section>
+        </div>
+
+        <footer class="m-statusbar">
+          <span class="m-status-dot">in-memory fixture</span>
+          <span>API 4,812 / 5,000 · 96%</span>
+          <span>Astro Blog Studio v0.1.0</span>
+        </footer>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* ---------- specimens ---------- */
+.m-spec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 4px 6px 0; }
+.m-spec-title { font-family: var(--abs-font-display); font-size: 26px; font-weight: 800; letter-spacing: -0.01em; margin-top: 2px; }
+.m-spec-sub { margin-top: 6px; font-size: 10.5px; color: var(--abs-muted); }
+.m-spec-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.m-spec { padding: 13px 14px 14px; border-radius: 15px; min-width: 0; }
+.m-spec h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 9px; font-family: var(--abs-font-display); font-size: 13px; font-weight: 700; }
+.m-spec h3 span { font-family: var(--abs-font-mono); font-size: 7.5px; font-weight: 400; letter-spacing: 0.1em; color: var(--abs-muted); }
+.m-spec-wide { grid-column: span 2; }
+.m-spec-col { display: flex; flex-direction: column; gap: 9px; }
+.m-spec-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.m-spec-label { font-size: 8.5px; line-height: 1.65; color: var(--abs-muted); }
+.m-spec-paper-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+.m-tape-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.m-tape { position: relative; display: inline-block; width: 54px; height: 15px; background: var(--abs-tape); border-left: 1px dashed var(--abs-tape-line); border-right: 1px dashed var(--abs-tape-line); transform: rotate(-2deg); flex: none; }
+.m-tape-mint { background: var(--abs-tape-mint); transform: rotate(1.6deg); }
+.m-stamp-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.m-stamp-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.m-commit-mini { padding: 8px 9px; border: 1px solid var(--abs-line); border-radius: 8px; background: var(--abs-paper-2); }
+.m-commit-mini code { display: block; margin-top: 2px; font-family: var(--abs-font-mono); font-size: 9px; line-height: 1.6; color: var(--abs-success); overflow-wrap: anywhere; }
+.m-note-danger { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--abs-danger) 42%, transparent); border-radius: 9px; background: var(--abs-danger-tint); color: var(--abs-danger); font-size: 9.5px; line-height: 1.55; }
+.m-note-danger .m-ico { flex: none; }
+.m-empty { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 16px 10px; border: 1px dashed var(--abs-line); border-radius: 10px; text-align: center; color: var(--abs-muted); }
+.m-empty .m-ico { width: 17px; height: 17px; margin-bottom: 3px; }
+.m-empty strong { font-size: 10px; font-weight: 600; color: var(--abs-ink-soft); }
+.m-empty span { font-size: 8.5px; }
+.m-skeleton-list { display: flex; flex-direction: column; gap: 6px; }
+.m-skeleton { display: block; height: 7px; border-radius: 999px; background: linear-gradient(90deg, color-mix(in srgb, var(--abs-ink) 7%, transparent), color-mix(in srgb, var(--abs-ink) 16%, transparent), color-mix(in srgb, var(--abs-ink) 7%, transparent)); background-size: 200% 100%; animation: m-shimmer 1.6s linear infinite; }
+.m-toast-demo { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid var(--abs-line); border-radius: 10px; background: var(--abs-paper); box-shadow: var(--abs-shadow-sm); font-size: 9.5px; color: var(--abs-ink-soft); }
+.m-toast-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--abs-mint); flex: none; }
+.m-prose-compact { padding: 0; font-size: 10.5px; line-height: 1.85; }
+.m-prose-compact blockquote { margin: 0 0 0.9em; padding: 7px 11px; border-left: 3px solid var(--abs-sakura); border-radius: 0 8px 8px 0; background: var(--abs-blush-2); color: var(--abs-ink-soft); }
+.m-prose-compact del { color: var(--abs-muted); }
+.m-input.is-focus { border-color: var(--abs-ink); box-shadow: 2px 2px 0 var(--abs-btn-shadow); }
+.m-spec-hover { background: var(--abs-blush-2); color: var(--abs-ink); }
+@keyframes m-shimmer { to { background-position: -200% 0; } }
+</style>

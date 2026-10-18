@@ -1,0 +1,109 @@
+</main>
+
+<div class="board-toast" data-toast role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var KEY_THEME = 'abs.nightPreview';
+  var KEY_VIEW = 'abs.nightView';
+  var ORDER = ['workbench', 'editor', 'settings', 'specimens', 'mobile', 'compare'];
+  var currentView = 'workbench';
+
+  var mocks = Array.prototype.slice.call(document.querySelectorAll('.mock'));
+  var themeButtons = Array.prototype.slice.call(document.querySelectorAll('[data-theme-set]'));
+  var themeNameEls = Array.prototype.slice.call(document.querySelectorAll('[data-theme-name]'));
+  var viewTabs = Array.prototype.slice.call(document.querySelectorAll('[data-view-tab]'));
+  var views = Array.prototype.slice.call(document.querySelectorAll('[data-view]'));
+
+  function read(key) {
+    try { return window.localStorage.getItem(key); } catch (err) { return null; }
+  }
+  function write(key, value) {
+    try { window.localStorage.setItem(key, value); } catch (err) { /* file:// may deny storage */ }
+  }
+
+  function setTheme(name) {
+    var theme = name === 'day' ? 'day' : 'night';
+    mocks.forEach(function (mock) {
+      if (!mock.hasAttribute('data-fixed-theme')) mock.setAttribute('data-theme', theme);
+    });
+    themeButtons.forEach(function (btn) {
+      var on = btn.getAttribute('data-theme-set') === theme;
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    themeNameEls.forEach(function (el) { el.textContent = theme === 'day' ? '昼间' : '夜间'; });
+    write(KEY_THEME, theme);
+  }
+
+  function setView(name, scroll) {
+    if (ORDER.indexOf(name) === -1) name = 'workbench';
+    currentView = name;
+    viewTabs.forEach(function (tab) {
+      var on = tab.getAttribute('data-view-tab') === name;
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    views.forEach(function (view) {
+      view.classList.toggle('is-active', view.getAttribute('data-view') === name);
+    });
+    write(KEY_VIEW, name);
+    if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
+  }
+
+  var toastTimer = null;
+  function toast(message) {
+    var el = document.querySelector('[data-toast]');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add('is-on');
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(function () { el.classList.remove('is-on'); }, 3600);
+  }
+
+  themeButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () { setTheme(btn.getAttribute('data-theme-set')); });
+  });
+  viewTabs.forEach(function (tab) {
+    tab.addEventListener('click', function () { setView(tab.getAttribute('data-view-tab'), true); });
+  });
+
+  document.querySelectorAll('[data-tree]').forEach(function (tree) {
+    tree.addEventListener('click', function (event) {
+      var row = event.target.closest('.m-tree-row');
+      if (!row) return;
+      tree.querySelectorAll('.m-tree-row').forEach(function (r) { r.classList.remove('is-selected'); });
+      row.classList.add('is-selected');
+    });
+  });
+
+  document.querySelectorAll('[data-stamp]').forEach(function (stamp) {
+    stamp.addEventListener('click', function () {
+      stamp.setAttribute('data-stamping', 'true');
+      window.setTimeout(function () { stamp.removeAttribute('data-stamping'); }, 900);
+      var scope = stamp.closest('[data-view]') || document;
+      var saved = scope.querySelector('[data-saved]');
+      if (saved) saved.textContent = '已保存 · 刚刚';
+      toast('已保存 · 1 个提交到 main · 2026-10-18 23:41');
+    });
+  });
+
+  document.querySelectorAll('[data-demo]').forEach(function (btn) {
+    btn.addEventListener('click', function () { toast('演示模式：这一页不会写入任何仓库'); });
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    var index = ORDER.indexOf(currentView);
+    var next = event.key === 'ArrowRight' ? (index + 1) % ORDER.length : (index - 1 + ORDER.length) % ORDER.length;
+    setView(ORDER[next], true);
+  });
+
+  setTheme(read(KEY_THEME) || 'night');
+  var savedView = read(KEY_VIEW);
+  setView(ORDER.indexOf(savedView) === -1 ? 'workbench' : savedView, false);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+<section class="view" data-view="compare">
+  <div class="view-cap">
+    <div><strong class="view-cap-title">对照与判断</strong><span class="view-cap-note"> · 并排、色板、实测对比度、落地代价与建议</span></div>
+    <span class="view-cap-meta">DECISION NOTES</span>
+  </div>
+  <div class="cmp">
+    <section class="cmp-section">
+      <h2 class="cmp-verdict">值得做，但先做两屏；不要把浅色反相。</h2>
+      <p class="cmp-lead">编辑区是一整张纸，夜里它就是房间里最大的光源——这是夜间模式对这个产品最实在的理由。但它成立的条件不是「把颜色调暗」，而是重新定一套纸：暖墨紫的桌面、深栗的纸、米白的墨、提亮的樱，硬偏移阴影换成更深的黑。否则会掉进通用深色仪表盘，和 01 的手帐身份断掉。</p>
+      <div class="cmp-facts">
+        <div><span>范围</span><p>先做工作台 + 编辑器两屏，覆盖 90% 使用；设置/解锁/组件随 token 自动获得。</p></div>
+        <div><span>身份</span><p>纸胶带、索引卡、提交小票、圆形印章、唯一实心樱粉按钮全部保留。</p></div>
+        <div><span>代价</span><p>约 60 处颜色字面量收敛到 token，加 1 个设置项与 1 段启动脚本；无新增依赖。</p></div>
+        <div><span>边界</span><p>不动 gateway、frontmatter 字段、提交协议与加密；只换外观层。</p></div>
+      </div>
+    </section>
+
+    <section class="cmp-section">
+      <h2 class="cmp-h2">评审后修订 · v2</h2>
+      <p class="cmp-p">你提的问题里，大部分成立，已经改在这一版里；有两类建议没有照做，原因写在后半段。</p>
+      <div class="cmp-rows">
+        <div class="cmp-row"><span>危险 ≠ 品牌</span><p>夜间 danger 从粉调偏前红：<code class="cmp-code">#FF97A7 → #FF8F7C</code>，与品牌粉 <code class="cmp-code">#F07CA3</code> 色相相差约 31°（340° vs 9°）。删除、冲突、重置只用 danger；粉色只留给 CTA、印章、当前项。</p></div>
+        <div class="cmp-row"><span>粉色面积</span><p>索引卡图标换成卡片式，夜间直接上白色（文件夹 <code class="cmp-code">#FFFFFF</code>、文件 78% 白），不再用粉/灰；选中行底色从高饱和梅红降到 <code class="cmp-code">#3E2B33</code>；语法标记降饱和为 <code class="cmp-code">#D99AAE / #A9C9BB</code>；活动行 tint 从 10% 降到 8%。</p></div>
+        <div class="cmp-row"><span>元数据与输入</span><p>muted 提亮 <code class="cmp-code">#A8968F → #B3A19A</code>（5.66 → 6.37）；placeholder <code class="cmp-code">#A5918A → #B5A39B</code>（5.35 → 7.28）；输入框边框 <code class="cmp-code">#857078 → #8F7A82</code>（3.50 → 3.96），输入底比纸暗一档，边界更清楚。</p></div>
+        <div class="cmp-row"><span>纸张边界</span><p>纸面 <code class="cmp-code">#281F24 → #2A2025</code>、桌面 <code class="cmp-code">#120D10 → #100B0E</code>；便签底色各提一档；纸边线 <code class="cmp-code">#7B646B → #806970</code>（3.13:1）；阴影加深。卡片与背景不再糊在一起。</p></div>
+        <div class="cmp-row"><span>印章</span><p>从亮粉改成偏深的印泥红 <code class="cmp-code">#E06582</code>（4.77:1），减少暗底上的发光感；实心粉按钮仍然只有「新建文章」。</p></div>
+        <div class="cmp-row"><span>没有照做</span><p>不用纯黑纸面 + 纯白正文：大面积中文长文在纯黑/纯白上的光晕与对比更累眼；保留暖墨纸 <code class="cmp-code">#2A2025</code> + 米白墨 <code class="cmp-code">#F2E6DE</code>（12.88:1）。也不把状态色合并成一套灰阶：草稿 / 加密 / 置顶需要颜色 + 文字同时辨认，灰阶会削弱扫读。</p></div>
+      </div>
+      <p class="cmp-note">附：评审中两处读数与实现不符——占位符实测是 5.35（不是 4.13），选中行的文字是米白而不是粉色；这一版仍把两者都往更清楚的方向调了：占位符 7.28，选中行底色降到梅灰。</p>
+    </section>
+
+    <section class="cmp-section">
+      <h2 class="cmp-h2">同一张编辑纸，昼与夜</h2>
+      <p class="cmp-p">内容、字号、结构完全一致，只换 token。注意三件事：纸仍然是不透明的；代码块是比纸更深的「墨池」；印章仍然是唯一的红。</p>
+      <div class="cmp-panes">
+        <div class="cmp-pane">
+          <div class="pane-cap"><span>当前实现 · 昼</span><span>#FFFBF5 / #3D2F36</span></div>
+          <div class="pane-frame">
+            <div class="mock mock-compact" data-theme="day" data-fixed-theme>
+              <div class="pane-desk">
+                <div class="pane-sheet">
+                  <div class="pane-head">
+                    <span class="m-kicker">EDITOR · 便笺-Markdown-备忘单.md</span>
+                    <span class="m-badge m-badge-mint">已保存</span>
+                  </div>
+                  <div class="pane-md"><span class="m-active-line"><span class="tok-mark">##</span> <span class="tok-h">为什么要记备忘单</span></span>
+
+每次写文章都要翻一次语法，索性把常用的几条钉在这里。
+写完就忘的，通常不是语法，是当时想写的那句话。
+
+<span class="tok-mark">-</span> 标题：<span class="tok-code">`## 二级标题`</span>
+<span class="tok-mark">-</span> 强调：<span class="tok-code">**粗体**</span> / <span class="tok-code">==高亮==</span>
+<span class="tok-mark">-</span> 剧透：<span class="tok-code">!!点开才看得见!!</span></div>
+                  <div class="pane-bottom">
+                    <div class="pane-mini">
+                      <div class="pane-mini-row"><span>提交小票</span><span>a1b2c3d · +12 −3</span></div>
+                      <code>update: src/content/blog/note/便笺-Markdown-备忘单.md</code>
+                    </div>
+                    <div class="pane-save"><span class="pane-saved">已保存 · 刚刚</span><span class="m-stamp pane-stamp">盖章<br>保存</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cmp-pane">
+          <div class="pane-cap"><span>夜间提案 · v2</span><span>#2A2025 / #F2E6DE</span></div>
+          <div class="pane-frame">
+            <div class="mock mock-compact" data-theme="night" data-fixed-theme>
+              <div class="pane-desk">
+                <div class="pane-sheet">
+                  <div class="pane-head">
+                    <span class="m-kicker">EDITOR · 便笺-Markdown-备忘单.md</span>
+                    <span class="m-badge m-badge-mint">已保存</span>
+                  </div>
+                  <div class="pane-md"><span class="m-active-line"><span class="tok-mark">##</span> <span class="tok-h">为什么要记备忘单</span></span>
+
+每次写文章都要翻一次语法，索性把常用的几条钉在这里。
+写完就忘的，通常不是语法，是当时想写的那句话。
+
+<span class="tok-mark">-</span> 标题：<span class="tok-code">`## 二级标题`</span>
+<span class="tok-mark">-</span> 强调：<span class="tok-code">**粗体**</span> / <span class="tok-code">==高亮==</span>
+<span class="tok-mark">-</span> 剧透：<span class="tok-code">!!点开才看得见!!</span></div>
+                  <div class="pane-bottom">
+                    <div class="pane-mini">
+                      <div class="pane-mini-row"><span>提交小票</span><span>a1b2c3d · +12 −3</span></div>
+                      <code>update: src/content/blog/note/便笺-Markdown-备忘单.md</code>
+                    </div>
+                    <div class="pane-save"><span class="pane-saved">已保存 · 刚刚</span><span class="m-stamp pane-stamp">盖章<br>保存</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cmp-section">
+      <h2 class="cmp-h2">色板映射：同一个变量名，换一组值</h2>
+      <p class="cmp-p">实现里不新增主题命名空间；夜间只是 <code class="cmp-code">--abs-*</code> 的另一组值。下面这些已经在本页被使用。</p>
+      <div class="cmp-table-wrap">
+        <table class="cmp-table token-table">
+          <caption class="sr-only">昼与夜的 token 对照</caption>
+          <thead><tr><th scope="col">token</th><th scope="col">昼（当前）</th><th scope="col">夜（提案）</th><th scope="col">用途</th></tr></thead>
+          <tbody>
+            <tr><td><code>--abs-paper</code></td><td><span class="sw" style="background:#FFFBF5"></span>#FFFBF5</td><td><span class="sw" style="background:#2A2025"></span>#2A2025</td><td>纸面、卡片、编辑纸</td></tr>
+            <tr><td><code>--abs-paper-2</code></td><td><span class="sw" style="background:#FFF6EC"></span>#FFF6EC</td><td><span class="sw" style="background:#32272C"></span>#32272C</td><td>次级纸面、演示条</td></tr>
+            <tr><td><code>--abs-desk</code></td><td><span class="sw" style="background:#F6EDE6"></span>#F6EDE6</td><td><span class="sw" style="background:#100B0E"></span>#100B0E</td><td>桌面（22px 点阵底）</td></tr>
+            <tr><td><code>--abs-ink</code></td><td><span class="sw" style="background:#3D2F36"></span>#3D2F36</td><td><span class="sw" style="background:#F2E6DE"></span>#F2E6DE</td><td>主文字、墨线</td></tr>
+            <tr><td><code>--abs-ink-soft</code></td><td><span class="sw" style="background:#6B5A61"></span>#6B5A61</td><td><span class="sw" style="background:#CFBDB5"></span>#CFBDB5</td><td>次级文字</td></tr>
+            <tr><td><code>--abs-muted</code></td><td><span class="sw" style="background:#7A686E"></span>#7A686E</td><td><span class="sw" style="background:#B3A19A"></span>#B3A19A</td><td>辅助文字、编号</td></tr>
+            <tr><td><code>--abs-line</code></td><td><span class="sw" style="background:#D9C6BF"></span>#D9C6BF</td><td><span class="sw" style="background:#55434A"></span>#55434A</td><td>细线、虚线、分隔</td></tr>
+            <tr><td><code>--abs-edge</code> <em>新增</em></td><td><span class="sw" style="background:#3D2F36"></span>#3D2F36</td><td><span class="sw" style="background:#806970"></span>#806970</td><td>1.5px 纸边（原 var(--ink)）</td></tr>
+            <tr><td><code>--abs-input-line</code> <em>新增</em></td><td><span class="sw" style="background:#D9C6BF"></span>#D9C6BF</td><td><span class="sw" style="background:#8F7A82"></span>#8F7A82</td><td>输入框边框（夜 ≥3:1）</td></tr>
+            <tr><td><code>--abs-blush</code></td><td><span class="sw" style="background:#F7DDE5"></span>#F7DDE5</td><td><span class="sw" style="background:#3E2B33"></span>#3E2B33</td><td>腮红块、选中、贴纸</td></tr>
+            <tr><td><code>--abs-sakura</code></td><td><span class="sw" style="background:#C93F6D"></span>#C93F6D</td><td><span class="sw" style="background:#F07CA3"></span>#F07CA3</td><td>主操作、印章、链接</td></tr>
+            <tr><td><code>--abs-mint</code></td><td><span class="sw" style="background:#A8E0CF"></span>#A8E0CF</td><td><span class="sw" style="background:#8FDCC4"></span>#8FDCC4</td><td>完成、进度、勾选</td></tr>
+            <tr><td><code>--abs-butter</code></td><td><span class="sw" style="background:#FFE9AE"></span>#FFE9AE</td><td><span class="sw" style="background:#443319"></span>#443319</td><td>便签、目标（夜为深底）</td></tr>
+            <tr><td><code>--abs-success</code></td><td><span class="sw" style="background:#2F6B58"></span>#2F6B58</td><td><span class="sw" style="background:#93DEC9"></span>#93DEC9</td><td>成功文字</td></tr>
+            <tr><td><code>--abs-warning</code></td><td><span class="sw" style="background:#7A5B16"></span>#7A5B16</td><td><span class="sw" style="background:#E9C97F"></span>#E9C97F</td><td>提示文字</td></tr>
+            <tr><td><code>--abs-danger</code></td><td><span class="sw" style="background:#B23A4E"></span>#B23A4E</td><td><span class="sw" style="background:#FF8F7C"></span>#FF8F7C</td><td>危险、冲突、删除</td></tr>
+            <tr><td><code>--abs-code-bg</code></td><td><span class="sw" style="background:#2F2A2E"></span>#2F2A2E</td><td><span class="sw" style="background:#171114"></span>#171114</td><td>预览代码块</td></tr>
+            <tr><td><code>--abs-on-accent</code> <em>新增</em></td><td><span class="sw" style="background:#FFFFFF"></span>#FFFFFF</td><td><span class="sw" style="background:#241016"></span>#241016</td><td>实心粉按钮上的文字</td></tr>
+            <tr><td><code>--abs-shadow</code></td><td>5px 6px 0 · 13% 墨</td><td>5px 6px 0 · 55% 黑</td><td>纸的硬偏移阴影</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="cmp-note">夜间新增 3 个 token：纸边、输入边框、实心粉上的文字——它们目前在组件里写死，是这次实现最该顺手修掉的地方。</p>
+    </section>
+
+    <section class="cmp-section">
+      <h2 class="cmp-h2">实测对比度</h2>
+      <p class="cmp-p">按 WCAG 2.2 计算；正文与占位符 ≥4.5:1，非文本 UI ≥3:1。夜间不是把浅色压暗，而是重新配平，所以大部分数字比昼还高。</p>
+      <div class="cmp-table-wrap">
+        <table class="cmp-table ratio-table">
+          <caption class="sr-only">昼与夜的对比度实测</caption>
+          <thead><tr><th scope="col">场景</th><th scope="col">昼</th><th scope="col">夜</th><th scope="col">AA</th></tr></thead>
+          <tbody>
+            <tr><td>正文 · ink / paper</td><td>12.28</td><td>12.88</td><td><span class="pass">通过</span></td></tr>
+            <tr><td>次级正文 · ink-soft / paper</td><td>6.25</td><td>8.71</td><td><span class="pass">通过</span></td></tr>
+            <tr><td>辅助/编号 · muted / paper</td><td>5.05</td><td>6.37</td><td><span class="pass">通过</span></td></tr>
+            <tr><td>樱色小字 · sakura / paper</td><td>4.61</td><td>6.09</td><td><span class="pass">通过</span></td></tr>
+            <tr><td>实心粉按钮文字 · on-accent / sakura</td><td>4.76</td><td>6.99</td><td><span class="pass">通过</span></td></tr>
+            <tr><td>提交小票文字 / 小票纸</td><td>6.34</td><td>8.24</td><td><span class="pass">通过</span></td></tr>
+            <tr><td>代码块文字 / 墨池</td><td>11.61</td><td>14.91</td><td><span class="pass">通过</span></td></tr>
+            <tr><td>选中行 · ink / blush</td><td>9.91</td><td>10.73</td><td><span class="pass">通过</span></td></tr>
+            <tr><td>危险提示 · danger / danger-tint</td><td>5.37</td><td>6.52</td><td><span class="pass">通过</span></td></tr>
+            <tr><td>占位符 · placeholder / input-bg</td><td>2.71</td><td>7.28</td><td><span class="warn">昼偏低</span></td></tr>
+            <tr><td>输入框边框（非文本）</td><td>1.59</td><td>3.96</td><td><span class="warn">昼偏低</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="cmp-note">两个「昼偏低」是现有实现的小问题（占位符 2.71、输入边框 1.59），不是夜间带来的。夜间实现时顺手提到 7.28 / 3.96（占位符按输入框底色计），昼模式用同一改法也会受益。纸边线是装饰轮廓，不承担可操作边界，因此不计入非文本 UI；可操作控件单独达标。</p>
+    </section>
+
+    <section class="cmp-section">
+      <h2 class="cmp-h2">落地代价：动的是颜色层，不是产品逻辑</h2>
+      <div class="cmp-rows">
+        <div class="cmp-row"><span>token 层</span><p>21 个 <code class="cmp-code">--abs-*</code> 补齐夜间值；新增 <code class="cmp-code">--abs-edge</code>、<code class="cmp-code">--abs-input-line</code>、<code class="cmp-code">--abs-on-accent</code>。夜间值写进 <code class="cmp-code">:root[data-theme="night"]</code>，昼主题保持不变。</p></div>
+        <div class="cmp-row"><span>颜色字面量</span><p>清点结果：<code class="cmp-code">app.css</code> 52 行含颜色字面量（其中 21 行是 token 定义）；TSX 里 6 处 <code class="cmp-code">bg-white/*</code>、1 处 <code class="cmp-code">text-white</code>、1 处 min→<code class="cmp-code">#7CCBB2</code> 渐变、2 处 CodeMirror rgba、1 处解锁页 inset 阴影。全部换成变量。</p></div>
+        <div class="cmp-row"><span>主题状态</span><p><code class="cmp-code">settings.appearance: 'system' | 'day' | 'night'</code>，persist 到现有设置 store；<code class="cmp-code">&lt;html data-theme&gt;</code> 与 <code class="cmp-code">color-scheme</code> 一起切；<code class="cmp-code">&lt;head&gt;</code> 内联脚本在首帧前应用，避免白闪。</p></div>
+        <div class="cmp-row"><span>设置页</span><p>新增一张「外观」纸：跟随系统 / 夜 / 昼。这一页的设置视图已经把它画成虚线提案卡，放进真实应用时它就是第五张配置纸。</p></div>
+        <div class="cmp-row"><span>验收</span><p>两套 golden 截图（1440 / 390）；对比度脚本复跑；锁定/解锁、冲突、只读、演示、新稿保存各状态抽查；<code class="cmp-code">prefers-reduced-motion</code> 与系统偏好切换。</p></div>
+        <div class="cmp-row"><span>工作量</span><p>不新增依赖，不动 gateway / 加密 / 提交协议。熟悉这套代码的情况下约半天到一天实现，另加半天双主题验收；最大的成本是两套视觉回归的维护，不是代码。</p></div>
+      </div>
+    </section>
+
+    <section class="cmp-section">
+      <h2 class="cmp-h2">风险与对策</h2>
+      <div class="cmp-table-wrap">
+        <table class="cmp-table risk-table">
+          <caption class="sr-only">夜间模式的风险与对策</caption>
+          <thead><tr><th scope="col">风险</th><th scope="col">对策</th></tr></thead>
+          <tbody>
+            <tr><td>纸感塌成通用深色仪表盘</td><td>暖墨紫桌面 + 深栗纸 + 米白墨 + 深黑硬阴影；拒绝纯灰、玻璃与发光。</td></tr>
+            <tr><td>长文对比过强，夜里反而刺眼</td><td>正文不用纯白（#F2E6DE），纸不用纯黑（#2A2025）；12.9:1 但低蓝光，连续阅读更柔。</td></tr>
+            <tr><td>代码块 / 表格反色后层级乱</td><td>代码块用比纸更深的「墨池」；表头用深腮红而不是灰。</td></tr>
+            <tr><td>首屏白闪 / 系统偏好冲突</td><td>head 内联脚本先应用主题；默认跟随系统；手动选择后记住；<code class="cmp-code">color-scheme</code> 同步。</td></tr>
+            <tr><td>「唯一实心粉按钮」规则被破坏</td><td>夜间主按钮改成粉底深字（6.99:1），仍然只允许「新建文章」；印章继续描边。</td></tr>
+            <tr><td>视觉回归成本翻倍</td><td>用 token 级对照 + 两套 golden 截图，不做逐像素追查。</td></tr>
+            <tr><td>做了没人用</td><td>先只做两屏，观察系统偏好命中率；一周内没人切夜就不补齐设置项。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="cmp-section">
+      <div class="cmp-two">
+        <div>
+          <h3>如果做，按这个顺序</h3>
+          <ol class="cmp-ordered">
+            <li><span>先把颜色字面量收进 <code class="cmp-code">--abs-*</code>：app.css 组件层、CodeMirror 主题、预览排版、6 处 white 类。</span></li>
+            <li><span>加主题状态：设置项 + 启动脚本 + <code class="cmp-code">color-scheme</code>；设置页补「外观」纸。</span></li>
+            <li><span>按本页 token 表过工作台与编辑器两屏；设置/解锁只做抽查。</span></li>
+            <li><span>补 1440 / 390 / 系统偏好切换三档截图验收，复跑对比度。</span></li>
+            <li><span>在 DESIGN.md 增补夜间 token 与规则，README 加「外观」设置说明。</span></li>
+          </ol>
+        </div>
+        <div>
+          <h3>不做什么</h3>
+          <ul class="cmp-plain">
+            <li>不做 CSS 反相滤镜——图片、代码、印章全部失真。</li>
+            <li>不做玻璃拟态 / 发光 / 渐变边——那是 02 夜樱电台被否掉的部分。</li>
+            <li>不用纯黑纸面与纯白文字——对比过硬，长文刺眼。</li>
+            <li>不做多套皮肤 / 主题编辑器——先验证「夜」这一套是否真被使用。</li>
+            <li>不动 gateway、字段、提交与加密协议——主题只是外观层。</li>
+          </ul>
+          <div class="cmp-callout">
+            <span>最小验证</span>
+            <p>如果不想动设置页：只做 token 覆盖 + CodeMirror/预览修正，默认跟随系统，三处改动就能观察一周。确认有人用，再补手动切换与设置纸。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="cmp-foot">
+      <span>实验页 · 不修改应用代码 · 2026-10-18</span>
+      <span>源：design/night-mode.parts/ · 生成：node scripts/build-night-mode.mjs</span>
+    </footer>
+  </div>
+</section>
+
+<style>
+/* ---------- compare & decision notes ---------- */
+.cmp { max-width: 1000px; margin: 0 auto; padding: 2px 0 8px; }
+.cmp-section { padding: 26px 0 28px; border-top: 1px solid var(--board-line); }
+.cmp-section:first-child { border-top: 0; padding-top: 8px; }
+.cmp-verdict { font-family: var(--board-display); font-size: clamp(22px, 2.4vw, 30px); font-weight: 700; line-height: 1.35; letter-spacing: -0.01em; color: var(--board-ink); max-width: 24ch; }
+.cmp-lead { max-width: 74ch; margin-top: 12px; font-size: 14px; line-height: 1.9; color: #c9bcc2; }
+.cmp-h2 { font-family: var(--board-display); font-size: 20px; font-weight: 700; line-height: 1.4; letter-spacing: -0.005em; color: var(--board-ink); }
+.cmp-p { max-width: 76ch; margin-top: 9px; font-size: 12.5px; line-height: 1.85; color: #c9bcc2; }
+.cmp-code { font-family: var(--board-mono); font-size: 0.92em; padding: 1px 4px; border-radius: 4px; background: #1c171b; color: #e9d4c8; }
+.cmp-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 26px; margin-top: 20px; }
+.cmp-facts > div { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 9px 0 0; border-top: 1px solid var(--board-line-soft); }
+.cmp-facts span { font-family: var(--board-mono); font-size: 9.5px; letter-spacing: 0.1em; color: var(--board-rose); }
+.cmp-facts p { font-size: 12px; line-height: 1.75; color: var(--board-muted); }
+
+.cmp-panes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.cmp-pane { min-width: 0; }
+.pane-cap { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 0 2px 8px; font-family: var(--board-mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--board-dim); }
+.pane-cap span:last-child { letter-spacing: 0.02em; text-transform: none; color: #6f6369; }
+.pane-frame { border: 1px solid var(--board-line); border-radius: 16px; overflow: hidden; }
+.pane-frame .mock { min-width: 0; border-radius: 0; }
+.pane-desk { padding: 13px; background-color: var(--abs-desk); background-image: radial-gradient(circle at 1px 1px, var(--abs-desk-dot) 1px, transparent 0); background-size: 22px 22px; }
+.pane-sheet { display: flex; flex-direction: column; gap: 8px; min-height: 232px; padding: 11px 12px; border: 1.5px solid var(--abs-edge); border-radius: 12px; background: var(--abs-paper); box-shadow: var(--abs-shadow-sm); }
+.pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.pane-head .m-kicker { letter-spacing: 0.1em; text-transform: none; }
+.pane-md { flex: 1; padding: 8px 0; border-top: 1px dashed var(--abs-line); border-bottom: 1px dashed var(--abs-line); font-family: var(--abs-font-mono); font-size: 9.5px; line-height: 1.95; color: var(--abs-ink-soft); white-space: pre-wrap; overflow-wrap: anywhere; }
+.pane-md .m-active-line { margin: 0 -6px; padding: 0 6px; }
+.pane-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.pane-mini { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-family: var(--abs-font-mono); font-size: 8px; line-height: 1.6; color: var(--abs-muted); }
+.pane-mini-row { display: flex; justify-content: space-between; gap: 8px; color: var(--abs-ink-soft); }
+.pane-mini code { color: var(--abs-success); overflow-wrap: anywhere; }
+.pane-save { display: flex; align-items: center; gap: 8px; flex: none; }
+.pane-saved { font-family: var(--abs-font-mono); font-size: 7.5px; color: var(--abs-success); }
+.pane-stamp { width: 56px; height: 42px; border-radius: 9px; font-size: 8.5px; letter-spacing: 0.1em; }
+
+.cmp-table-wrap { margin-top: 12px; overflow-x: auto; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.cmp-table th, .cmp-table td { padding: 8px 10px; border-bottom: 1px solid var(--board-line-soft); text-align: left; vertical-align: top; }
+.cmp-table thead th { font-family: var(--board-mono); font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--board-dim); border-bottom-color: var(--board-line); white-space: nowrap; }
+.cmp-table tbody td { color: var(--board-muted); }
+.cmp-table tbody td:first-child { color: var(--board-ink); }
+.cmp-table code { font-family: var(--board-mono); font-size: 10px; color: #e6d2c6; }
+.cmp-table td:nth-child(2), .cmp-table td:nth-child(3) { font-family: var(--board-mono); font-size: 10px; white-space: nowrap; color: #cfc2c7; }
+.cmp-table em { font-style: normal; font-family: var(--board-mono); font-size: 8px; letter-spacing: 0.06em; color: var(--board-rose); }
+.sw { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 3px; vertical-align: -2px; }
+.token-table td:last-child { font-family: var(--board-font); font-size: 11px; }
+.ratio-table td:nth-child(2), .ratio-table td:nth-child(3) { font-variant-numeric: tabular-nums; }
+.pass, .warn { display: inline-block; padding: 1px 7px; border-radius: 999px; font-family: var(--board-mono); font-size: 8.5px; letter-spacing: 0.04em; }
+.pass { background: rgba(143, 220, 196, 0.12); color: #8fdcc4; }
+.warn { background: rgba(233, 201, 127, 0.12); color: #e9c97f; }
+.cmp-note { max-width: 82ch; margin-top: 11px; font-size: 11px; line-height: 1.8; color: var(--board-dim); }
+
+.cmp-rows { margin-top: 12px; border-top: 1px solid var(--board-line-soft); }
+.cmp-row { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 18px; padding: 12px 2px; border-bottom: 1px solid var(--board-line-soft); }
+.cmp-row > span { font-family: var(--board-mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--board-dim); padding-top: 2px; }
+.cmp-row p { font-size: 12px; line-height: 1.8; color: #c9bcc2; max-width: 82ch; }
+
+.risk-table tbody td:first-child { width: 38%; color: var(--board-ink); font-size: 11.5px; }
+.risk-table tbody td:last-child { font-size: 11.5px; }
+
+.cmp-two { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 34px; }
+.cmp-two h3 { margin-bottom: 10px; font-family: var(--board-mono); font-size: 9.5px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--board-dim); }
+.cmp-ordered { display: flex; flex-direction: column; gap: 9px; counter-reset: cmp-step; }
+.cmp-ordered li { counter-increment: cmp-step; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; font-size: 12px; line-height: 1.8; color: #c9bcc2; }
+.cmp-ordered li::before { content: counter(cmp-step, decimal-leading-zero); font-family: var(--board-mono); font-size: 9.5px; color: var(--board-rose); padding-top: 3px; }
+.cmp-plain li { position: relative; padding-left: 15px; margin-bottom: 7px; font-size: 12px; line-height: 1.75; color: #c9bcc2; }
+.cmp-plain li::before { content: ""; position: absolute; left: 0; top: 0.68em; width: 6px; height: 1.5px; background: var(--board-rose); }
+.cmp-callout { margin-top: 18px; padding: 13px 15px; border: 1px solid var(--board-line); border-radius: 12px; background: #171317; }
+.cmp-callout > span { display: block; margin-bottom: 4px; font-family: var(--board-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--board-rose); }
+.cmp-callout p { font-size: 11.5px; line-height: 1.8; color: var(--board-muted); }
+.cmp-foot { display: flex; justify-content: space-between; gap: 10px 20px; flex-wrap: wrap; padding: 20px 2px 0; border-top: 1px solid var(--board-line); font-family: var(--board-mono); font-size: 9.5px; line-height: 1.8; color: var(--board-dim); }
+
+@media (max-width: 1080px) {
+  .cmp { padding: 0 2px; }
+  .cmp-panes, .cmp-two { grid-template-columns: 1fr; gap: 20px; }
+  .cmp-facts { grid-template-columns: 1fr; gap: 8px; }
+  .cmp-row { grid-template-columns: 1fr; gap: 4px; }
+  .cmp-verdict { max-width: none; }
+}
+</style>

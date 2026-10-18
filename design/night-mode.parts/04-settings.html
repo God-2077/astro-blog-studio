@@ -1,0 +1,227 @@
+<section class="view" data-view="settings">
+  <div class="view-cap">
+    <div><strong class="view-cap-title">设置</strong><span class="view-cap-note"> · 输入、开关、危险操作在夜间也要可读；「外观」那张纸是提案</span></div>
+    <span class="view-cap-meta">DESKTOP 1440 · <span data-theme-name>夜间</span></span>
+  </div>
+  <div class="stage">
+    <div class="mock" data-theme="night">
+      <div class="m-shell">
+        <header class="m-topbar">
+          <div class="m-brand">
+            <span class="m-seal" aria-hidden="true">樱</span>
+            <div class="m-brand-text">
+              <strong>studio</strong>
+              <span>God-2077/astro-blog-content · main</span>
+            </div>
+          </div>
+          <div class="m-top-actions">
+            <button type="button" class="m-btn m-btn-sm" data-demo><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-sparkle"/></svg>演示模式</button>
+            <button type="button" class="m-btn m-btn-sm m-btn-primary"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-plus"/></svg>新建</button>
+            <button type="button" class="m-icon-btn" aria-label="设置"><svg class="m-ico" aria-hidden="true"><use href="#i-gear"/></svg></button>
+            <button type="button" class="m-icon-btn" aria-label="锁定"><svg class="m-ico" aria-hidden="true"><use href="#i-lock"/></svg></button>
+          </div>
+        </header>
+
+        <div class="m-strip">
+          <span>演示模式：数据只存放在内存里，不会连接 GitHub；配置仍可调整。</span>
+          <span class="m-strip-links"><a href="#" onclick="return false">看设置</a><a href="#" onclick="return false">退出演示 / 连接真实仓库</a></span>
+        </div>
+
+        <div class="m-set-head">
+          <div>
+            <p class="m-kicker">CONFIGURATION</p>
+            <h2 class="m-set-title">设置</h2>
+            <p class="m-set-sub">配置只保存在这台设备的浏览器里；演示模式下连接字段禁用，其余仍可调。</p>
+          </div>
+          <div class="m-set-actions">
+            <button type="button" class="m-btn m-btn-ghost m-btn-sm">恢复默认</button>
+            <button type="button" class="m-btn m-btn-sm">保存配置</button>
+          </div>
+        </div>
+
+        <div class="m-settings-grid">
+          <div class="m-settings-left">
+            <section class="m-paper m-config" aria-label="内容与排除">
+              <div class="m-config-head"><h3>内容与排除</h3><span>只影响浏览器里的读写</span></div>
+              <div class="m-config-row"><span>仓库</span><input class="m-input" value="God-2077/astro-blog-content"></div>
+              <div class="m-config-row"><span>分支</span><input class="m-input" value="main"></div>
+              <div class="m-config-row"><span>文章根目录</span><input class="m-input" value="src"></div>
+              <div class="m-config-row"><span>可见扩展名</span>
+                <span class="m-chips"><span class="m-chip">md<svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-x"/></svg></span><span class="m-chip">mdx<svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-x"/></svg></span><span class="m-chip">markdown<svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-x"/></svg></span><span class="m-chip m-chip-add"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-plus"/></svg>添加</span></span>
+              </div>
+              <div class="m-config-row"><span>排除规则</span><textarea class="m-textarea" rows="3">src/content/blog/en
+src/content/blog/ja
+**/draft/**</textarea></div>
+              <div class="m-config-row"><span>时区</span>
+                <div class="m-select-wrap"><select class="m-select"><option>UTC+08:00 · 上海</option><option>UTC+09:00 · 东京</option></select></div>
+              </div>
+              <p class="m-hint">前缀与 glob 都支持；被排除的目录不会出现在索引卡里，也不会计入统计。</p>
+            </section>
+
+            <section class="m-paper m-config" aria-label="Frontmatter 字段">
+              <div class="m-config-head"><h3>Frontmatter 字段</h3><span class="m-mono">11 configured</span></div>
+              <div class="m-fm-rows">
+                <div class="m-fm-row"><input class="m-input m-input-sm" value="title"><div class="m-select-wrap"><select class="m-select m-select-sm"><option>string</option></select></div><label class="m-req"><span class="m-check is-on"><svg class="m-ico" aria-hidden="true"><use href="#i-check"/></svg></span>必填</label><button type="button" class="m-icon-btn m-icon-btn-sm" aria-label="删除 title 字段"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+                <div class="m-fm-row"><input class="m-input m-input-sm" value="date"><div class="m-select-wrap"><select class="m-select m-select-sm"><option>date</option></select></div><label class="m-req"><span class="m-check is-on"><svg class="m-ico" aria-hidden="true"><use href="#i-check"/></svg></span>必填</label><button type="button" class="m-icon-btn m-icon-btn-sm" aria-label="删除 date 字段"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+                <div class="m-fm-row"><input class="m-input m-input-sm" value="tags"><div class="m-select-wrap"><select class="m-select m-select-sm"><option>list</option></select></div><label class="m-req"><span class="m-check"></span>必填</label><button type="button" class="m-icon-btn m-icon-btn-sm" aria-label="删除 tags 字段"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+                <div class="m-fm-row"><input class="m-input m-input-sm" value="draft"><div class="m-select-wrap"><select class="m-select m-select-sm"><option>boolean</option></select></div><label class="m-req"><span class="m-check"></span>必填</label><button type="button" class="m-icon-btn m-icon-btn-sm" aria-label="删除 draft 字段"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+                <div class="m-fm-row"><input class="m-input m-input-sm" value="password"><div class="m-select-wrap"><select class="m-select m-select-sm"><option>string</option></select></div><label class="m-req"><span class="m-check"></span>必填</label><button type="button" class="m-icon-btn m-icon-btn-sm" aria-label="删除 password 字段"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+              </div>
+              <div class="m-config-foot">
+                <button type="button" class="m-btn m-btn-ghost m-btn-sm"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-plus"/></svg>添加字段</button>
+                <button type="button" class="m-btn m-btn-ghost m-btn-sm">恢复常用字段</button>
+                <span class="m-hint m-hint-inline">删除配置不会删除文件里的键</span>
+              </div>
+            </section>
+
+            <section class="m-paper m-config" aria-label="提交消息">
+              <div class="m-config-head"><h3>提交消息</h3><span>模板只影响之后的新提交</span></div>
+              <div class="m-config-row"><span>保存模板</span><input class="m-input m-mono" value="update: {path}"></div>
+              <div class="m-config-row"><span>创建模板</span><input class="m-input m-mono" value="create: {path}"></div>
+              <div class="m-msg-preview">
+                <span class="m-msg-preview-label">预览 · 下一次保存</span>
+                <code>update: src/content/blog/note/便笺-Markdown-备忘单.md</code>
+              </div>
+              <div class="m-chips m-chips-inline">
+                <span class="m-chip">{path}</span><span class="m-chip">{title}</span><span class="m-chip">{date}</span><span class="m-chip">{action}</span>
+                <span class="m-hint m-hint-inline">未知占位符保留原文</span>
+              </div>
+              <div class="m-switch-row"><span>提交前显示确认纸片</span><span class="m-toggle is-on"><i></i></span></div>
+            </section>
+
+            <section class="m-paper m-config" aria-label="编辑与预览">
+              <div class="m-config-head"><h3>编辑与预览</h3><span>写作面的手感</span></div>
+              <div class="m-config-row"><span>正文字号</span>
+                <div class="m-select-wrap"><select class="m-select"><option>14px · 舒适</option><option>13px · 紧凑</option></select></div>
+              </div>
+              <div class="m-switch-row"><span>显示行号</span><span class="m-toggle is-on"><i></i></span></div>
+              <div class="m-switch-row"><span>保存时更新 updated</span><span class="m-toggle is-on"><i></i></span></div>
+              <div class="m-switch-row"><span>预览位置</span><span class="m-hint m-hint-inline">右侧 · 移动端下方</span></div>
+              <div class="m-config-row"><span>自动锁定</span>
+                <div class="m-select-wrap"><select class="m-select"><option>15 分钟</option><option>1 小时</option><option>关闭</option></select></div>
+              </div>
+            </section>
+
+            <section class="m-paper m-config m-proposal" aria-label="外观（提案）">
+              <div class="m-config-head">
+                <h3>外观 <span class="m-badge m-badge-butter">提案</span></h3>
+                <span>若采纳夜间模式，这张纸才会出现</span>
+              </div>
+              <div class="m-appearance">
+                <div>
+                  <span class="m-field-label">主题</span>
+                  <div class="m-seg" role="group" aria-label="主题">
+                    <button type="button">跟随系统</button>
+                    <button type="button" class="is-on">夜</button>
+                    <button type="button">昼</button>
+                  </div>
+                </div>
+                <p class="m-hint">默认跟随系统；手动选择后记住。首次绘制前应用，避免白闪。这颗开关是本次实验唯一会进入设置页的新增项。</p>
+              </div>
+            </section>
+          </div>
+
+          <div class="m-settings-right">
+            <section class="m-paper m-config" aria-label="安全">
+              <div class="m-config-head"><h3>安全</h3><span class="m-badge m-badge-mint">已解锁</span></div>
+              <div class="m-kv"><span>解锁方式</span><strong>设备指纹 + 密码</strong></div>
+              <div class="m-kv"><span>双因子</span><strong>开启</strong></div>
+              <div class="m-kv"><span>内存会话</span><strong>已解锁 · 12 分钟</strong></div>
+              <div class="m-security-actions">
+                <button type="button" class="m-btn m-btn-sm">更换密码</button>
+                <button type="button" class="m-btn m-btn-sm"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-lock"/></svg>锁定现在</button>
+              </div>
+              <div class="m-danger-block">
+                <p class="m-hint">重置会清除本机保险库，需要重新连接仓库；不会动仓库内容。</p>
+                <button type="button" class="m-btn m-btn-danger m-btn-sm"><svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-trash"/></svg>重置保险库</button>
+              </div>
+            </section>
+
+            <section class="m-paper m-config" aria-label="当前配置">
+              <div class="m-config-head"><h3>当前配置</h3><span class="m-mono">main</span></div>
+              <div class="m-kv"><span>仓库</span><strong>God-2077/astro-blog-content</strong></div>
+              <div class="m-kv"><span>根目录</span><strong>src</strong></div>
+              <div class="m-kv"><span>Frontmatter</span><strong>11 个字段</strong></div>
+              <div class="m-kv"><span>排除规则</span><strong>3 条</strong></div>
+              <div class="m-kv"><span>时区</span><strong>UTC+08:00</strong></div>
+              <a class="m-config-link" href="#" onclick="return false">查看提交规则 ↗</a>
+            </section>
+
+            <div class="m-side-note">
+              <svg class="m-ico m-ico-sm" aria-hidden="true"><use href="#i-info"/></svg>
+              <p>夜间模式不会改变字段、模板或权限；它只换 token。安全卡在夜里用危险描边而不是实心红，和现有规则一致。</p>
+            </div>
+          </div>
+        </div>
+
+        <footer class="m-statusbar">
+          <span class="m-status-dot">in-memory fixture</span>
+          <span>API 4,812 / 5,000 · 96%</span>
+          <span>Astro Blog Studio v0.1.0</span>
+        </footer>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* ---------- settings ---------- */
+.m-set-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 4px 6px 0; }
+.m-set-title { font-family: var(--abs-font-display); font-size: 27px; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; margin-top: 2px; }
+.m-set-sub { margin-top: 6px; font-size: 10.5px; color: var(--abs-muted); }
+.m-set-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.m-settings-grid { display: grid; grid-template-columns: minmax(0, 1fr) 318px; gap: 14px; align-items: start; flex: 1; min-width: 0; }
+.m-settings-left, .m-settings-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.m-config { padding: 14px 15px; border-radius: 16px; }
+.m-config-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+.m-config-head h3 { display: inline-flex; align-items: center; gap: 7px; font-family: var(--abs-font-display); font-size: 14px; font-weight: 700; }
+.m-config-head > span { font-family: var(--abs-font-mono); font-size: 8px; color: var(--abs-muted); letter-spacing: 0.02em; text-align: right; }
+.m-config-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: center; padding: 4px 0; }
+.m-config-row > span:first-child { font-size: 10px; color: var(--abs-ink-soft); }
+.m-config-row .m-input, .m-config-row .m-select { height: 30px; font-size: 10.5px; }
+.m-config-row .m-textarea { font-size: 10px; line-height: 1.7; padding: 6px 9px; }
+.m-select-wrap { position: relative; min-width: 0; }
+.m-select-wrap::after { content: ""; position: absolute; right: 10px; top: 50%; width: 0; height: 0; margin-top: -2px; border-left: 3.5px solid transparent; border-right: 3.5px solid transparent; border-top: 4.5px solid var(--abs-muted); pointer-events: none; }
+.m-select { appearance: none; padding-right: 24px; }
+.m-chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.m-chip {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px;
+  border: 1px solid var(--abs-line); border-radius: 6px; background: var(--abs-paper-2);
+  font-family: var(--abs-font-mono); font-size: 8.5px; color: var(--abs-ink-soft); white-space: nowrap;
+}
+.m-chip .m-ico { width: 8px; height: 8px; color: var(--abs-muted); }
+.m-chip-add { border-style: dashed; color: var(--abs-muted); }
+.m-chips-inline { margin-top: 8px; align-items: center; }
+.m-hint { margin-top: 8px; font-size: 9px; line-height: 1.7; color: var(--abs-muted); }
+.m-hint-inline { margin: 0; font-family: var(--abs-font-mono); font-size: 8px; }
+.m-fm-rows { display: flex; flex-direction: column; }
+.m-fm-row { display: grid; grid-template-columns: minmax(0, 1fr) 92px 62px 26px; gap: 6px; align-items: center; padding: 4px 0; border-bottom: 1px dotted var(--abs-line-soft); }
+.m-fm-row:last-child { border-bottom: 0; }
+.m-input-sm, .m-select-sm { height: 28px; font-size: 10px; }
+.m-req { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; color: var(--abs-ink-soft); white-space: nowrap; }
+.m-req .m-check { width: 12px; height: 12px; }
+.m-config-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--abs-line); }
+.m-config-foot .m-hint-inline { margin-left: auto; }
+.m-msg-preview { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--abs-line); border-radius: 8px; background: var(--abs-paper-2); }
+.m-msg-preview-label { display: block; margin-bottom: 3px; font-family: var(--abs-font-mono); font-size: 7.5px; letter-spacing: 0.08em; color: var(--abs-muted); text-transform: uppercase; }
+.m-msg-preview code { font-family: var(--abs-font-mono); font-size: 9.5px; color: var(--abs-success); overflow-wrap: anywhere; }
+.m-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dotted var(--abs-line-soft); font-size: 10.5px; color: var(--abs-ink-soft); }
+.m-switch-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.m-kv { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px dotted var(--abs-line-soft); font-size: 9.5px; }
+.m-kv:last-of-type { border-bottom: 0; }
+.m-kv span { color: var(--abs-muted); flex: none; }
+.m-kv strong { font-weight: 500; color: var(--abs-ink-soft); text-align: right; overflow-wrap: anywhere; }
+.m-security-actions { display: flex; gap: 7px; flex-wrap: wrap; margin: 10px 0 0; }
+.m-danger-block { margin-top: 11px; padding-top: 10px; border-top: 1px dashed var(--abs-line); }
+.m-danger-block .m-hint { margin: 0 0 7px; }
+.m-config-link { display: inline-block; margin-top: 9px; font-family: var(--abs-font-mono); font-size: 8.5px; color: var(--abs-sakura); }
+.m-side-note { display: flex; gap: 8px; padding: 2px 4px; color: var(--abs-muted); font-size: 9.5px; line-height: 1.75; }
+.m-side-note .m-ico { margin-top: 2px; color: var(--abs-muted); flex: none; }
+.m-proposal { border-style: dashed; border-color: var(--abs-sakura); }
+.m-appearance { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start; }
+.m-appearance .m-field-label { margin-bottom: 5px; }
+.m-appearance .m-hint { margin: 0; }
+.m-seg { display: inline-flex; padding: 3px; border: 1px solid var(--abs-input-line); border-radius: 999px; background: var(--abs-input-bg); }
+.m-seg button { height: 24px; min-width: 58px; border-radius: 999px; font-size: 10px; color: var(--abs-muted); padding: 0 10px; }
+.m-seg button.is-on { background: var(--abs-sakura); color: var(--abs-on-accent); font-weight: 700; }
+</style>
