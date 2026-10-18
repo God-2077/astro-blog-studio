@@ -92,4 +92,25 @@ test.describe('demo mode', () => {
     await page.locator('.abs-brand').click();
     await expect(page.locator('.abs-receipt')).toContainText('create: E2E 标题占位符 @ src/content/blog/E2E 标题占位符.md');
   });
+
+  test('switches appearance between system, day and night, and persists the choice', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/?demo=1#/settings');
+    const appearance = page.locator('section.abs-paper').filter({ hasText: '外观' });
+    await expect(appearance).toBeVisible();
+
+    // 默认跟随系统：系统为深色时直接是夜。
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+
+    await appearance.getByRole('button', { name: '昼', exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'day');
+    await expect(appearance.getByText('当前昼')).toBeVisible();
+
+    // 手动选择覆盖系统，并在刷新后保持。
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'day');
+
+    await page.getByRole('button', { name: '跟随系统', exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+  });
 });

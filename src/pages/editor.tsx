@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { FrontmatterForm } from '@/components/frontmatter-form';
+import { useResolvedTheme } from '@/components/theme-provider';
 import { Badge, ErrorNote, Field, Spinner } from '@/components/ui';
 import { useFile } from '@/hooks/use-data';
 import {
@@ -30,7 +31,7 @@ import { useLastCommit } from '@/stores/last-commit';
 import { usePendingPost } from '@/stores/pending-post';
 import { useSettings } from '@/stores/settings';
 
-function editorTheme(fontSize: number): ReturnType<typeof EditorView.theme> {
+function editorTheme(fontSize: number, dark: boolean): ReturnType<typeof EditorView.theme> {
   return EditorView.theme(
     {
       '&': {
@@ -41,14 +42,14 @@ function editorTheme(fontSize: number): ReturnType<typeof EditorView.theme> {
       '.cm-scroller': { fontFamily: 'var(--abs-font-mono)', lineHeight: '1.9' },
       '.cm-content': { padding: '10px 0' },
       '.cm-gutters': { backgroundColor: 'transparent', border: 'none', color: 'var(--abs-muted)' },
-      '.cm-activeLine': { backgroundColor: 'rgba(247, 221, 229, 0.42)' },
+      '.cm-activeLine': { backgroundColor: 'var(--abs-active-line)' },
       '.cm-cursor': { borderLeftColor: 'var(--abs-sakura)' },
       '&.cm-focused': { outline: 'none' },
       '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
-        backgroundColor: 'rgba(201, 63, 109, 0.16) !important',
+        backgroundColor: 'var(--abs-selection) !important',
       },
     },
-    { dark: false },
+    { dark },
   );
 }
 
@@ -59,6 +60,7 @@ export function EditorPage() {
   const navigate = useNavigate();
   const { gateway, repo, config, key, mode } = useGateway();
   const settings = useSettings();
+  const resolvedTheme = useResolvedTheme();
   const fields = settings.frontmatter.fields;
   const queryClient = useQueryClient();
   const setLastCommit = useLastCommit((state) => state.setCommit);
@@ -538,7 +540,7 @@ export function EditorPage() {
             <CodeMirror
               value={body}
               height="520px"
-              theme={editorTheme(settings.editor.fontSize)}
+              theme={editorTheme(settings.editor.fontSize, resolvedTheme === 'night')}
               extensions={[markdown(), EditorView.lineWrapping]}
               basicSetup={{
                 lineNumbers: settings.editor.showLineNumbers,
@@ -596,7 +598,7 @@ export function EditorPage() {
                     side="top"
                     align="end"
                     sideOffset={10}
-                    className="z-50 w-[340px] max-w-[calc(100vw-24px)] rounded-xl border-[1.5px] border-ink bg-paper p-3 shadow-pop outline-none"
+                    className="z-50 w-[340px] max-w-[calc(100vw-24px)] rounded-xl border-[1.5px] border-edge bg-paper p-3 shadow-pop outline-none"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-display text-[13px] font-bold">本次提交</span>
@@ -655,8 +657,8 @@ export function EditorPage() {
 
       <Dialog.Root open={conflictOpen} onOpenChange={setConflictOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-ink/25 backdrop-blur-[2px]" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(520px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-ink bg-paper p-5 shadow-pop">
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(520px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
             <Dialog.Title className="font-display text-[20px] font-bold">远端文件已经变化</Dialog.Title>
             <Dialog.Description className="mt-1 text-[11px] leading-relaxed text-muted">
               保存被拒绝了，避免静默覆盖别人的修改。选择一种处理方式。
@@ -685,8 +687,8 @@ export function EditorPage() {
 
       <Dialog.Root open={moveOpen} onOpenChange={setMoveOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-ink/25 backdrop-blur-[2px]" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(560px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-ink bg-paper p-5 shadow-pop">
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(560px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
             <Dialog.Title className="font-display text-[20px] font-bold">移动 / 重命名</Dialog.Title>
             <Dialog.Description className="mt-1 text-[11px] text-muted">
               一次提交完成移动；目标路径不能已存在。
@@ -713,8 +715,8 @@ export function EditorPage() {
 
       <AlarmDialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlarmDialog.Portal>
-          <AlarmDialog.Overlay className="fixed inset-0 z-50 bg-ink/25 backdrop-blur-[2px]" />
-          <AlarmDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(480px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-ink bg-paper p-5 shadow-pop">
+          <AlarmDialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
+          <AlarmDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(480px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
             <AlarmDialog.Title className="font-display text-[20px] font-bold text-danger">删除这篇文章？</AlarmDialog.Title>
             <AlarmDialog.Description className="mt-1 break-all font-mono text-[10px] leading-relaxed text-muted">
               {path}
@@ -725,7 +727,7 @@ export function EditorPage() {
             <div className="mt-4 flex justify-end gap-2">
               <AlarmDialog.Cancel className="abs-btn abs-btn-ghost text-[11px]">取消</AlarmDialog.Cancel>
               <AlarmDialog.Action
-                className="abs-btn border-danger bg-danger text-[11px] text-white"
+                className="abs-btn border-danger bg-danger text-[11px] text-[var(--abs-on-danger)]"
                 onClick={() => void handleDelete()}
               >
                 删除并提交

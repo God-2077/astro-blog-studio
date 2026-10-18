@@ -183,7 +183,7 @@ export function AppShell() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-ink/25 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[var(--abs-overlay)] backdrop-blur-[2px]"
             aria-label="关闭文件索引"
             onClick={() => setSidebarOpen(false)}
           />

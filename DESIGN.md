@@ -18,25 +18,32 @@
 
 ## 颜色 token（`src/styles/app.css`）
 
-| Token | 值 | 用途 |
-|---|---|---|
-| `--abs-paper` | `#FFFBF5` | 纸面、卡片、编辑区 |
-| `--abs-paper-2` | `#FFF6EC` | 次级纸面 |
-| `--abs-desk` | `#F6EDE6` | 桌面背景（+ 22px 点阵） |
-| `--abs-blush` | `#F7DDE5` | 腮红块、选中、便签 |
-| `--abs-blush-2` | `#FBE9EF` | 浅腮红 |
-| `--abs-sakura` | `#C93F6D` | 主强调、印章、唯一实心按钮 |
-| `--abs-sakura-deep` | `#AD305C` | hover / 深强调 |
-| `--abs-mint` | `#A8E0CF` | 成功/完成 |
-| `--abs-butter` | `#FFE9AE` | 提示/今日便签 |
-| `--abs-ink` | `#3D2F36` | 主文字、描边 |
-| `--abs-ink-soft` | `#6B5A61` | 次级文字 |
-| `--abs-muted` | `#7A686E` | 辅助文字、编号 |
-| `--abs-line` / `--abs-line-soft` | `#D9C6BF` / `#EADAD3` | 实线 / 虚线 |
-| `--abs-success` / `--abs-warning` / `--abs-danger` | `#2F6B58` / `#7A5B16` / `#B23A4E` | 状态 |
-| `--abs-focus` | `#A8496B` | `:focus-visible` |
+颜色是**两套值、同一组变量名**：`--abs-*` 在 `:root` 里是昼，`:root[data-theme='night']` 覆盖为夜；组件只读变量，不写主题分支。夜间是暖墨桌面 + 深栗纸 + 米白墨，不是反相，也不使用纯黑纸面。
 
-硬阴影只有三档：`--abs-shadow-sm`（贴纸）、`--abs-shadow`（纸）、`--abs-shadow-pop`（弹层）。不使用柔和模糊大阴影。
+| Token | 昼 | 夜 | 用途 |
+|---|---|---|---|
+| `--abs-paper` | `#FFFBF5` | `#2A2025` | 纸面、卡片、编辑区 |
+| `--abs-paper-2` | `#FFF6EC` | `#32272C` | 次级纸面、演示条 |
+| `--abs-desk` | `#F6EDE6` | `#100B0E` | 桌面背景（+ 22px 点阵） |
+| `--abs-blush` / `--abs-blush-2` | `#F7DDE5` / `#FBE9EF` | `#3E2B33` / `#32252B` | 腮红块、选中、加密徽章、hover |
+| `--abs-sakura` | `#C93F6D` | `#F07CA3` | 主操作、印章、链接 |
+| `--abs-sakura-deep` / `--abs-sakura-soft` | `#AD305C` / `#E85D8A` | `#FF9DBD` / `#FFB3CC` | hover / 深强调 |
+| `--abs-mint` / `--abs-mint-2` | `#A8E0CF` / `#DDF4EC` | `#8FDCC4` / `#204039` | 成功、进度、勾选 |
+| `--abs-butter` / `--abs-butter-2` | `#FFE9AE` / `#FFF3D1` | `#443319` / `#2E2513` | 提示、草稿、今日便签 |
+| `--abs-ink` | `#3D2F36` | `#F2E6DE` | 主文字 |
+| `--abs-ink-soft` | `#6B5A61` | `#CFBDB5` | 次级文字 |
+| `--abs-muted` | `#7A686E` | `#B3A19A` | 辅助文字、编号 |
+| `--abs-line` / `--abs-line-soft` | `#D9C6BF` / `#EADAD3` | `#55434A` / `#403237` | 实线 / 虚线 |
+| `--abs-edge` | `#3D2F36` | `#806970` | 1.5px 纸边（原写死 ink） |
+| `--abs-input-line` / `--abs-input-bg` | `#D9C6BF` / `#FFFBF5` | `#8F7A82` / `#1E171A` | 输入框边框 / 底色 |
+| `--abs-success` / `--abs-warning` / `--abs-danger` | `#2F6B58` / `#7A5B16` / `#B23A4E` | `#93DEC9` / `#E9C97F` / `#FF8F7C` | 状态；夜间 danger 偏橙红，与品牌粉分开 |
+| `--abs-focus` | `#A8496B` | `#FFA8C6` | `:focus-visible` |
+| `--abs-code-bg` / `--abs-code-fg` | `#2F2A2E` / `#F3E6EA` | `#171114` / `#EFE4DC` | 预览代码块（夜间是更深的「墨池」） |
+| `--abs-on-accent` / `--abs-on-danger` | `#FFFFFF` | `#241016` / `#2A1114` | 实心粉 / 红按钮上的文字 |
+
+细节 token：`--abs-stamp*`（印泥颜色与描边环）、`--abs-note-*-label`（三张便签的提示字）、`--abs-tape*`（纸胶带）、`--abs-shadow*`（夜间换成黑色硬影）、`--abs-overlay`（弹层/抽屉遮罩）、`--abs-active-line` / `--abs-selection`（CodeMirror）、`--abs-tree-icon` / `--abs-tree-file` / `--abs-tree-caret`（索引卡图标，夜间为白色）、`--abs-progress`（API 进度条）、`--abs-skeleton-*`、`--abs-danger-surface` / `--abs-empty-surface`（就地错误与空状态底）。
+
+硬阴影只有三档：`--abs-shadow-sm`（贴纸）、`--abs-shadow`（纸）、`--abs-shadow-pop`（弹层）。不使用柔和模糊大阴影；夜间只是把硬影换成更深的黑。
 
 ## 字体
 
@@ -71,9 +78,10 @@
 
 ### 设置（`/settings`）
 
-- 左侧四张纸（内容与排除、Frontmatter 字段、提交消息、编辑与预览），右侧安全卡 + 当前配置卡。
+- 左侧五张纸（内容与排除、Frontmatter 字段、提交消息、编辑与预览、外观），右侧安全卡 + 当前配置卡。
+- **外观**：主题可选「跟随系统 / 昼 / 夜」，即时生效并随设置持久化；默认跟随系统。夜间与昼间共用同一套 token，切换不改变布局与字号。
 - **Frontmatter 字段**：可增删字段行（名称 / 类型 / 必填）；「恢复常用字段」回到 hello-world 参考集；字段定义非法（空名、重复、保留名、非法字符）时阻止保存并就地说明。删除字段不会删除已有文件里的键，编辑器会把它作为未知字段保留。
-- 演示模式下连接字段禁用并说明；Frontmatter 字段、提交模板、字号、自动锁定等仍可调。
+- 演示模式下连接字段禁用并说明；Frontmatter 字段、提交模板、字号、自动锁定、外观等仍可调。
 - 危险操作（重新配置、重置保险库）使用红色描边而非实心红，避免误触。
 
 ### Setup / Unlock
@@ -84,7 +92,8 @@
 
 ## 组件与状态
 
-- `.abs-paper` / `.abs-sheet` / `.abs-sticky` / `.abs-receipt` / `.abs-stamp` / `.abs-tape` / `.abs-seal` / `.abs-badge-*` / `.abs-tree-row` / `.abs-input` / `.abs-btn*` 是设计系统组件，集中定义在 `src/styles/app.css`，Tailwind 原子类只做布局与间距。
+- `.abs-paper` / `.abs-sheet` / `.abs-sticky` / `.abs-receipt` / `.abs-stamp` / `.abs-tape` / `.abs-seal` / `.abs-badge-*` / `.abs-tree-row` / `.abs-input` / `.abs-btn*` / `.abs-seg` / `.abs-progress` 是设计系统组件，集中定义在 `src/styles/app.css`，Tailwind 原子类只做布局与间距。
+- **主题**：`ThemeProvider` 把 `settings.appearance.theme`（`system / day / night`）解析为 `<html data-theme>`；`index.html` 内联脚本在首帧前应用，避免白闪；需要布尔值的组件（CodeMirror 的 dark 主题）用 `useResolvedTheme()`。不新增主题命名空间，也不允许组件里写夜间分支。
 - 状态：Zustand `settings`（persist）、`vault`（不持久化）、`ui`、`rate-limit`、`last-commit`、`editor guard`；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
 - 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。
 
@@ -98,7 +107,8 @@
 ## 无障碍
 
 - 所有交互元素有可见 `:focus-visible`；按钮有 `type`。
-- 颜色对比：主文字 `#3D2F36` on `#FFFBF5`；辅助 `#7A686E`；强调 `#C93F6D` 用于大字号/描边，不用于小号正文。
+- 颜色对比：主文字 `#3D2F36` on `#FFFBF5`（12.3:1）/ 夜间 `#F2E6DE` on `#2A2025`（12.9:1）；辅助 `#7A686E`（昼）/ `#B3A19A`（夜，6.37:1）；樱色小字夜间 6.09:1。强调色用于大字号/描边，不用于小号正文。
+- 夜间输入框边框 `--abs-input-line` 提到 3.96:1（昼模式仍是 1.59 的既有偏低值，后续两套一起修）；夜间索引卡图标为白色，不靠颜色区分文件夹/文件（形状 + 文案）。
 - 表单 label 通过包裹关联；错误有 `role="alert"`；装饰性 SVG `aria-hidden`。
 - 弹层用 Radix（焦点圈、Esc、点外关闭）；文件树按钮带 `aria-expanded`。
 - 键盘：`Ctrl/Cmd+K` 聚焦文件搜索；Tab 顺序从顶栏到索引到内容。
@@ -112,16 +122,18 @@
 - 新建文章通过对话框而不是独立页面；移动/删除在编辑器中完成。
 - **新稿先在本地起草**：对话框不写仓库；进入编辑器时显示「未提交」，第一次盖章才创建文件（一次 API）。这比原型里「先建文件再编辑」更克制，也避免空文件提交。
 - **frontmatter 字段可配置**：原型是固定字段；实现改为设置中的字段列表（名称/类型/必填），默认参考 hello-world 常用字段，超出字段作为未知字段保留。
+- **夜间模式按实验页落地**：暖墨夜纸、白色索引卡图标、danger 偏橙红与品牌粉分开；采用「跟随系统 + 手动昼夜」，没有做纯黑反转或第二套主题命名空间。实验页见 `design/night-mode.html`。
 - 设计台的「提交小票」在真实模式显示 GitHub 提交链接；demo 显示 `in-memory`。
 
 ## 截图出处
 
-- `docs/screenshots/dashboard.png`、`editor.png`、`settings.png`、`mobile.png`：**生产构建**（`pnpm build` + `vite preview`）+ `?demo=1` 固定 fixture，1440px / 390px，2026-10-18。
-- `design/screenshots/`：决策台四个方向的工作台与对比板，用于方向选择。
+- `docs/screenshots/dashboard.png`、`editor.png`、`settings.png`、`mobile.png`：**生产构建**（`pnpm build` + `vite preview`）+ `?demo=1` 固定 fixture，1440px / 390px，2026-10-18，昼间主题。
+- `docs/screenshots/night-dashboard.png`、`night-editor.png`、`night-settings.png`、`night-mobile.png`：同一构建与 fixture 的夜间主题（设置里切「夜」），尺寸同上。
+- `design/screenshots/`：决策台四个方向的工作台与对比板，以及夜间模式实验页的截图（`night-*.png`、`tree-icons-night.png`）。
 - 截图不使用真实私有内容；测试仓库只出现在 live 手动验证中，不进入仓库截图。
 
 ## 验收 verdict
 
-**PASS（v1 + 字段/新稿改进）**：视觉语言在顶栏、索引、便签、纸张、印章、提交小票、设置/解锁页保持一致；编辑器安静规则成立；移动端可完成「找文件 → 改 → 盖章」；安全路径（设备/密码解锁、冲突、只读、空仓库）有明确反馈。新文章为本地草稿、首次保存单次创建；frontmatter 字段由设置驱动，必填校验和类型化输入可用；未配置字段继续保留。
+**PASS（v1 + 字段/新稿 + 夜间模式）**：视觉语言在顶栏、索引、便签、纸张、印章、提交小票、设置/解锁页保持一致；编辑器安静规则成立；移动端可完成「找文件 → 改 → 盖章」；安全路径（设备/密码解锁、冲突、只读、空仓库）有明确反馈。新文章为本地草稿、首次保存单次创建；frontmatter 字段由设置驱动，必填校验和类型化输入可用；未配置字段继续保留。主题可跟随系统或手动固定昼/夜，首帧无白闪，CodeMirror 与预览随主题切换；夜间对比度达标（主文字 12.9:1、辅助 6.37:1、输入边框 3.96:1）。
 
-**未完成/下一步**：图片粘贴上传、跨文件搜索、命令面板、封面/日历视图、主题切换、PWA、离线草稿、shiki 预览高亮、只读模式的自动探测（目前依赖写操作 403 提示）、新稿跨刷新持久化。
+**未完成/下一步**：图片粘贴上传、跨文件搜索、命令面板、封面/日历视图、PWA、离线草稿、shiki 预览高亮、只读模式的自动探测（目前依赖写操作 403 提示）、新稿跨刷新持久化、昼模式输入框边框与占位符对比度的顺手修正。

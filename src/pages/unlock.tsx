@@ -32,9 +32,9 @@ export function UnlockPage() {
   return (
     <div className="abs-shell flex min-h-screen items-center justify-center py-8">
       <div className="grid w-full max-w-[760px] gap-4 sm:grid-cols-[minmax(0,1fr)_240px]">
-        <div className="relative rounded-[22px] border-[1.5px] border-ink bg-paper px-7 pb-6 pt-9 text-center shadow-sheet">
+        <div className="relative rounded-[22px] border-[1.5px] border-edge bg-paper px-7 pb-6 pt-9 text-center shadow-sheet">
           <span className="abs-tape" aria-hidden />
-          <div className="mx-auto mb-3 grid size-16 -rotate-6 place-items-center rounded-full border-2 border-sakura font-display text-[26px] font-bold text-sakura shadow-[inset_0_0_0_4px_var(--abs-paper),inset_0_0_0_5px_rgba(201,63,109,.25)]">
+          <div className="mx-auto mb-3 grid size-16 -rotate-6 place-items-center rounded-full border-2 border-sakura font-display text-[26px] font-bold text-sakura shadow-[inset_0_0_0_4px_var(--abs-paper),inset_0_0_0_5px_var(--abs-stamp-ring)]">
             樱
           </div>
           <h1 className="font-display text-[28px] font-bold">欢迎回来</h1>
@@ -105,7 +105,10 @@ export function UnlockPage() {
           ) : null}
 
           {vault.error ? (
-            <p className="mt-3 rounded-lg border border-danger/30 bg-white/70 px-3 py-2 text-[11px] text-danger" role="alert">
+            <p
+              className="mt-3 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[11px] text-danger"
+              role="alert"
+            >
               {vault.error}
             </p>
           ) : null}

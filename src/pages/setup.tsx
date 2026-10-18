@@ -198,7 +198,10 @@ export function SetupPage() {
           </div>
 
           {error ? (
-            <p className="mt-3 rounded-lg border border-danger/30 bg-white/70 px-3 py-2 text-[11px] text-danger" role="alert">
+            <p
+              className="mt-3 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[11px] text-danger"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -241,7 +244,7 @@ export function SetupPage() {
             </p>
             <p className="mt-2 text-[10px] text-muted">设备指纹不是秘密；密码才是真正的安全边界。</p>
           </div>
-          <div className="relative rotate-[0.6deg] rounded-[14px] border-[1.5px] border-ink bg-butter px-4 py-3.5 text-[10.5px] leading-relaxed shadow-sticker">
+          <div className="relative rotate-[0.6deg] rounded-[14px] border-[1.5px] border-edge bg-butter px-4 py-3.5 text-[10.5px] leading-relaxed shadow-sticker">
             <span className="abs-tape abs-tape-mint" aria-hidden />
             <p className="flex items-center gap-1.5 font-display text-[13px] font-bold">
               <Fingerprint aria-hidden className="size-3.5" />

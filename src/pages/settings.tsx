@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
+import { useResolvedTheme } from '@/components/theme-provider';
 import { Field } from '@/components/ui';
 import {
   cloneFrontmatterFields,
@@ -13,6 +14,7 @@ import {
 } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
+import { THEME_OPTIONS, type ThemePreference } from '@/lib/theme/theme';
 import { rewrapVault } from '@/lib/vault/keystore';
 import { vaultSession } from '@/lib/vault/session';
 import { useSettings } from '@/stores/settings';
@@ -46,9 +48,14 @@ export function SettingsPage() {
   const [passwordBusy, setPasswordBusy] = useState(false);
 
   const isDemo = mode === 'demo';
+  const resolvedTheme = useResolvedTheme();
   const samplePath = `${rootDir || 'src'}/content/blog/note/便笺-备忘单.md`;
   const sampleTitle = '便笺：备忘单';
   const today = new Date().toISOString().slice(0, 10);
+
+  const setThemePreference = (theme: ThemePreference): void => {
+    settings.patch({ appearance: { ...settings.appearance, theme } });
+  };
 
   const save = async (): Promise<void> => {
     const issues = validateFrontmatterFields(fields);
@@ -244,7 +251,10 @@ export function SettingsPage() {
               onResetDefaults={resetFields}
             />
             {fieldError ? (
-              <p className="mt-2 rounded-lg border border-danger/30 bg-white/70 px-3 py-2 text-[11px] text-danger" role="alert">
+              <p
+                className="mt-2 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[11px] text-danger"
+                role="alert"
+              >
                 {fieldError}
               </p>
             ) : null}
@@ -335,6 +345,32 @@ export function SettingsPage() {
             <p className="mt-2 text-[10px] leading-relaxed text-muted">
               预览支持 GFM、代码、数学、剧透、ruby 与 ::: 容器；原始 HTML 会被净化，链接卡片降级为普通链接。
             </p>
+          </section>
+          <section className="abs-paper p-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-[16px] font-bold">外观</h2>
+              <span className="font-mono text-[9px] text-muted">即时生效 · 当前{resolvedTheme === 'night' ? '夜' : '昼'}</span>
+            </div>
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
+              默认跟随系统；手动选择后会记住。夜间使用暖墨纸与米白墨，不是把浅色主题反相。
+            </p>
+            <div className="mt-2.5 flex flex-wrap items-center gap-3">
+              <span className="abs-label">主题</span>
+              <fieldset className="abs-seg" aria-label="主题">
+                <legend className="sr-only">主题</legend>
+                {THEME_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    title={option.hint}
+                    aria-pressed={settings.appearance.theme === option.value}
+                    onClick={() => setThemePreference(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </fieldset>
+            </div>
           </section>
         </div>
 

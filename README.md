@@ -8,6 +8,8 @@
 
 ![工作台](docs/screenshots/dashboard.png)
 ![编辑器](docs/screenshots/editor.png)
+![夜间工作台](docs/screenshots/night-dashboard.png)
+![夜间编辑器](docs/screenshots/night-editor.png)
 
 ## 已实现
 
@@ -19,8 +21,9 @@
 - **提交体验**：提交消息模板（`{path}`、`{title}`、`{oldPath}`、`{newPath}`、`{dir}`、`{name}`、`{date}`、`{action}`）；提交前确认；提交小票（sha、路径、时间、GitHub 链接）；API 配额显示。
 - **Dashboard 性能**：首屏只发起 1 次 tree 请求 + 1 次 GraphQL 批量 frontmatter 读取；GraphQL 不可用时自动回退到 REST。最近/草稿/加密仍基于前 12 篇采样，避免为了统计读取整库。
 - **真实 / 演示双模式**：`?demo=1` 使用内存 fixture，不联网、不写仓库，适合评审 UI 和录屏。
+- **外观 / 夜间模式**：默认跟随系统，也可在设置里固定为昼或夜；`<html data-theme>` 在首帧前由内联脚本应用，避免刷新白闪。夜间是暖墨纸与米白墨（不是反相、不用纯黑），CodeMirror、Markdown 预览、设置、解锁与移动端共用同一套 `--abs-*` token。
 - **保险库**：PAT 以 AES-GCM-256 加密后写 localStorage；密钥由 PBKDF2-SHA256（600k 次）派生；设备指纹（FingerprintJS）自动解锁；可选密码，支持「密码 + 设备」双因子；内存会话令牌；锁定清空。
-- **设置**：根目录、扩展名、排除规则、时区、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、自动锁定、密码更换、重置保险库。
+- **设置**：根目录、扩展名、排除规则、时区、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、自动锁定、密码更换、重置保险库、外观（跟随系统 / 昼 / 夜）。
 - **响应式**：桌面双栏、移动端抽屉索引；`prefers-reduced-motion` 降级。
 
 ## 快速开始

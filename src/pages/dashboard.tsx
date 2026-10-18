@@ -197,20 +197,26 @@ export function DashboardPage() {
           )}
         </div>
 
-        <div className="relative rotate-[0.6deg] rounded-[14px] border-[1.5px] border-ink bg-butter px-3.5 pb-3.5 pt-4 shadow-sticker">
+        <div className="relative rotate-[0.6deg] rounded-[14px] border-[1.5px] border-edge bg-butter px-3.5 pb-3.5 pt-4 shadow-sticker">
           <span className="abs-tape abs-tape-mint" aria-hidden />
           <h2 className="font-display text-[15px] font-bold">今日小目标</h2>
           <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed">
             <li className="flex items-start gap-2">
-              <Check aria-hidden className="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-ink bg-mint p-0.5" />
+              <Check
+                aria-hidden
+                className="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-edge bg-mint p-0.5 text-accent-edge"
+              />
               补完 Markdown 备忘单的表格一节
             </li>
             <li className="flex items-start gap-2">
-              <Check aria-hidden className="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-ink bg-mint p-0.5" />
+              <Check
+                aria-hidden
+                className="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-edge bg-mint p-0.5 text-accent-edge"
+              />
               把读书笔记草稿改成发布
             </li>
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-ink bg-paper" />
+              <span className="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-edge bg-paper" />
               给旧便笺补 updated
             </li>
           </ul>
@@ -223,9 +229,9 @@ export function DashboardPage() {
               {rate.remaining.toLocaleString('en-US')} / {rate.limit.toLocaleString('en-US')}
             </strong>
           </div>
-          <div className="my-1.5 h-1.5 overflow-hidden rounded-full border border-ink/20 bg-blush-2">
+          <div className="my-1.5 h-1.5 overflow-hidden rounded-full border border-edge/20 bg-blush-2">
             <span
-              className="block h-full bg-gradient-to-r from-mint to-[#7CCBB2]"
+              className="abs-progress"
               style={{ width: `${rate.limit ? Math.min(100, Math.round((rate.remaining / rate.limit) * 100)) : 0}%` }}
             />
           </div>

@@ -46,7 +46,11 @@ export const settingsSchema = z.object({
   }),
   frontmatter: frontmatterSettingsSchema,
   appearance: z.object({
-    theme: z.enum(['native', 'night']),
+    // native 是早期版本的无界面占位值，读取时迁移到 system。
+    theme: z
+      .enum(['native', 'system', 'day', 'night'])
+      .transform((value) => (value === 'native' ? 'system' : value))
+      .catch('system'),
     motion: z.enum(['full', 'reduced', 'off']),
     density: z.enum(['cozy', 'compact']),
   }),

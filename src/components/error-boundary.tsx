@@ -19,7 +19,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     if (this.state.error) {
       return (
         <div className="abs-shell flex min-h-screen items-center justify-center">
-          <div className="max-w-[520px] rounded-2xl border-[1.5px] border-ink bg-paper p-6 shadow-sheet">
+          <div className="max-w-[520px] rounded-2xl border-[1.5px] border-edge bg-paper p-6 shadow-sheet">
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">studio crashed</p>
             <h1 className="mt-1 font-display text-[24px] font-bold">界面遇到一个错误</h1>
             <p className="mt-2 text-[11.5px] leading-relaxed text-muted">

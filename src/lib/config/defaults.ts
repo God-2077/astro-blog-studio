@@ -32,7 +32,7 @@ export const defaultSettings: Settings = {
     fields: cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS),
   },
   appearance: {
-    theme: 'native',
+    theme: 'system',
     motion: 'full',
     density: 'cozy',
   },

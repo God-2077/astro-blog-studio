@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --abs-paper: #fffbf5;
   --abs-paper-2: #fff6ec;
   --abs-desk: #f6ede6;
@@ -22,6 +23,50 @@
   --abs-warning: #7a5b16;
   --abs-danger: #b23a4e;
   --abs-focus: #a8496b;
+  /* 纸边、控件与状态面：实现层新收敛出来的 token */
+  --abs-edge: #3d2f36;
+  --abs-accent-edge: #3d2f36;
+  --abs-input-line: #d9c6bf;
+  --abs-input-bg: #fffbf5;
+  --abs-placeholder: #a9969c;
+  --abs-on-accent: #ffffff;
+  --abs-on-danger: #ffffff;
+  --abs-danger-surface: #fff3f4;
+  --abs-empty-surface: rgba(255, 255, 255, 0.45);
+  --abs-overlay: rgba(61, 47, 54, 0.25);
+  /* 纸张细节：小票、代码、预览、印章、胶带 */
+  --abs-receipt: #fffdf8;
+  --abs-preview-body: #4a3b42;
+  --abs-code-bg: #2f2a2e;
+  --abs-code-fg: #f3e6ea;
+  --abs-code-border: transparent;
+  --abs-info-surface: #eef7fb;
+  --abs-info-line: #6a9cb8;
+  --abs-active-line: rgba(247, 221, 229, 0.42);
+  --abs-selection: #f7dde5;
+  --abs-stamp: #c93f6d;
+  --abs-stamp-fill: rgba(201, 63, 109, 0.045);
+  --abs-stamp-fill-hover: rgba(201, 63, 109, 0.08);
+  --abs-stamp-ring: rgba(201, 63, 109, 0.22);
+  --abs-note-mint-label: rgba(61, 47, 54, 0.74);
+  --abs-note-butter-label: rgba(61, 47, 54, 0.74);
+  --abs-note-blush-label: rgba(61, 47, 54, 0.74);
+  --abs-tape: rgba(247, 221, 229, 0.92);
+  --abs-tape-mint: rgba(168, 224, 207, 0.82);
+  --abs-tape-line: rgba(61, 47, 54, 0.22);
+  --abs-tape-sticky: rgba(255, 255, 255, 0.55);
+  --abs-desk-dot: rgba(61, 47, 54, 0.12);
+  --abs-badge-line: rgba(61, 47, 54, 0.16);
+  --abs-ghost-hover: rgba(255, 255, 255, 0.6);
+  --abs-btn-shadow: rgba(61, 47, 54, 0.16);
+  --abs-btn-shadow-hover: rgba(61, 47, 54, 0.2);
+  --abs-btn-shadow-sm: rgba(61, 47, 54, 0.12);
+  --abs-progress: linear-gradient(90deg, #a8e0cf, #7ccbb2);
+  --abs-skeleton-a: #fbe9ef;
+  --abs-skeleton-b: #fff5ed;
+  --abs-tree-icon: #c93f6d;
+  --abs-tree-file: #7a686e;
+  --abs-tree-caret: #7a686e;
   --abs-shadow: 5px 6px 0 rgba(61, 47, 54, 0.13);
   --abs-shadow-sm: 3px 3px 0 rgba(61, 47, 54, 0.11);
   --abs-shadow-pop: 6px 6px 0 rgba(61, 47, 54, 0.16);
@@ -31,6 +76,83 @@
   --abs-font-body: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --abs-font-mono: "Sometype Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --abs-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 夜间：暖墨桌面 + 深栗纸 + 米白墨。不是把浅色反相，也不使用纯黑纸面。
+   所有组件继续只认 --abs-*，不允许在组件里另写夜间分支。 */
+:root[data-theme="night"] {
+  color-scheme: dark;
+  --abs-paper: #2a2025;
+  --abs-paper-2: #32272c;
+  --abs-desk: #100b0e;
+  --abs-blush: #3e2b33;
+  --abs-blush-2: #32252b;
+  --abs-sakura: #f07ca3;
+  --abs-sakura-deep: #ff9dbd;
+  --abs-sakura-soft: #ffb3cc;
+  --abs-mint: #8fdcc4;
+  --abs-mint-2: #204039;
+  --abs-butter: #443319;
+  --abs-butter-2: #2e2513;
+  --abs-ink: #f2e6de;
+  --abs-ink-soft: #cfbdb5;
+  --abs-muted: #b3a19a;
+  --abs-line: #55434a;
+  --abs-line-soft: #403237;
+  --abs-edge: #806970;
+  --abs-accent-edge: #2a161d;
+  --abs-input-line: #8f7a82;
+  --abs-input-bg: #1e171a;
+  --abs-placeholder: #b5a39b;
+  --abs-on-accent: #241016;
+  --abs-on-danger: #2a1114;
+  --abs-success: #93dec9;
+  --abs-warning: #e9c97f;
+  --abs-danger: #ff8f7c;
+  --abs-focus: #ffa8c6;
+  --abs-danger-surface: #3a241f;
+  --abs-empty-surface: rgba(242, 230, 222, 0.035);
+  --abs-overlay: rgba(8, 5, 7, 0.62);
+  --abs-receipt: #1e1719;
+  --abs-preview-body: #d8c8c0;
+  --abs-code-bg: #171114;
+  --abs-code-fg: #efe4dc;
+  --abs-code-border: #403237;
+  --abs-info-surface: #1b2a30;
+  --abs-info-line: #7fa8bc;
+  --abs-active-line: rgba(240, 124, 163, 0.08);
+  --abs-selection: rgba(240, 124, 163, 0.22);
+  --abs-stamp: #e06582;
+  --abs-stamp-fill: rgba(224, 101, 130, 0.08);
+  --abs-stamp-fill-hover: rgba(224, 101, 130, 0.13);
+  --abs-stamp-ring: rgba(224, 101, 130, 0.3);
+  --abs-note-mint-label: #a9dccb;
+  --abs-note-butter-label: #f2d48b;
+  --abs-note-blush-label: #f3a9c1;
+  --abs-tape: rgba(240, 124, 163, 0.2);
+  --abs-tape-mint: rgba(143, 220, 196, 0.18);
+  --abs-tape-line: rgba(242, 230, 222, 0.16);
+  --abs-tape-sticky: rgba(242, 230, 222, 0.16);
+  --abs-desk-dot: rgba(242, 230, 222, 0.07);
+  --abs-badge-line: rgba(242, 230, 222, 0.2);
+  --abs-ghost-hover: rgba(242, 230, 222, 0.06);
+  --abs-btn-shadow: rgba(0, 0, 0, 0.45);
+  --abs-btn-shadow-hover: rgba(0, 0, 0, 0.55);
+  --abs-btn-shadow-sm: rgba(0, 0, 0, 0.4);
+  --abs-progress: linear-gradient(90deg, #8fdcc4, #5fbfa4);
+  --abs-skeleton-a: rgba(242, 230, 222, 0.08);
+  --abs-skeleton-b: rgba(242, 230, 222, 0.16);
+  --abs-tree-icon: #ffffff;
+  --abs-tree-file: rgba(255, 255, 255, 0.78);
+  --abs-tree-caret: rgba(255, 255, 255, 0.45);
+  --abs-shadow: 5px 6px 0 rgba(0, 0, 0, 0.55);
+  --abs-shadow-sm: 3px 3px 0 rgba(0, 0, 0, 0.45);
+  --abs-shadow-pop: 6px 6px 0 rgba(0, 0, 0, 0.6);
+}
+
+/* 加密 / 演示徽章：夜间改用米白文字，减少粉色小字在暗底上的噪音。 */
+:root[data-theme="night"] .abs-badge-blush {
+  color: var(--abs-ink);
 }
 
 @theme inline {
@@ -54,6 +176,14 @@
   --color-success: var(--abs-success);
   --color-warning: var(--abs-warning);
   --color-danger: var(--abs-danger);
+  --color-edge: var(--abs-edge);
+  --color-accent-edge: var(--abs-accent-edge);
+  --color-input-line: var(--abs-input-line);
+  --color-on-accent: var(--abs-on-accent);
+  --color-on-danger: var(--abs-on-danger);
+  --color-tree-icon: var(--abs-tree-icon);
+  --color-tree-file: var(--abs-tree-file);
+  --color-tree-caret: var(--abs-tree-caret);
   --font-display: var(--abs-font-display);
   --font-body: var(--abs-font-body);
   --font-mono: var(--abs-font-mono);
@@ -84,14 +214,14 @@
     font-size: 14px;
     line-height: 1.5;
     background-color: var(--abs-desk);
-    background-image: radial-gradient(circle at 1px 1px, rgba(61, 47, 54, 0.12) 1px, transparent 0);
+    background-image: radial-gradient(circle at 1px 1px, var(--abs-desk-dot) 1px, transparent 0);
     background-size: 22px 22px;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
   ::selection {
-    background: var(--abs-blush);
+    background: var(--abs-selection);
     color: var(--abs-ink);
   }
 
@@ -174,7 +304,7 @@
     flex-wrap: wrap;
     padding: 9px 12px;
     background: var(--abs-paper);
-    border: 1.5px solid var(--abs-ink);
+    border: 1.5px solid var(--abs-edge);
     border-radius: 16px;
     box-shadow: var(--abs-shadow-sm);
   }
@@ -195,8 +325,8 @@
     flex: none;
     border-radius: 10px;
     background: var(--abs-sakura);
-    border: 1.5px solid var(--abs-ink);
-    color: #fff;
+    border: 1.5px solid var(--abs-accent-edge);
+    color: var(--abs-on-accent);
     font-family: var(--abs-font-display);
     font-size: 16px;
     font-weight: 700;
@@ -204,7 +334,7 @@
 
   .abs-paper {
     background: var(--abs-paper);
-    border: 1.5px solid var(--abs-ink);
+    border: 1.5px solid var(--abs-edge);
     border-radius: var(--radius-card);
     box-shadow: var(--abs-shadow-sm);
   }
@@ -212,7 +342,7 @@
   .abs-sheet {
     position: relative;
     background: var(--abs-paper);
-    border: 1.5px solid var(--abs-ink);
+    border: 1.5px solid var(--abs-edge);
     border-radius: var(--radius-sheet);
     box-shadow: var(--abs-shadow);
   }
@@ -223,15 +353,15 @@
     left: 20px;
     width: 78px;
     height: 18px;
-    background: rgba(247, 221, 229, 0.92);
-    border-left: 1px dashed rgba(61, 47, 54, 0.22);
-    border-right: 1px dashed rgba(61, 47, 54, 0.22);
+    background: var(--abs-tape);
+    border-left: 1px dashed var(--abs-tape-line);
+    border-right: 1px dashed var(--abs-tape-line);
     transform: rotate(-1.6deg);
     pointer-events: none;
   }
 
   .abs-tape-mint {
-    background: rgba(168, 224, 207, 0.82);
+    background: var(--abs-tape-mint);
   }
 
   .abs-btn {
@@ -242,13 +372,13 @@
     height: 34px;
     padding: 0 13px;
     border-radius: 999px;
-    border: 1.5px solid var(--abs-ink);
+    border: 1.5px solid var(--abs-edge);
     background: var(--abs-paper);
     color: var(--abs-ink);
     font-size: 12px;
     font-weight: 700;
     white-space: nowrap;
-    box-shadow: 2px 2px 0 rgba(61, 47, 54, 0.16);
+    box-shadow: 2px 2px 0 var(--abs-btn-shadow);
     transition:
       transform 180ms var(--abs-ease-spring),
       box-shadow 180ms,
@@ -257,7 +387,7 @@
 
   .abs-btn:hover {
     transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0 rgba(61, 47, 54, 0.2);
+    box-shadow: 3px 3px 0 var(--abs-btn-shadow-hover);
   }
 
   .abs-btn:active {
@@ -274,7 +404,8 @@
 
   .abs-btn-primary {
     background: var(--abs-sakura);
-    color: #fff;
+    border-color: var(--abs-accent-edge);
+    color: var(--abs-on-accent);
   }
 
   .abs-btn-primary:hover {
@@ -289,7 +420,7 @@
   }
 
   .abs-btn-ghost:hover {
-    background: rgba(255, 255, 255, 0.6);
+    background: var(--abs-ghost-hover);
     box-shadow: none;
     transform: none;
   }
@@ -342,9 +473,9 @@
   .abs-textarea {
     width: 100%;
     min-width: 0;
-    border: 1.5px solid var(--abs-line);
+    border: 1.5px solid var(--abs-input-line);
     border-radius: 9px;
-    background: var(--abs-paper);
+    background: var(--abs-input-bg);
     color: var(--abs-ink);
     padding: 0 10px;
     transition:
@@ -370,12 +501,12 @@
   .abs-textarea:focus {
     outline: none;
     border-color: var(--abs-ink);
-    box-shadow: 2px 2px 0 rgba(61, 47, 54, 0.12);
+    box-shadow: 2px 2px 0 var(--abs-btn-shadow-sm);
   }
 
   .abs-input::placeholder,
   .abs-textarea::placeholder {
-    color: #a9969c;
+    color: var(--abs-placeholder);
   }
 
   .abs-badge {
@@ -385,7 +516,7 @@
     height: 20px;
     padding: 0 7px;
     border-radius: 999px;
-    border: 1px solid rgba(61, 47, 54, 0.16);
+    border: 1px solid var(--abs-badge-line);
     font-size: 9.5px;
     font-weight: 700;
     white-space: nowrap;
@@ -423,10 +554,11 @@
     gap: 2px;
     min-height: 106px;
     padding: 16px 13px 13px;
-    border: 1.5px solid var(--abs-ink);
+    border: 1.5px solid var(--abs-edge);
     border-radius: 4px 14px 14px 14px;
     box-shadow: var(--abs-shadow-sm);
     min-width: 0;
+    --abs-note-label: var(--abs-ink-soft);
   }
 
   .abs-sticky::before {
@@ -436,9 +568,9 @@
     left: 14px;
     width: 38px;
     height: 13px;
-    background: rgba(255, 255, 255, 0.55);
-    border-left: 1px dashed rgba(61, 47, 54, 0.22);
-    border-right: 1px dashed rgba(61, 47, 54, 0.22);
+    background: var(--abs-tape-sticky);
+    border-left: 1px dashed var(--abs-tape-line);
+    border-right: 1px dashed var(--abs-tape-line);
     transform: rotate(-2deg);
   }
 
@@ -447,7 +579,7 @@
     font-size: 9px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(61, 47, 54, 0.74);
+    color: var(--abs-note-label);
   }
 
   .abs-sticky-value {
@@ -460,8 +592,21 @@
 
   .abs-sticky-hint {
     font-size: 10px;
-    color: rgba(61, 47, 54, 0.74);
+    color: var(--abs-note-label);
     line-height: 1.4;
+  }
+
+  /* 三张便签各自带一点色相，夜间提示文字才不会混成一片米白。 */
+  .abs-sticky.bg-mint-2 {
+    --abs-note-label: var(--abs-note-mint-label);
+  }
+
+  .abs-sticky.bg-butter {
+    --abs-note-label: var(--abs-note-butter-label);
+  }
+
+  .abs-sticky.bg-blush {
+    --abs-note-label: var(--abs-note-blush-label);
   }
 
   @media (max-width: 639px) {
@@ -486,7 +631,7 @@
 
   .abs-receipt {
     position: relative;
-    background: #fffdf8;
+    background: var(--abs-receipt);
     border: 1px solid var(--abs-line);
     border-radius: 4px 4px 14px 14px;
     padding: 14px 13px 12px;
@@ -552,7 +697,7 @@
     display: block;
     height: 8px;
     border-radius: 999px;
-    background: linear-gradient(90deg, var(--abs-blush-2), #fff5ed, var(--abs-blush-2));
+    background: linear-gradient(90deg, var(--abs-skeleton-a), var(--abs-skeleton-b), var(--abs-skeleton-a));
     background-size: 200% 100%;
     animation: abs-shimmer 1.6s linear infinite;
   }
@@ -563,10 +708,10 @@
     width: 78px;
     height: 58px;
     flex: none;
-    border: 2px solid var(--abs-sakura);
+    border: 2px solid var(--abs-stamp);
     border-radius: 12px;
-    background: rgba(201, 63, 109, 0.045);
-    color: var(--abs-sakura);
+    background: var(--abs-stamp-fill);
+    color: var(--abs-stamp);
     font-family: var(--abs-font-display);
     font-size: 11px;
     font-weight: 700;
@@ -575,7 +720,7 @@
     transform: rotate(-4deg);
     box-shadow:
       inset 0 0 0 2px var(--abs-paper),
-      inset 0 0 0 3px rgba(201, 63, 109, 0.22);
+      inset 0 0 0 3px var(--abs-stamp-ring);
     transition:
       transform 180ms var(--abs-ease-spring),
       background 180ms;
@@ -583,7 +728,7 @@
 
   .abs-stamp:hover {
     transform: rotate(-1deg) scale(1.03);
-    background: rgba(201, 63, 109, 0.08);
+    background: var(--abs-stamp-fill-hover);
   }
 
   .abs-stamp[data-stamping="true"] {
@@ -601,6 +746,50 @@
   .abs-spoiler:hover,
   .abs-spoiler:focus {
     color: var(--abs-paper);
+  }
+
+  .abs-progress {
+    display: block;
+    height: 100%;
+    background: var(--abs-progress);
+  }
+
+  .abs-seg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin: 0;
+    min-inline-size: 0;
+    padding: 3px;
+    border: 1.5px solid var(--abs-line);
+    border-radius: 999px;
+    background: var(--abs-paper-2);
+    position: relative;
+  }
+
+  .abs-seg button {
+    height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--abs-ink-soft);
+    font-size: 11px;
+    transition:
+      background 160ms,
+      color 160ms;
+  }
+
+  .abs-seg button:hover {
+    background: var(--abs-blush-2);
+    color: var(--abs-ink);
+  }
+
+  .abs-seg button[aria-pressed="true"] {
+    background: var(--abs-blush);
+    color: var(--abs-ink);
+    font-weight: 700;
+    box-shadow: inset 0 0 0 1px var(--abs-edge);
   }
 
   .abs-no-scrollbar {
@@ -656,7 +845,7 @@
 .abs-preview {
   font-size: 13px;
   line-height: 1.9;
-  color: #4a3b42;
+  color: var(--abs-preview-body);
   overflow-wrap: anywhere;
 }
 
@@ -749,8 +938,9 @@
 }
 
 .abs-preview pre {
-  background: #2f2a2e;
-  color: #f3e6ea;
+  background: var(--abs-code-bg);
+  color: var(--abs-code-fg);
+  border: 1px solid var(--abs-code-border);
   border-radius: 10px;
   padding: 12px 14px;
   overflow-x: auto;
@@ -815,8 +1005,8 @@
 }
 
 .abs-preview .md-container-info {
-  border-left-color: #6a9cb8;
-  background: #eef7fb;
+  border-left-color: var(--abs-info-line);
+  background: var(--abs-info-surface);
 }
 
 .abs-preview .md-container-primary {

@@ -1,6 +1,7 @@
-import { ChevronDown, ChevronRight, FileText, Folder, RefreshCw, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { FileCardIcon, FolderCardIcon } from '@/components/paper-icons';
 import { ErrorNote, SkeletonList } from '@/components/ui';
 import type { TreeModel, TreeNode } from '@/lib/tree/model';
 import { useEditorGuard } from '@/stores/editor';
@@ -77,11 +78,11 @@ export function TreePanel({ model, activePath, isLoading, error, onRetry, onRefr
             style={{ paddingLeft: `${7 + depth * 12}px` }}
           >
             {isCollapsed ? (
-              <ChevronRight aria-hidden className="size-3.5 shrink-0 text-muted" />
+              <ChevronRight aria-hidden className="size-3.5 shrink-0 text-tree-caret" />
             ) : (
-              <ChevronDown aria-hidden className="size-3.5 shrink-0 text-muted" />
+              <ChevronDown aria-hidden className="size-3.5 shrink-0 text-tree-caret" />
             )}
-            <Folder aria-hidden className="size-3.5 shrink-0 text-sakura" />
+            <FolderCardIcon className="size-3.5 shrink-0 text-tree-icon" />
             <span className="truncate">{node.name}</span>
             <span className="ml-auto font-mono text-[9px] text-muted">{countFiles(node)}</span>
           </button>
@@ -100,7 +101,7 @@ export function TreePanel({ model, activePath, isLoading, error, onRetry, onRefr
           title={node.path}
           style={{ paddingLeft: `${7 + depth * 12}px` }}
         >
-          <FileText aria-hidden className="size-3.5 shrink-0 text-muted" />
+          <FileCardIcon className="size-3.5 shrink-0 text-tree-file" />
           <span className="truncate">{node.name}</span>
         </button>
       </li>
@@ -164,7 +165,7 @@ export function TreePanel({ model, activePath, isLoading, error, onRetry, onRefr
                     onClick={() => openFile(file.path)}
                     title={file.path}
                   >
-                    <FileText aria-hidden className="size-3.5 shrink-0 text-muted" />
+                    <FileCardIcon className="size-3.5 shrink-0 text-tree-file" />
                     <span className="truncate">{file.name}</span>
                     <span className="ml-auto shrink-0 font-mono text-[9px] text-muted">
                       {file.path.split('/').slice(-2, -1)[0]}

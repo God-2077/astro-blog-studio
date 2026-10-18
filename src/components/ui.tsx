@@ -43,7 +43,10 @@ export function ErrorNote({ error, onRetry, className }: { error: unknown; onRet
   const mapped = mapError(error);
   return (
     <div
-      className={cn('rounded-xl border border-danger/30 bg-white/70 p-3 text-[11px] leading-relaxed', className)}
+      className={cn(
+        'rounded-xl border border-danger/30 bg-[var(--abs-danger-surface)] p-3 text-[11px] leading-relaxed',
+        className,
+      )}
       role="alert"
     >
       <p className="flex items-start gap-2 font-semibold text-danger">
@@ -63,7 +66,7 @@ export function ErrorNote({ error, onRetry, className }: { error: unknown; onRet
 
 export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line bg-white/45 px-5 py-10 text-center">
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line bg-[var(--abs-empty-surface)] px-5 py-10 text-center">
       <strong className="font-display text-[16px]">{title}</strong>
       {children ? <p className="max-w-[46ch] text-[11.5px] leading-relaxed text-muted">{children}</p> : null}
       {action}

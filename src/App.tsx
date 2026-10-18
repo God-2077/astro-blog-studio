@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ProtectedLayout } from '@/components/protected-layout';
+import { ThemeProvider } from '@/components/theme-provider';
 import { Spinner } from '@/components/ui';
 import { DashboardPage } from '@/pages/dashboard';
 import { SettingsPage } from '@/pages/settings';
@@ -32,42 +33,44 @@ export function App() {
 
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <HashRouter>
-          <Routes>
-            <Route path="/setup" element={<SetupPage />} />
-            <Route path="/unlock" element={<UnlockPage />} />
-            <Route element={<ProtectedLayout />}>
-              <Route element={<AppShell />}>
-                <Route index element={<DashboardPage />} />
-                <Route
-                  path="edit"
-                  element={
-                    <Suspense
-                      fallback={
-                        <div className="abs-paper p-6">
-                          <Spinner label="加载编辑器" />
-                        </div>
-                      }
-                    >
-                      <EditorPage />
-                    </Suspense>
-                  }
-                />
-                <Route path="settings" element={<SettingsPage />} />
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <HashRouter>
+            <Routes>
+              <Route path="/setup" element={<SetupPage />} />
+              <Route path="/unlock" element={<UnlockPage />} />
+              <Route element={<ProtectedLayout />}>
+                <Route element={<AppShell />}>
+                  <Route index element={<DashboardPage />} />
+                  <Route
+                    path="edit"
+                    element={
+                      <Suspense
+                        fallback={
+                          <div className="abs-paper p-6">
+                            <Spinner label="加载编辑器" />
+                          </div>
+                        }
+                      >
+                        <EditorPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
               </Route>
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </HashRouter>
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            className: 'font-body text-[12px]',
-            style: { background: 'var(--abs-paper)', border: '1.5px solid var(--abs-ink)', color: 'var(--abs-ink)' },
-          }}
-        />
-      </QueryClientProvider>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </HashRouter>
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              className: 'font-body text-[12px]',
+              style: { background: 'var(--abs-paper)', border: '1.5px solid var(--abs-edge)', color: 'var(--abs-ink)' },
+            }}
+          />
+        </QueryClientProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
