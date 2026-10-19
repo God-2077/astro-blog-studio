@@ -347,6 +347,11 @@
     box-shadow: var(--abs-shadow);
   }
 
+  /* 折叠面板的 body 用 hidden 隐藏，显式兜底避免被其它 display 工具类覆盖。 */
+  .abs-collapse-body[hidden] {
+    display: none;
+  }
+
   .abs-tape {
     position: absolute;
     top: -9px;

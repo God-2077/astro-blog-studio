@@ -49,6 +49,32 @@ test.describe('demo mode', () => {
     await expect(sheet).toContainText('全库 9 篇');
   });
 
+  test('collapses every settings section on a phone viewport and expands on demand', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/?demo=1#/settings');
+
+    const sections = page.locator('section.abs-paper');
+    await expect(sections).toHaveCount(8);
+    for (let index = 0; index < 8; index += 1) {
+      await expect(sections.nth(index)).toHaveAttribute('data-open', 'true');
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await expect(page.locator('section.abs-paper[data-open="false"]')).toHaveCount(8);
+
+    const contentSection = page.locator('section.abs-paper').filter({ hasText: '内容与排除' });
+    const contentHeader = contentSection.getByRole('button', { name: /内容与排除/ });
+    await expect(contentHeader).toHaveAttribute('aria-expanded', 'false');
+    await contentHeader.click();
+    await expect(contentHeader).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('label.abs-field').filter({ hasText: '根目录' }).locator('input')).toBeVisible();
+
+    // 折叠时摘要仍在标题行，页面无横向滚动。
+    await expect(page.locator('section.abs-paper').filter({ hasText: '本机文章缓存' })).toContainText('演示模式 · 仅内存');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
   test('adds a frontmatter field in settings and renders it in the editor', async ({ page }) => {
     await page.goto('/?demo=1#/settings');
     const fieldsSection = page.locator('section.abs-paper').filter({ hasText: 'Frontmatter 字段' });

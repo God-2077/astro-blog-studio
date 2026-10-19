@@ -3,6 +3,7 @@ import { ArrowLeft, KeyRound, LockKeyhole, RefreshCw, RotateCcw } from 'lucide-r
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Collapse } from '@/components/collapse';
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Field } from '@/components/ui';
@@ -224,9 +225,7 @@ export function SettingsPage() {
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_290px]">
         <div className="space-y-3">
-          <section className="abs-paper relative p-3.5">
-            <span className="abs-tape" aria-hidden />
-            <h2 className="font-display text-[16px] font-bold">内容与排除</h2>
+          <Collapse title="内容与排除" tape="blush">
             {isDemo ? (
               <p className="mt-1 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2 text-[10.5px] leading-relaxed text-muted">
                 演示模式使用固定的示例仓库与排除规则；这些字段在连接真实仓库后生效。
@@ -282,16 +281,13 @@ export function SettingsPage() {
                 disabled={isDemo}
               />
             </Field>
-          </section>
+          </Collapse>
 
-          <section className="abs-paper relative p-3.5">
-            <span className="abs-tape abs-tape-mint" aria-hidden />
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-display text-[16px] font-bold">本机文章缓存</h2>
-              <span className="font-mono text-[9px] text-muted">
-                {isDemo ? '演示模式 · 仅内存' : `${content.cachedCount} 篇 · AES-GCM`}
-              </span>
-            </div>
+          <Collapse
+            title="本机文章缓存"
+            tape="mint"
+            meta={isDemo ? '演示模式 · 仅内存' : `${content.cachedCount} 篇 · AES-GCM`}
+          >
             <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
               首次打开会把全库文章读一遍并加密保存在本机 IndexedDB；之后每次只拉取文件树，按路径与 blob sha
               比对，只重新读取新增或修改的文章，并从缓存里删除已删除的文章。
@@ -335,14 +331,18 @@ export function SettingsPage() {
                 ? '演示仓库只存在内存里，演示模式不写本机缓存。'
                 : '真实仓库用保险库数据密钥派生的子密钥加密；锁定后无法读取，重置保险库会一并清除。'}
             </p>
-          </section>
+          </Collapse>
 
-          <section className="abs-paper relative p-3.5">
-            <span className="abs-tape abs-tape-mint" aria-hidden />
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-display text-[16px] font-bold">Frontmatter 字段</h2>
-              <span className="font-mono text-[9px] text-muted">{fields.length} 个字段</span>
-            </div>
+          <Collapse
+            title="Frontmatter 字段"
+            tape="mint"
+            meta={
+              <>
+                {fields.length} 个字段
+                {fieldError ? <span className="ml-1 text-danger">有误</span> : null}
+              </>
+            }
+          >
             <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
               决定编辑器的字段、类型和必填校验；删除字段不会删除已有文件里的键，未配置字段会原样保留。
             </p>
@@ -362,10 +362,9 @@ export function SettingsPage() {
                 {fieldError}
               </p>
             ) : null}
-          </section>
+          </Collapse>
 
-          <section className="abs-paper p-3.5">
-            <h2 className="font-display text-[16px] font-bold">提交消息</h2>
+          <Collapse title="提交消息">
             <p className="mt-0.5 text-[10.5px] text-muted">
               可用 {'{path} {title} {oldPath} {newPath} {dir} {name} {date} {action}'}；未知占位符保持原文。
             </p>
@@ -412,10 +411,9 @@ export function SettingsPage() {
               />
               保存前弹提交确认
             </label>
-          </section>
+          </Collapse>
 
-          <section className="abs-paper p-3.5">
-            <h2 className="font-display text-[16px] font-bold">编辑与预览</h2>
+          <Collapse title="编辑与预览">
             <div className="mt-2 grid gap-3 sm:grid-cols-3">
               <Field label="正文字号">
                 <input
@@ -471,12 +469,9 @@ export function SettingsPage() {
                 清除本仓库的本机备份
               </button>
             </div>
-          </section>
-          <section className="abs-paper p-3.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-display text-[16px] font-bold">外观</h2>
-              <span className="font-mono text-[9px] text-muted">即时生效 · 当前{resolvedTheme === 'night' ? '夜' : '昼'}</span>
-            </div>
+          </Collapse>
+
+          <Collapse title="外观" meta={`即时生效 · 当前${resolvedTheme === 'night' ? '夜' : '昼'}`}>
             <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
               默认跟随系统；手动选择后会记住。夜间使用暖墨纸与米白墨，不是把浅色主题反相。
             </p>
@@ -497,15 +492,19 @@ export function SettingsPage() {
                 ))}
               </fieldset>
             </div>
-          </section>
+          </Collapse>
         </div>
 
         <aside className="space-y-3">
-          <section className="abs-paper p-3.5">
-            <h2 className="flex items-center gap-1.5 font-display text-[15px] font-bold">
-              <KeyRound aria-hidden className="size-3.5 text-sakura" />
-              安全
-            </h2>
+          <Collapse
+            title={
+              <>
+                <KeyRound aria-hidden className="size-3.5 text-sakura" />
+                安全
+              </>
+            }
+            meta={isDemo ? '演示模式' : '已加密保存'}
+          >
             <p className="mt-1 break-all font-mono text-[9px] text-muted">令牌：{isDemo ? '演示模式无令牌' : '已加密保存'}</p>
             {!isDemo ? (
               <p className="mt-1 text-[10px] leading-relaxed text-muted">
@@ -583,10 +582,12 @@ export function SettingsPage() {
             <p className="mt-2 text-[9px] leading-relaxed text-muted">
               双因子下忘记密码或指纹变化都无法找回，只能重置保险库并重新输入 PAT；本机真实仓库的未保存备份会一起清除。
             </p>
-          </section>
+          </Collapse>
 
-          <section className="rounded-xl border border-line bg-paper px-3.5 py-3 text-[10px] leading-relaxed text-muted">
-            <p className="font-display text-[12px] font-bold text-ink">当前配置</p>
+          <Collapse
+            title={<span className="text-[16px] font-bold text-ink">当前配置</span>}
+            className="text-[10px] leading-relaxed text-muted"
+          >
             <p className="mt-1 break-all font-mono">
               {repo.owner}/{repo.name}
               <br />
@@ -599,7 +600,7 @@ export function SettingsPage() {
                 ? '演示模式的仓库内容只在内存里；未保存备份保存在本机演示键（不加密）。'
                 : '备份加密后只写本机 IndexedDB，不会上传。'}
             </p>
-          </section>
+          </Collapse>
         </aside>
       </div>
     </div>
