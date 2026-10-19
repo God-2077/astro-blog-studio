@@ -62,8 +62,9 @@
   - **索引卡**（左）：纸面、搜索、目录树、底部排除计数；移动端为抽屉。
   - **桌面**（中）：`DEMO WORKSPACE / WORKSPACE` 眉题、大标题「今天写点什么？」、日期行、ghost「检查更新」+ 实心樱粉「新建文章」；三张旋转便签（总数/草稿/加密）；本机缓存状态条；最近动过列表；提交小票；今日小目标；API 卡。
 - **本机文章缓存状态条**：表头下方一条 `.abs-paper` 虚线纸片（`role="status"`、`aria-live="polite"`）。首次加载显示「首次加载 · 正在读取全部文章」+ 等宽 `done / total` + 1.5px 薄荷进度条；检查/同步时显示「正在检查远端更新…」「正在同步文章变更」；完成后留一行等宽「已同步 · 新增 a / 修改 m / 删除 d」；失败就地 `ErrorNote` + 「重试」ghost 按钮；配额写入失败显示一行 muted 说明。只有进度/状态使用薄荷，实心樱粉仍只给「新建文章」。
+- **检查更新反馈**：点击后按钮立刻禁用并把图标换成旋转态，文案按阶段显示「检查中…」/「同步中…」；tree refetch 阶段状态条已显示「正在检查远端更新…」，顶部 loading toast 持续到结果返回后才替换为成功/失败；索引卡刷新按钮同步旋转。失败不会留下永久「检查中」。
 - 最近列表为行式，不用卡片网格；日期 64px 等宽，标题 + 路径，右侧状态徽章。
-- 「最近动过」按 frontmatter 的 `updated` / `date` 全库降序，不做路径切片采样；表头在索引中显示「同步中 X / Y」，完成后显示「全库 Y 篇」。有缓存摘要时即使文件树还在加载/失败也先渲染列表。
+- 「最近动过」按 frontmatter 的 `updated` / `date` 全库降序，不做路径切片采样；表头右侧是 `.abs-seg` 的 `updated` / `date` 切换，切换后重置为 20 篇。列表下方「加载更多」每次追加 20 篇，到底显示「已全部显示 N 篇」；表头在索引中显示「同步中 X / Y」，完成后显示「全库 Y 篇」。有缓存摘要时即使文件树还在加载/失败也先渲染列表。
 - 右栏是独立纸张，与主栏 3px 间隙；不抢焦点。
 
 ### 编辑器（`/edit?path=`）
@@ -83,8 +84,9 @@
 ### 设置（`/settings`）
 
 - 左侧六张纸（内容与排除、本机文章缓存、Frontmatter 字段、提交消息、编辑与预览、外观），右侧安全卡 + 当前配置卡。
+- **折叠面板**：每个分区都是 `Collapse`（原生 button + `aria-expanded`/`aria-controls`，body 用 `hidden` 隐藏）。默认状态只在挂载时按视口决定：<768px 手机竖屏全部折叠，≥768px 平板/桌面全部展开；之后跟随用户操作，旋转屏幕不强制重置。折叠时标题行仍显示摘要（缓存篇数/演示模式、字段数及校验错误、当前主题、令牌状态），顶部「保存设置」始终可见。
 - **安全卡**：显示「当前解锁方式」，下方是三张 radio 卡片（设备指纹 / 密码 / 密码 + 设备双因子）与「更新解锁方式」按钮；模式与密码单独保存、立即生效，不参与顶部「保存设置」。选中双因子时就地给出 danger 边说明「两者必须同时匹配，任一丢失只能重置保险库」，旧版并存保险库额外显示升级提示。demo 模式下隐藏解锁方式、锁定与重置入口。
-- **本机文章缓存**：内容与排除纸下方一张纸，显示「演示模式 · 仅内存」或「N 篇 · AES-GCM」、已缓存篇数 / 上次同步时间 / 树 sha 短值；ghost 按钮「检查更新」「强制全量更新」（强制先 `window.confirm`），同步中显示等宽进度并禁用；demo 禁用并说明不写本机。文案解释首次全量、之后按路径 + blob sha 只读新增/修改、删除已删除文章，以及真实仓库用保险库子密钥加密、锁定后不可读。
+- **本机文章缓存**：内容与排除纸下方一张纸，显示「演示模式 · 仅内存」或「N 篇 · AES-GCM」、已缓存篇数 / 上次同步时间 / 树 sha 短值；ghost 按钮「检查更新」「强制全量更新」（强制先 `window.confirm`），同步中按钮禁用、图标旋转并显示阶段文案 + `done / total` 与薄荷进度条；「检查更新」进行中按钮文案改为「检查中…」；demo 禁用并说明不写本机。文案解释首次全量、之后按路径 + blob sha 只读新增/修改、删除已删除文章，以及真实仓库用保险库子密钥加密、锁定后不可读。
 - **索引并发**：内容与排除纸底部可调 1–10（默认 3），决定首次全量读取与增量同步同时进行几个 20 篇批次；调高更快，过高可能触发 GitHub 限流。保存写入设置，下一次同步生效。
 - **外观**：主题可选「跟随系统 / 昼 / 夜」，即时生效并随设置持久化；默认跟随系统。夜间与昼间共用同一套 token，切换不改变布局与字号。
 - **Frontmatter 字段**：可增删字段行（名称 / 类型 / 必填）；「恢复常用字段」回到 hello-world 参考集；字段定义非法（空名、重复、保留名、非法字符）时阻止保存并就地说明。删除字段不会删除已有文件里的键，编辑器会把它作为未知字段保留。
@@ -105,7 +107,7 @@
 - **主题**：`ThemeProvider` 把 `settings.appearance.theme`（`system / day / night`）解析为 `<html data-theme>`；`index.html` 内联脚本在首帧前应用，避免白闪；需要布尔值的组件（CodeMirror 的 dark 主题）用 `useResolvedTheme()`。不新增主题命名空间，也不允许组件里写夜间分支。
 - 状态：Zustand `settings`（persist）、`vault`（不持久化）、`content`（本机文章缓存状态：status/progress/summaries/错误，不持久化，锁定即清空）、`ui`、`rate-limit`、`last-commit`、`editor guard`、`pending-post`、`pwa`；未保存备份走 `useEditorBackup` + `lib/backup`（IndexedDB），本机文章缓存走 `lib/content`（IndexedDB `abs-content`，AES-GCM），两者都不放进 service worker 缓存；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
 - 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。toast 右侧常驻 `.abs-toast-close` X（纸底、1.5px 线边框的 24px 方块，hover 转 ink），点击立即关闭；自动消失与滑动关闭保留。
-- **PWA 更新提示**：`PwaUpdate` 挂在 App 根部（`virtual:pwa-register/react`）。新版本进入 waiting 时用 Radix `AlertDialog` 弹「网站有新版本」，按钮「稍后」（`.abs-btn-ghost`）/「立即刷新」（默认 `.abs-btn`，**不用**实心樱粉——实心樱粉仍只属于「新建文章」）。点过「稍后」后顶栏出现带樱粉圆点的 `.abs-icon-btn`，可再次唤起弹窗；编辑器脏状态时弹窗内多一行 danger 提示，刷新时沿用现有 `beforeunload` 兜底。只有用户点「立即刷新」才整页 reload，**不自动刷新**。`pnpm dev` 不注册 Service Worker，PWA 只在构建产物里可见。
+- **PWA 更新提示**：`PwaUpdate` 挂在 App 根部（`virtual:pwa-register/react`）。新版本进入 waiting 时用 Radix `AlertDialog` 弹「网站有新版本」，按钮「稍后」（`.abs-btn-ghost`）/「立即刷新」（默认 `.abs-btn`，**不用**实心樱粉——实心樱粉仍只属于「新建文章」）。点过「稍后」后顶栏出现带樱粉圆点的 `.abs-icon-btn`，可再次唤起弹窗；编辑器脏状态时弹窗内多一行 danger 提示，刷新时沿用现有 `beforeunload` 兜底。只有用户点「立即刷新」才整页 reload，**不自动刷新**。`pnpm dev` 不注册 Service Worker，PWA 只在构建产物里可见。浏览器标签图标与 `apple-touch-icon` 统一使用 `public/apple-touch-icon.png`。
 
 ## 动效
 
@@ -156,3 +158,5 @@
 **PWA（2026-10）**：manifest（name/short_name/display/theme_color/icons 含 maskable）+ Service Worker 预缓存 50 条 ≈ 2.3 MiB（html/js/css/woff2/图标）；断网从预缓存打开工作台；更新弹窗只在 waiting 新版本时出现，只有「立即刷新」会整页 reload，「稍后」后顶栏徽标可再唤起；顶栏在 390px 下仍一行。
 
 **未保存备份（2026-10）**：编辑后约 600ms 底栏出现「本机已备份」，进入编辑器检查备份并弹窗；「稍后」保留 butter 恢复条，「恢复」支持表单/源文件/新稿，「丢弃」后不再提示；保存/移动/删除成功即清除；恢复旧草稿保留 base sha，保存仍走 409。真实仓库的备份是 AES-GCM 密文（保险库数据密钥经 HKDF 派生的子密钥），demo 备份明文；锁定前先 flush 再清密钥，重置保险库会一并清除真实仓库备份；设置可关闭与清除。
+
+**1.0.0（2026-10）**：设置页每个分区可折叠（手机 <768px 默认折叠、宽屏默认展开，标题行保留摘要）；「检查更新」进行中即时显示按钮/状态条/toast 反馈；「最近动过」支持 `updated` / `date` 排序与每次 20 篇的「加载更多」；浏览器标签与 `apple-touch-icon` 统一使用 `/apple-touch-icon.png`；README 改为分层结构，备份/缓存/测试/架构细节下沉到 `docs/`。
