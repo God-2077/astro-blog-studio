@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, Clock3, Plus, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, Check, ChevronDown, Clock3, Plus, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ContentSyncStatus } from '@/components/content-status';
@@ -7,7 +7,7 @@ import { Badge, EmptyState, ErrorNote, SkeletonList } from '@/components/ui';
 import { useContentActions } from '@/hooks/use-content-sync';
 import { useTreeModel } from '@/hooks/use-data';
 import { useGateway } from '@/lib/gateway/context';
-import { pickRecent } from '@/lib/posts/summary';
+import { type PostSortKey, postSortValue, RECENT_PAGE_SIZE, sortPosts } from '@/lib/posts/summary';
 import { cn } from '@/lib/utils/cn';
 import { displayDate } from '@/lib/utils/date';
 import { useContent } from '@/stores/content';
@@ -22,10 +22,14 @@ export function DashboardPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<PostSortKey>('updated');
+  const [visibleCount, setVisibleCount] = useState(RECENT_PAGE_SIZE);
   const lastCommit = useLastCommit((state) => state.commit);
   const rate = useRateLimit();
 
-  const recent = useMemo(() => pickRecent(content.summaries, 12), [content.summaries]);
+  const sorted = useMemo(() => sortPosts(content.summaries, sortKey), [content.summaries, sortKey]);
+  const recent = sorted.slice(0, visibleCount);
+  const hasMore = recent.length < sorted.length;
   const drafts = content.summaries.filter((item) => item.draft).length;
   const encrypted = content.summaries.filter((item) => item.encrypted).length;
   const isSyncing = content.status === 'checking' || content.status === 'loading' || content.status === 'updating';
@@ -39,6 +43,16 @@ export function DashboardPage() {
   const syncLabel = content.status === 'loading' || content.status === 'updating' ? '同步中…' : busy ? '检查中…' : '检查更新';
   const effectiveStatus = pending && !isSyncing ? 'checking' : content.status;
   const today = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full', timeZone: config.timezone }).format(new Date());
+
+  const changeSort = (next: PostSortKey): void => {
+    if (next === sortKey) return;
+    setSortKey(next);
+    setVisibleCount(RECENT_PAGE_SIZE);
+  };
+
+  const loadMore = (): void => {
+    setVisibleCount((count) => count + RECENT_PAGE_SIZE);
+  };
 
   const openDialog = params.get('new') === '1' || dialogOpen;
   const setDialog = (open: boolean): void => {
@@ -124,11 +138,30 @@ export function DashboardPage() {
 
         <section className="abs-sheet mt-4 min-w-0 px-4 pb-2 pt-5">
           <span className="abs-tape" aria-hidden />
-          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-dashed border-line pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-line pb-2">
             <h2 className="font-display text-[16px] font-bold">最近动过</h2>
-            <span className="font-mono text-[9.5px] text-muted" title="按 frontmatter 的 updated / date 排序">
-              {summaryLabel} · updated / date
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <fieldset className="abs-seg" aria-label="最近文章排序">
+                <legend className="sr-only">最近文章排序</legend>
+                <button
+                  type="button"
+                  title="按 frontmatter 的 updated 降序"
+                  aria-pressed={sortKey === 'updated'}
+                  onClick={() => changeSort('updated')}
+                >
+                  updated
+                </button>
+                <button
+                  type="button"
+                  title="按 frontmatter 的 date 降序"
+                  aria-pressed={sortKey === 'date'}
+                  onClick={() => changeSort('date')}
+                >
+                  date
+                </button>
+              </fieldset>
+              <span className="font-mono text-[9.5px] text-muted">{summaryLabel}</span>
+            </div>
           </div>
 
           {content.visibleTotal > content.indexed ? (
@@ -156,7 +189,7 @@ export function DashboardPage() {
                     onClick={() => navigate(`/edit?path=${encodeURIComponent(post.path)}`)}
                   >
                     <span className="whitespace-nowrap font-mono text-[9.5px] text-muted">
-                      {displayDate(post.updated ?? post.date)}
+                      {displayDate(postSortValue(post, sortKey))}
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-[12px] font-bold group-hover:text-sakura">{post.title}</span>
@@ -191,6 +224,22 @@ export function DashboardPage() {
               文件树里有 {model.totalMarkdown} 个文件，但还没读到 frontmatter。
             </p>
           )}
+
+          {hasMore ? (
+            <div className="flex flex-col items-center gap-1.5 py-3">
+              <button type="button" className="abs-btn abs-btn-ghost h-8 text-[11px]" onClick={loadMore}>
+                <ChevronDown aria-hidden className="size-3.5" />
+                加载更多
+              </button>
+              <span aria-live="polite" className="font-mono text-[9px] text-muted">
+                已显示 {recent.length} / {sorted.length} 篇 · 每次 {RECENT_PAGE_SIZE} 篇
+              </span>
+            </div>
+          ) : sorted.length > RECENT_PAGE_SIZE ? (
+            <p aria-live="polite" className="py-2 text-center font-mono text-[9px] text-muted">
+              已全部显示 {sorted.length} 篇
+            </p>
+          ) : null}
         </section>
       </div>
 

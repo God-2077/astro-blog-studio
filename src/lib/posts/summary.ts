@@ -23,6 +23,12 @@ export interface IndexEntry {
 /** One batch == one `readFiles` call == one GraphQL request (GRAPHQL_BATCH_SIZE is 20). */
 export const INDEX_CHUNK_SIZE = 20;
 
+/** How many 「最近动过」 rows one page shows; 「加载更多」 appends the same amount. */
+export const RECENT_PAGE_SIZE = 20;
+
+/** `updated` orders by last edit (falling back to date); `date` orders by publish date. */
+export type PostSortKey = 'updated' | 'date';
+
 /** Hard ceiling so a pathological repo cannot burn the whole API quota. */
 export const MAX_INDEX_FILES = 1000;
 
@@ -88,7 +94,16 @@ export function summarize(text: string, path: string): PostSummary {
 
 /** The value a post is sorted by: `updated` wins, otherwise `date`. */
 export function postTimestamp(post: PostSummary): string {
-  return post.updated ?? post.date;
+  return postSortValue(post, 'updated');
+}
+
+/**
+ * The frontmatter value used for a given sort mode. `date` falls back to
+ * `updated` when a post has no publish date; `updated` keeps the old behavior.
+ */
+export function postSortValue(post: PostSummary, key: PostSortKey = 'updated'): string {
+  if (key === 'date') return post.date || post.updated || '';
+  return post.updated || post.date || '';
 }
 
 const LOCAL_DATE_RE = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/;
@@ -125,9 +140,9 @@ export function postRecencyMs(value: string | undefined): number {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
 
-function compareRecency(a: PostSummary, b: PostSummary): number {
-  const timeA = postRecencyMs(postTimestamp(a));
-  const timeB = postRecencyMs(postTimestamp(b));
+function comparePosts(a: PostSummary, b: PostSummary, key: PostSortKey): number {
+  const timeA = postRecencyMs(postSortValue(a, key));
+  const timeB = postRecencyMs(postSortValue(b, key));
   const missingA = Number.isNaN(timeA);
   const missingB = Number.isNaN(timeB);
   if (missingA !== missingB) return missingA ? 1 : -1;
@@ -135,12 +150,17 @@ function compareRecency(a: PostSummary, b: PostSummary): number {
   return a.path.localeCompare(b.path);
 }
 
+/** Newest-first copy of the list for the chosen frontmatter key. */
+export function sortPosts(posts: PostSummary[], key: PostSortKey = 'updated'): PostSummary[] {
+  return [...posts].sort((a, b) => comparePosts(a, b, key));
+}
+
 /**
  * Newest `limit` posts across the *whole* index. Sorting happens before slicing,
  * which is the bug this replaces: the old dashboard sliced the path-sorted tree
  * first and only then sorted those 12 posts.
  */
-export function pickRecent(posts: PostSummary[], limit: number): PostSummary[] {
+export function pickRecent(posts: PostSummary[], limit: number, key: PostSortKey = 'updated'): PostSummary[] {
   if (limit <= 0) return [];
-  return [...posts].sort(compareRecency).slice(0, limit);
+  return sortPosts(posts, key).slice(0, limit);
 }

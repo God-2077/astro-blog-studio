@@ -47,6 +47,20 @@ test.describe('demo mode', () => {
     // A path-sliced 12-file sample would have skipped this ranking entirely.
     await expect(rows.first()).toContainText('便笺：Markdown 备忘单');
     await expect(sheet).toContainText('全库 9 篇');
+
+    // 切到 date：归档页面修改的 date（2024-07-21 21:02）比备忘单的 20:10 新。
+    const dateSort = sheet.getByRole('button', { name: 'date', exact: true });
+    await dateSort.click();
+    await expect(dateSort).toHaveAttribute('aria-pressed', 'true');
+    await expect(rows.first()).toContainText('便笺：归档页面修改');
+    await expect(rows.first()).toContainText('2024-07-21');
+    // 9 篇不足一页，不显示加载更多。
+    await expect(sheet.getByRole('button', { name: '加载更多' })).toHaveCount(0);
+
+    const updatedSort = sheet.getByRole('button', { name: 'updated', exact: true });
+    await updatedSort.click();
+    await expect(updatedSort).toHaveAttribute('aria-pressed', 'true');
+    await expect(rows.first()).toContainText('便笺：Markdown 备忘单');
   });
 
   test('collapses every settings section on a phone viewport and expands on demand', async ({ page }) => {

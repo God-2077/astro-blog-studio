@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type PostSummary, pickRecent, planIndex, postRecencyMs } from '@/lib/posts/summary';
+import { type PostSummary, pickRecent, planIndex, postRecencyMs, RECENT_PAGE_SIZE, sortPosts } from '@/lib/posts/summary';
 
 function makePost(path: string, date: string, updated?: string): PostSummary {
   return {
@@ -80,6 +80,34 @@ describe('pickRecent', () => {
     const posts = [makePost('old.md', '2020-01-01'), makePost('new.md', '2026-01-01')];
     pickRecent(posts, 2);
     expect(posts.map((post) => post.path)).toEqual(['old.md', 'new.md']);
+  });
+});
+
+describe('sortPosts', () => {
+  it('orders by date when asked, even if updated is newer', () => {
+    const edited = makePost('a.md', '2020-01-01', '2026-12-31');
+    const published = makePost('b.md', '2026-06-01');
+    expect(sortPosts([edited, published], 'date').map((post) => post.path)).toEqual(['b.md', 'a.md']);
+    expect(sortPosts([edited, published], 'updated').map((post) => post.path)).toEqual(['a.md', 'b.md']);
+  });
+
+  it('falls back to updated when a post has no date', () => {
+    const noDate = makePost('a.md', '', '2026-12-31');
+    const dated = makePost('b.md', '2026-06-01');
+    expect(sortPosts([dated, noDate], 'date').map((post) => post.path)).toEqual(['a.md', 'b.md']);
+  });
+
+  it('keeps undated posts last, breaks ties by path and does not mutate', () => {
+    const undated = makePost('a.md', '');
+    const first = makePost('b.md', '2026-01-01');
+    const second = makePost('c.md', '2026-01-01');
+    const input = [undated, second, first];
+    expect(sortPosts(input, 'date').map((post) => post.path)).toEqual(['b.md', 'c.md', 'a.md']);
+    expect(input.map((post) => post.path)).toEqual(['a.md', 'c.md', 'b.md']);
+  });
+
+  it('exposes the dashboard page size', () => {
+    expect(RECENT_PAGE_SIZE).toBe(20);
   });
 });
 
