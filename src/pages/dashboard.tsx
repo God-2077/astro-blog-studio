@@ -1,35 +1,39 @@
-import { ArrowUpRight, Check, Clock3, Plus } from 'lucide-react';
+import { ArrowUpRight, Check, Clock3, Plus, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ContentSyncStatus } from '@/components/content-status';
 import { NewPostDialog } from '@/components/new-post-dialog';
 import { Badge, EmptyState, ErrorNote, SkeletonList } from '@/components/ui';
-import { useFrontmatterIndex, useTreeModel } from '@/hooks/use-data';
+import { useContentActions } from '@/hooks/use-content-sync';
+import { useTreeModel } from '@/hooks/use-data';
 import { useGateway } from '@/lib/gateway/context';
 import { pickRecent } from '@/lib/posts/summary';
 import { displayDate } from '@/lib/utils/date';
+import { useContent } from '@/stores/content';
 import { useLastCommit } from '@/stores/last-commit';
 import { useRateLimit } from '@/stores/rate-limit';
 
 export function DashboardPage() {
   const { mode, config, repo } = useGateway();
   const { tree, model } = useTreeModel();
+  const content = useContent();
+  const { checkNow, busy } = useContentActions();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const lastCommit = useLastCommit((state) => state.commit);
   const rate = useRateLimit();
 
-  const files = useMemo(() => model?.files ?? [], [model]);
-  const index = useFrontmatterIndex(files, tree.data?.sha);
-
-  const recent = useMemo(() => pickRecent(index.summaries, 12), [index.summaries]);
-  const drafts = index.summaries.filter((item) => item.draft).length;
-  const encrypted = index.summaries.filter((item) => item.encrypted).length;
-  const statsLoading = index.isLoadingFirst;
-  const summaryLabel = index.isIndexing
-    ? `读取中 ${index.scanned} / ${index.indexed}`
-    : index.indexed > 0
-      ? `全库 ${index.indexed} 篇`
+  const recent = useMemo(() => pickRecent(content.summaries, 12), [content.summaries]);
+  const drafts = content.summaries.filter((item) => item.draft).length;
+  const encrypted = content.summaries.filter((item) => item.encrypted).length;
+  const isSyncing = content.status === 'checking' || content.status === 'loading' || content.status === 'updating';
+  const isLoadingFirst = content.summaries.length === 0 && content.status !== 'ready' && content.status !== 'error';
+  const statsLoading = content.summaries.length === 0 && isSyncing;
+  const summaryLabel = isSyncing
+    ? `同步中 ${content.progress.done} / ${content.progress.total || content.indexed}`
+    : content.indexed > 0
+      ? `全库 ${content.indexed} 篇`
       : '读取 frontmatter';
   const today = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full', timeZone: config.timezone }).format(new Date());
 
@@ -56,17 +60,37 @@ export function DashboardPage() {
               {today} · {repo.owner}/{repo.name} · {config.rootDir}
             </p>
           </div>
-          <button type="button" className="abs-btn abs-btn-primary" onClick={() => setDialog(true)}>
-            <Plus aria-hidden className="size-3.5" />
-            新建文章
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="abs-btn abs-btn-ghost h-8"
+              onClick={() => void checkNow({ notify: true })}
+              disabled={busy}
+            >
+              <RefreshCw aria-hidden className="size-3.5" />
+              {busy ? '同步中…' : '检查更新'}
+            </button>
+            <button type="button" className="abs-btn abs-btn-primary" onClick={() => setDialog(true)}>
+              <Plus aria-hidden className="size-3.5" />
+              新建文章
+            </button>
+          </div>
         </section>
 
         {tree.error ? <ErrorNote error={tree.error} onRetry={() => void tree.refetch()} className="mt-4" /> : null}
-        {index.error ? <ErrorNote error={index.error} onRetry={index.refetchFailed} className="mt-3" /> : null}
         {tree.data?.truncated ? (
           <p className="mt-2 px-1 font-mono text-[9.5px] text-muted">文件树被 GitHub 截断，索引可能不完整。</p>
         ) : null}
+
+        <ContentSyncStatus
+          status={content.status}
+          mode={content.mode}
+          progress={content.progress}
+          counts={content.counts}
+          persist={content.persist}
+          error={content.error}
+          onRetry={() => void checkNow({ notify: true })}
+        />
 
         <section className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5" aria-label="统计">
           <div className="abs-sticky bg-mint-2 rotate-[-0.7deg]">
@@ -78,14 +102,18 @@ export function DashboardPage() {
             <span className="abs-sticky-label">草稿</span>
             <strong className="abs-sticky-value">{statsLoading ? '—' : drafts}</strong>
             <span className="abs-sticky-hint">
-              {index.isIndexing ? `读取中 ${index.scanned} / ${index.indexed}` : `基于全库 ${index.indexed} 篇`}
+              {isSyncing
+                ? `同步中 ${content.progress.done} / ${content.progress.total || content.indexed}`
+                : `基于全库 ${content.indexed} 篇`}
             </span>
           </div>
           <div className="abs-sticky bg-blush rotate-[-0.3deg]">
             <span className="abs-sticky-label">加密</span>
             <strong className="abs-sticky-value">{statsLoading ? '—' : encrypted}</strong>
             <span className="abs-sticky-hint">
-              {index.isIndexing ? `读取中 ${index.scanned} / ${index.indexed}` : `基于全库 ${index.indexed} 篇`}
+              {isSyncing
+                ? `同步中 ${content.progress.done} / ${content.progress.total || content.indexed}`
+                : `基于全库 ${content.indexed} 篇`}
             </span>
           </div>
         </section>
@@ -99,37 +127,22 @@ export function DashboardPage() {
             </span>
           </div>
 
-          {index.total > index.indexed ? (
+          {content.visibleTotal > content.indexed ? (
             <p className="mt-2 text-[10px] leading-relaxed text-muted">
-              内容仓库共 {index.total} 篇，仅索引前 {index.indexed} 篇，避免一次性读完整库。
+              内容仓库共 {content.visibleTotal} 篇，仅索引前 {content.indexed} 篇，避免一次性读完整库。
             </p>
           ) : null}
-          {!index.isIndexing && index.skipped > 0 ? (
-            <p className="mt-1 text-[10px] leading-relaxed text-muted">{index.skipped} 篇未读取（超大、二进制或权限不足）。</p>
+          {!isSyncing && content.skipped > 0 ? (
+            <p className="mt-1 text-[10px] leading-relaxed text-muted">
+              {content.skipped} 篇未读取（超大、二进制或权限不足）。
+            </p>
           ) : null}
 
-          {tree.isLoading || index.isLoadingFirst ? (
+          {isLoadingFirst && recent.length === 0 ? (
             <div className="py-4">
               <SkeletonList rows={5} />
             </div>
-          ) : !model || model.files.length === 0 ? (
-            <div className="py-6">
-              <EmptyState
-                title="还没有 Markdown 文件"
-                action={
-                  <Link to="/settings" className="abs-btn abs-btn-ghost h-8 text-[11px]">
-                    检查根目录与排除规则
-                  </Link>
-                }
-              >
-                当前根目录 {config.rootDir} 下没有可见的 .md / .mdx。也可能是排除规则把内容全部隐藏了。
-              </EmptyState>
-            </div>
-          ) : recent.length === 0 ? (
-            <p className="py-8 text-center text-[11.5px] text-muted">
-              文件树里有 {model.totalMarkdown} 个文件，但还没读到 frontmatter。
-            </p>
-          ) : (
+          ) : recent.length > 0 ? (
             <ul>
               {recent.map((post) => (
                 <li key={post.path}>
@@ -156,6 +169,23 @@ export function DashboardPage() {
                 </li>
               ))}
             </ul>
+          ) : !model || model.files.length === 0 ? (
+            <div className="py-6">
+              <EmptyState
+                title="还没有 Markdown 文件"
+                action={
+                  <Link to="/settings" className="abs-btn abs-btn-ghost h-8 text-[11px]">
+                    检查根目录与排除规则
+                  </Link>
+                }
+              >
+                当前根目录 {config.rootDir} 下没有可见的 .md / .mdx。也可能是排除规则把内容全部隐藏了。
+              </EmptyState>
+            </div>
+          ) : (
+            <p className="py-8 text-center text-[11.5px] text-muted">
+              文件树里有 {model.totalMarkdown} 个文件，但还没读到 frontmatter。
+            </p>
           )}
         </section>
       </div>
@@ -240,6 +270,10 @@ export function DashboardPage() {
               className="abs-progress"
               style={{ width: `${rate.limit ? Math.min(100, Math.round((rate.remaining / rate.limit) * 100)) : 0}%` }}
             />
+          </div>
+          <div className="flex items-center justify-between gap-2 py-0.5">
+            <span>本机缓存</span>
+            <strong className="font-medium">{mode === 'demo' ? '仅内存' : `${content.cachedCount} 篇`}</strong>
           </div>
           <div className="flex items-center justify-between gap-2 py-0.5">
             <span>分支</span>

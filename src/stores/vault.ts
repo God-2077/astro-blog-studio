@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { flushActiveBackup } from '@/lib/backup/flush';
 import { clearBackupsByPrefix, dropBackupMemory, migrateBackups } from '@/lib/backup/store';
+import { clearContentByPrefix, dropContentMemory } from '@/lib/content/storage';
 import {
   clearVault,
   createVault,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/vault/keystore';
 import type { VaultMode, VaultModeState } from '@/lib/vault/mode';
 import { vaultSession } from '@/lib/vault/session';
+import { useContent } from '@/stores/content';
 
 export type VaultStatus = 'empty' | 'locked' | 'unlocked';
 
@@ -119,6 +121,8 @@ export const useVault = create<VaultState>()((set) => ({
   lock: async () => {
     await flushActiveBackup();
     dropBackupMemory();
+    dropContentMemory();
+    useContent.getState().reset();
     vaultSession.clear();
     const payload = loadVault();
     set({ status: payload ? 'locked' : 'empty', mode: modeOf(payload), error: null });
@@ -128,7 +132,10 @@ export const useVault = create<VaultState>()((set) => ({
     clearVault();
     vaultSession.clear();
     dropBackupMemory();
+    dropContentMemory();
+    useContent.getState().reset();
     await clearBackupsByPrefix('live:');
+    await clearContentByPrefix('live:');
     set({ status: 'empty', mode: null, error: null });
   },
 

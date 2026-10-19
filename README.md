@@ -20,11 +20,11 @@
 - **写操作**：新建、保存、删除、移动/重命名。新建先在本地起草，**第一次保存才创建文件，只调用一次创建 API**；移动用 Git Data API 在**一个提交**里完成；更新带 `sha` 乐观锁，冲突时弹出「重新加载 / 覆盖远端 / 取消」。
 - **格式保真**：保留 CRLF / LF / BOM / 结尾换行；分块 base64 处理，避免大文件栈溢出；UTF-8 解码替换字符检测。
 - **提交体验**：提交消息模板（`{path}`、`{title}`、`{oldPath}`、`{newPath}`、`{dir}`、`{name}`、`{date}`、`{action}`）；提交前确认；提交小票（sha、路径、时间、GitHub 链接）；API 配额显示。
-- **Dashboard 索引**：tree 之后按 20 篇 / 批用 GraphQL 批量读取 frontmatter，分批完成即渲染；「最近动过」、草稿与加密计数都基于全库，排序依据是 frontmatter 的 `updated` / `date`。同一 tree 命中缓存，tree 变化时只重读 blob sha 改变的批次；超过 1000 篇时只索引前 1000 篇并提示；GraphQL 不可用时回退 Contents REST。同时读取的批次数由设置里的「索引并发」控制（1–10，默认 3）。
+- **本机加密文章缓存 + 增量同步**：首次打开用 GraphQL 按 20 篇 / 批把全库文章读一遍，连同 HEAD 文件树（tree sha + 路径/blob sha）一起用保险库数据密钥经 HKDF 派生的 AES-GCM 子密钥加密写入本机 IndexedDB；之后每次打开只拉一次 HEAD 文件树，在本地按「只在 HEAD 树 → 新增、同路径 blob sha 不同 → 修改、只在缓存 → 删除」比对，只重新读取新增/修改的文章并从缓存删除已删除的文章，未变化的仓库 **0 次文章内容请求**。Dashboard 顶部显示「首次加载 / 正在检查远端更新 / 正在同步文章」进度与「检查更新」按钮，设置里有「强制全量更新」。超过 1000 篇时只缓存前 1000 篇并提示；GraphQL 不可用时回退 Contents REST；并发数由设置里的「索引并发」控制（1–10，默认 3）。「最近动过」、草稿与加密计数仍基于全库，排序依据是 frontmatter 的 `updated` / `date`。
 - **真实 / 演示双模式**：`?demo=1` 使用内存 fixture，不联网、不写仓库，适合评审 UI 和录屏。
 - **外观 / 夜间模式**：默认跟随系统，也可在设置里固定为昼或夜；`<html data-theme>` 在首帧前由内联脚本应用，避免刷新白闪。夜间是暖墨纸与米白墨（不是反相、不用纯黑），CodeMirror、Markdown 预览、设置、解锁与移动端共用同一套 `--abs-*` token。
 - **保险库**：PAT 以 AES-GCM-256 加密后写 localStorage；密钥由 PBKDF2-SHA256（600k 次）派生；三种解锁方式——设备指纹（FingerprintJS）自动解锁、密码、**密码 + 设备双因子**。双因子是严格的 AND：密码 KEK 混入设备指纹，payload 里不存独立设备包装，设备单独无法解锁；内存会话保存令牌与数据密钥，锁定清空。
-- **设置**：根目录、扩展名、排除规则、时区、索引并发（1–10）、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、未保存备份开关与清除、自动锁定、解锁方式（模式 + 密码）、重置保险库、外观（跟随系统 / 昼 / 夜）。
+- **设置**：根目录、扩展名、排除规则、时区、索引并发（1–10）、本机文章缓存（检查更新 / 强制全量更新）、Frontmatter 字段、提交模板、字号/行号、保存时更新 `updated`、未保存备份开关与清除、自动锁定、解锁方式（模式 + 密码）、重置保险库、外观（跟随系统 / 昼 / 夜）。
 - **响应式**：桌面双栏、移动端抽屉索引；`prefers-reduced-motion` 降级。
 - **PWA**：构建产物带 `manifest.webmanifest` 与 Service Worker，应用壳（HTML/JS/CSS/字体/图标）预缓存，第二次打开与弱网/断网打开都不等网络；检测到新部署时弹窗提示刷新（不自动刷新）。详见 [PWA 与离线](#pwa-与离线)。
 
@@ -79,6 +79,7 @@ pnpm dev
 - **双因子是 AND**：密码 KEK 由「密码 + 本机指纹」共同派生，payload 中不存在独立的设备包装，所以设备单独无法解锁，解锁页也不会提供设备捷径。代价是换设备、清除站点数据或指纹变化后无法找回，只能重置保险库重新输入 PAT。
 - 解锁后的 PAT 与数据密钥只在内存里；锁定会先把未保存草稿 flush 成加密备份，再清空会话密钥、备份内存与 React Query 缓存。
 - **真实仓库的未保存备份是密文**：整份草稿（正文 + frontmatter + 恢复状态）用保险库数据密钥经 HKDF 派生的 AES-GCM 子密钥加密后写入本机 IndexedDB（键含模式/仓库/分支/路径）；不包含 PAT，不上传，也不进入 Service Worker 缓存。仓库/分支/路径与保存时间仍作为索引元数据明文。demo 模式没有保险库，备份为明文。锁定后读不到备份；重置保险库会删除本机所有真实仓库备份；浏览器清站点数据也会一并清除。
+- **本机文章缓存也是密文**：索引 meta（tree sha + 路径/blob sha）和每篇文章（路径 + sha + 正文）分别用保险库数据密钥经 HKDF 派生的 AES-GCM 子密钥加密后写在本机 IndexedDB `abs-content`；AAD 绑定仓库/分支/路径/blob sha，换仓库或换 sha 都解不开。锁定会清空内存中的明文摘要，重置保险库会删除本机所有 `live:` 文章缓存；缓存不进 CacheStorage，也不含 PAT。demo 仓库只在内存里缓存，刷新回到 fixture。
 - 预览用 DOMPurify 白名单净化；外链自动 `rel="noreferrer noopener"`；不加载第三方脚本、字体或 iframe。
 - `HashRouter` + 纯静态托管；无后端、无 Cookie、无服务端日志。
 - `.env.local` 只给 Node 测试用，已在 `.gitignore` 中；不要把真实 PAT 写进任何会被提交的文件。
@@ -101,8 +102,8 @@ pnpm dev
 ```bash
 cp .env.example .env.local   # 填入测试 PAT / 仓库
 pnpm test:seed               # 测试仓库为空时也能创建首个提交
-pnpm test                    # 125 个单元测试（路径、frontmatter 字段、编码、vault 模式/双因子、备份加密、预览、批量读取、全库索引与索引并发、更新轮询、未保存备份）
-pnpm test:live               # 7 个真实 GitHub 集成测试（会创建/移动/删除 src/_e2e/*，最后清理）
+pnpm test                    # 150 个单元测试（路径、frontmatter 字段、编码、vault 模式/双因子、备份加密、预览、批量读取、本机文章缓存与增量 diff/同步、更新轮询、未保存备份）
+pnpm test:live               # 8 个真实 GitHub 集成测试（会创建/移动/删除 src/_e2e/*，最后清理）
 pnpm test:e2e                # 20 个 Playwright 测试（1 setup + 12 demo + 4 live + 3 PWA；live 需 .env.local）
 pnpm test:e2e:pwa            # 只跑 PWA 组（会先 vite build 再 vite preview）
 pnpm pwa:icons               # 重新生成 public/icon-*.png（零依赖脚本）
@@ -110,9 +111,9 @@ pnpm test:clean              # 兜底清理 src/_e2e/*
 pnpm verify                  # typecheck + lint + unit + build
 ```
 
-- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 三种解锁模式（双因子无设备包装、换设备失败、rewrap 复用数据密钥）、备份加密信封/篡改/换槽/锁定拒写/旧明文迁移、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、全库 frontmatter 索引、索引并发与限流、更新检查的节流/并发/失败静默、未保存备份的校验/快照/恢复映射/IndexedDB 上限/防抖与卸载清理/锁定前 flush。
-- Live 测试覆盖：真实仓库读、批量读取（含 CJK 路径）、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射。
-- E2E 覆盖：demo 工作台保存（含 toast X 关闭）、dashboard 全库 frontmatter 排序、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板、未保存备份的表单/源文件恢复、稍后恢复条、丢弃后不再提示、新稿刷新恢复；live 新稿保存前 404 → 保存后 1 个 commit（parent 校验）、dashboard 使用 1 次 GraphQL 批量且 0 次 summary contents、真实文件保存与回执、未保存草稿在 IDB 中是密文且锁定/解锁后可恢复；PWA 组验证 manifest/图标/SW 注册、断网从预缓存打开且 CacheStorage 里没有 `api.github.com`、新版本 waiting 时弹窗 → 「稍后」→ 顶栏徽标 → 「立即刷新」才 reload。
+- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 三种解锁模式（双因子无设备包装、换设备失败、rewrap 复用数据密钥）、备份加密信封/篡改/换槽/锁定拒写/旧明文迁移、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、本机文章缓存（路径/sha diff、AAD 绑定、锁定拒读、IDB 密文、跨仓库前缀清理、首次全量/未变化零读取/只读变更/失败重试/截断不删/配置签名变化/forceFull/并发/写入降级）、更新检查的节流/并发/失败静默、未保存备份的校验/快照/恢复映射/IndexedDB 上限/防抖与卸载清理/锁定前 flush。
+- Live 测试覆盖：真实仓库读、批量读取（含 CJK 路径）、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射；真实的「首次全量 → 同树 unchanged 0 读取 → 远端新增 1 篇后只读该 blob」增量同步。
+- E2E 覆盖：demo 工作台保存（含 toast X 关闭）、dashboard 全库 frontmatter 排序、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板、未保存备份的表单/源文件恢复、稍后恢复条、丢弃后不再提示、新稿刷新恢复；live 首访 1 次 tree + 1 次 GraphQL 批量、刷新后 0 次文章内容请求且 `abs-content` 中只有 AES-GCM 信封、新稿保存前 404 → 保存后 1 个 commit（parent 校验）、真实文件保存与回执、未保存草稿在 IDB 中是密文且锁定/解锁后可恢复；PWA 组验证 manifest/图标/SW 注册、断网从预缓存打开且 CacheStorage 里没有 `api.github.com`、新版本 waiting 时弹窗 → 「稍后」→ 顶栏徽标 → 「立即刷新」才 reload。
 - 测试结束请**轮换测试 token**；`.env.local` 不要提交。
 
 **手动 E2E 清单**（或用 `pnpm test:e2e`，见下）：
@@ -127,6 +128,7 @@ pnpm verify                  # typecheck + lint + unit + build
 8. PWA：`pnpm build && pnpm preview` → 等 SW 安装完 → DevTools 切 Offline 刷新仍能开工作台；改一行 `dist/sw.js` 后 `registration.update()` → 弹窗出现 → 「稍后」看顶栏徽标 → 「立即刷新」；Edge/Chrome 地址栏可出现「安装」。
 9. 未保存备份：改标题/正文或「源文件」内容 → 底栏出现「本机已备份」→ 刷新 → 弹窗「发现未保存的备份」→「稍后」出现恢复条 →「恢复」→ 内容回来且仍是「未保存」；再刷新 →「丢弃备份」→ 回到远端内容且不再弹窗。新稿同样刷新后恢复；保存/移动/删除后确认不再提示；设置里关闭备份并清除本仓库备份。
 10. 加密备份：真实仓库里改标题 → `本机已备份` → DevTools → Application → IndexedDB → `abs-backups`，确认值是 `v: 2` 信封且搜不到文章标题/正文 → 顶栏锁定 → 输密码解锁 → 打开同一文件 → 恢复提示出现并能恢复；设置里“重置保险库”后确认本机真实仓库备份已清除。
+11. 本机文章缓存：真实仓库首次打开看到「首次加载 · 正在读取全部文章」→ 解锁后刷新，Dashboard 只显示「正在检查远端更新…」且 Network 里没有 GraphQL 内容请求；DevTools → IndexedDB → `abs-content` 只有 `v: 1` 信封、搜不到标题/正文；在 GitHub 网页改/删/加一篇后点「检查更新」只读取变更；设置「强制全量更新」重新读取并显示进度；锁定 → 解锁后仍能直接看到列表；重置保险库后 `abs-content` 的 `live:` 记录被清空。
 
 `pnpm test:e2e` 使用 Playwright，当前配置走系统 **Microsoft Edge**（`channel: 'msedge'`），不需要下载浏览器。若机器没有 Edge，可 `pnpm exec playwright install chromium` 并把 `playwright.config.ts` 里的 channel 改为 `'chromium'`。首次运行会在 `tests/e2e/.auth/` 生成一个本地加密保险库状态（已 gitignore），live 组会创建并清理 `src/_e2e/*`。
 
@@ -155,9 +157,10 @@ astro-blog-studio/
 ├─ scripts/                # 设计台构建、静态预览、PWA 图标生成、测试仓库 seed/clean
 ├─ src/
 │  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、备份恢复弹窗、PWA 更新弹窗、UI 原子
-│  ├─ hooks/               # 数据查询、自动锁定、未保存备份
+│  ├─ hooks/               # 数据查询、本机文章缓存同步、自动锁定、未保存备份
 │  ├─ lib/
 │  │  ├─ backup/           # 备份记录校验、整文件快照、AES-GCM 信封、IndexedDB 存放/清理/迁移
+│  │  ├─ content/          # 本机文章缓存：model/diff/envelope/同步/IndexedDB 加密存储
 │  │  ├─ config/           # zod 设置 schema、默认值
 │  │  ├─ demo/             # 演示数据
 │  │  ├─ frontmatter/      # 字段定义/默认集/校验/新稿初始文档
@@ -170,7 +173,7 @@ astro-blog-studio/
 │  │  ├─ utils/            # 日期、编码、cn
 │  │  └─ vault/            # WebCrypto 加解密、HKDF 备份子密钥、设备指纹、会话、三种解锁模式的 keystore
 │  ├─ pages/               # 工作台、编辑器、设置、Setup、Unlock
-│  ├─ stores/              # settings / vault / ui / rate-limit / editor guard / pending-post / pwa
+│  ├─ stores/              # settings / vault / content / ui / rate-limit / editor guard / pending-post / pwa
 │  └─ styles/              # Tailwind v4 tokens + abs-* 组件样式
 ├─ tests/
 │  ├─ unit/                # Vitest 单元测试
@@ -191,7 +194,8 @@ astro-blog-studio/
 - 设备指纹不是安全边界；共享电脑上请选「密码」或「密码 + 设备双因子」，或使用后锁定。双因子下密码与指纹必须同时匹配，任一丢失只能重置保险库。
 - 自动锁定只在有活动事件时重置计时；后台标签页的计时可能被浏览器节流。
 - 未保存备份只在本机：真实仓库的备份是密文、只能在解锁后读取；换设备/换浏览器不会同步；同一文件多标签页编辑时最后写入者胜出，不做合并；重置保险库或清除站点数据会一并清除。
-- 离线只缓存前端：断网能打开界面，但文件树/正文/提交仍要连 `api.github.com`；未保存备份能在本机恢复，但断网刷新后仍无法读取文件树与正文，不是完整的离线编辑；没有离线保存队列。
+- 本机文章缓存也按「设备 + 浏览器 + 仓库 + 分支 + 内容配置」独立：换设备、清除站点数据、修改根目录/扩展名/排除规则后，首次打开会重新全量读取；多标签页各自同步，最后写入的 meta 胜出（最坏多读几次，不会损坏数据）。
+- 离线只缓存前端：断网能打开界面，已缓存的文章列表仍可见；但 HEAD 文件树、编辑器正文与提交仍要连 `api.github.com`，未保存备份能在本机恢复但断网刷新后仍无法读取文件正文，不是完整的离线编辑；没有离线保存队列。
 - 更新提示依赖 Service Worker 的更新机制：首次访问当次不接管页面；多个标签页各自在下次导航时切换版本，不会互相强制刷新。
 - 产品路线：图片粘贴上传、命令面板、封面/日历视图、离线编辑与保存队列、主题切换的扩展预设。
 

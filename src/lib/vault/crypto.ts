@@ -75,6 +75,29 @@ export async function deriveBackupKey(dataKey: Uint8Array): Promise<CryptoKey> {
   );
 }
 
+/**
+ * Domain-separated key for the locally cached articles. Same data key as the
+ * vault, but a different HKDF info string so backups and the article cache can
+ * never be cross-opened.
+ */
+export const CONTENT_KEY_INFO = 'abs:content:v1';
+
+export async function deriveContentKey(dataKey: Uint8Array): Promise<CryptoKey> {
+  const material = await crypto.subtle.importKey('raw', dataKey as BufferSource, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: new Uint8Array(0),
+      info: encoder.encode(CONTENT_KEY_INFO),
+    },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
 export function passphraseForDevice(id: string): string {
   return `abs:vault:v1|device|${id}`;
 }

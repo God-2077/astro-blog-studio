@@ -117,8 +117,8 @@ export function TreePanel({ model, activePath, isLoading, error, onRetry, onRefr
           type="button"
           className="abs-icon-btn ml-auto size-7"
           onClick={onRefresh}
-          title="刷新文件树"
-          aria-label="刷新文件树"
+          title="检查更新（文件树 + 文章）"
+          aria-label="检查更新"
         >
           <RefreshCw aria-hidden className="size-3" />
         </button>

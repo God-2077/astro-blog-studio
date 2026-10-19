@@ -1,9 +1,10 @@
-import { deriveBackupKey } from './crypto';
+import { deriveBackupKey, deriveContentKey } from './crypto';
 
 interface SessionState {
   token: string;
   dataKey: Uint8Array;
   backupKey: Promise<CryptoKey | null> | null;
+  contentKey: Promise<CryptoKey | null> | null;
 }
 
 let state: SessionState | null = null;
@@ -16,7 +17,7 @@ let state: SessionState | null = null;
  */
 export const vaultSession = {
   set(token: string, dataKey: Uint8Array): void {
-    state = { token, dataKey, backupKey: null };
+    state = { token, dataKey, backupKey: null, contentKey: null };
   },
   get(): string | null {
     return state?.token ?? null;
@@ -31,6 +32,14 @@ export const vaultSession = {
       current.backupKey = deriveBackupKey(current.dataKey).catch(() => null);
     }
     return current.backupKey;
+  },
+  getContentKey(): Promise<CryptoKey | null> {
+    const current = state;
+    if (!current) return Promise.resolve(null);
+    if (!current.contentKey) {
+      current.contentKey = deriveContentKey(current.dataKey).catch(() => null);
+    }
+    return current.contentKey;
   },
   has(): boolean {
     return state !== null;

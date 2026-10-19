@@ -3,10 +3,12 @@ import { type MouseEvent, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { TreePanel } from '@/components/tree-panel';
 import { useAutoLock } from '@/hooks/use-auto-lock';
+import { useContentActions, useContentSync } from '@/hooks/use-content-sync';
 import { useTreeModel } from '@/hooks/use-data';
 import { APP_NAME, APP_URL, APP_VERSION } from '@/lib/config/app-meta';
 import { useGateway } from '@/lib/gateway/context';
 import { cn } from '@/lib/utils/cn';
+import { useContent } from '@/stores/content';
 import { useEditorGuard } from '@/stores/editor';
 import { usePwaUpdate } from '@/stores/pwa';
 import { useRateLimit } from '@/stores/rate-limit';
@@ -25,7 +27,12 @@ export function AppShell() {
   const dirty = useEditorGuard((state) => state.dirty);
   const updateReady = usePwaUpdate((state) => state.needRefresh);
   const reopenUpdate = usePwaUpdate((state) => state.reopenPrompt);
+  const cachedCount = useContent((state) => state.cachedCount);
+  const { checkNow } = useContentActions();
   const activePath = new URLSearchParams(location.search).get('path');
+
+  // Load the encrypted local article cache once, then reconcile it with HEAD.
+  useContentSync();
 
   const confirmLeave = (): boolean => !dirty || window.confirm('当前文章有未保存的修改，确定离开吗？');
   const guardLeave = (event: MouseEvent<HTMLAnchorElement>): void => {
@@ -173,7 +180,7 @@ export function AppShell() {
               isLoading={tree.isLoading}
               error={tree.error}
               onRetry={retryTree}
-              onRefresh={() => void tree.refetch()}
+              onRefresh={() => void checkNow()}
             />
           </div>
         </aside>
@@ -187,6 +194,7 @@ export function AppShell() {
         <span className="flex items-center gap-2">
           <span className={cn('inline-block size-1.5 rounded-full', tree.isError ? 'bg-danger' : 'bg-success')} />
           {mode === 'demo' ? 'in-memory fixture' : 'github.com · content repo'}
+          {mode === 'live' && cachedCount > 0 ? ` · 缓存 ${cachedCount} 篇` : ''}
         </span>
         <span>
           API {rate.remaining.toLocaleString('en-US')} / {rate.limit.toLocaleString('en-US')} ·{' '}
@@ -218,7 +226,7 @@ export function AppShell() {
               isLoading={tree.isLoading}
               error={tree.error}
               onRetry={retryTree}
-              onRefresh={() => void tree.refetch()}
+              onRefresh={() => void checkNow()}
             />
           </div>
         </div>

@@ -28,6 +28,35 @@ async function branchHead(apiContext: APIRequestContext): Promise<string> {
   return data.object.sha;
 }
 
+interface RawContentRow {
+  v?: number;
+  alg?: string;
+  iv?: string;
+  ciphertext?: string;
+  text?: string;
+}
+
+/** Reads the raw IndexedDB rows so the test can prove cached articles are ciphertext. */
+async function readRawContentRows(page: Page): Promise<RawContentRow[]> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const open = indexedDB.open('abs-content');
+      open.onsuccess = () => resolve(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    try {
+      const rows = await new Promise<unknown[]>((resolve, reject) => {
+        const request = db.transaction('records', 'readonly').objectStore('records').getAll();
+        request.onsuccess = () => resolve(request.result as unknown[]);
+        request.onerror = () => reject(request.error);
+      });
+      return rows as RawContentRow[];
+    } finally {
+      db.close();
+    }
+  });
+}
+
 async function unlock(page: Page): Promise<void> {
   await page.goto('/');
   await page
@@ -65,7 +94,7 @@ test.describe('live new-post flow', () => {
     await apiContext.dispose();
   });
 
-  test('dashboard indexes every visible post with one GraphQL batch and no Contents reads', async ({ page }) => {
+  test('first visit full-loads, then a reload is served from the encrypted local cache', async ({ page }) => {
     const requests: Array<{ url: string; method: string }> = [];
     page.on('request', (request) => {
       if (request.url().startsWith('https://api.github.com')) {
@@ -78,7 +107,7 @@ test.describe('live new-post flow', () => {
     const rows = sheet.locator('ul button');
     await expect(rows.first()).toBeVisible({ timeout: 30_000 });
 
-    // The whole visible tree is indexed; the header stops saying "12 篇 sample".
+    // The whole visible tree is cached; the header stops saying "12 篇 sample".
     const label = sheet.locator('span[title="按 frontmatter 的 updated / date 排序"]');
     await expect(label).toContainText(/全库 \d+ 篇/, { timeout: 30_000 });
     const total = Number(/全库 (\d+) 篇/.exec(await label.innerText())?.[1] ?? 0);
@@ -86,11 +115,34 @@ test.describe('live new-post flow', () => {
     // At most twelve rows, and every readable post when the repo is smaller.
     await expect(rows).toHaveCount(Math.min(total, 12));
 
-    const graphql = requests.filter((request) => request.url.endsWith('/graphql'));
-    const contents = requests.filter((request) => /\/contents\//.test(request.url));
-    // The seed repo has fewer than one batch (20) of visible files.
-    expect(graphql).toHaveLength(1);
-    expect(contents).toHaveLength(0);
+    // A first visit reads HEAD plus one GraphQL batch (the seed repo has fewer
+    // than 20 visible files); no per-file Contents reads are needed.
+    expect(requests.filter((request) => request.url.endsWith('/graphql'))).toHaveLength(1);
+    expect(requests.filter((request) => /\/contents\//.test(request.url))).toHaveLength(0);
+    expect(requests.some((request) => request.url.includes('/git/trees/'))).toBe(true);
+
+    // The local article cache is AES-GCM ciphertext, not frontmatter plaintext.
+    const rawRows = await readRawContentRows(page);
+    expect(rawRows.length).toBeGreaterThan(0);
+    const serialized = JSON.stringify(rawRows);
+    expect(serialized).not.toContain('A seeded post');
+    expect(serialized).not.toContain('便笺：测试');
+    for (const row of rawRows) {
+      expect(row.v).toBe(1);
+      expect(row.alg).toBe('AES-GCM');
+      expect(typeof row.ciphertext).toBe('string');
+      expect(row.text).toBeUndefined();
+    }
+
+    // Reloading the same repository uses the encrypted cache: only HEAD is
+    // fetched again, no article blob is re-read.
+    requests.length = 0;
+    await page.reload();
+    await unlock(page);
+    await expect(rows.first()).toBeVisible({ timeout: 30_000 });
+    await expect(label).toContainText(/全库 \d+ 篇/, { timeout: 30_000 });
+    expect(requests.filter((request) => request.url.endsWith('/graphql'))).toHaveLength(0);
+    expect(requests.some((request) => request.url.includes('/git/trees/'))).toBe(true);
   });
 
   test('does not create the file until the first save, then creates it in one commit', async ({ page }) => {

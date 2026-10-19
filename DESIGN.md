@@ -60,9 +60,10 @@
 - 演示模式：顶栏下一条虚线提示条，含「看设置」「退出演示」。
 - 主体 `lg:grid-cols-[252px_1fr]`：
   - **索引卡**（左）：纸面、搜索、目录树、底部排除计数；移动端为抽屉。
-  - **桌面**（中）：`DEMO WORKSPACE / WORKSPACE` 眉题、大标题「今天写点什么？」、日期行、新建按钮；三张旋转便签（总数/草稿/加密）；最近动过列表；提交小票；今日小目标；API 卡。
+  - **桌面**（中）：`DEMO WORKSPACE / WORKSPACE` 眉题、大标题「今天写点什么？」、日期行、ghost「检查更新」+ 实心樱粉「新建文章」；三张旋转便签（总数/草稿/加密）；本机缓存状态条；最近动过列表；提交小票；今日小目标；API 卡。
+- **本机文章缓存状态条**：表头下方一条 `.abs-paper` 虚线纸片（`role="status"`、`aria-live="polite"`）。首次加载显示「首次加载 · 正在读取全部文章」+ 等宽 `done / total` + 1.5px 薄荷进度条；检查/同步时显示「正在检查远端更新…」「正在同步文章变更」；完成后留一行等宽「已同步 · 新增 a / 修改 m / 删除 d」；失败就地 `ErrorNote` + 「重试」ghost 按钮；配额写入失败显示一行 muted 说明。只有进度/状态使用薄荷，实心樱粉仍只给「新建文章」。
 - 最近列表为行式，不用卡片网格；日期 64px 等宽，标题 + 路径，右侧状态徽章。
-- 「最近动过」按 frontmatter 的 `updated` / `date` 全库降序，不做路径切片采样；表头在索引中显示「读取中 X / Y」，完成后显示「全库 Y 篇」。
+- 「最近动过」按 frontmatter 的 `updated` / `date` 全库降序，不做路径切片采样；表头在索引中显示「同步中 X / Y」，完成后显示「全库 Y 篇」。有缓存摘要时即使文件树还在加载/失败也先渲染列表。
 - 右栏是独立纸张，与主栏 3px 间隙；不抢焦点。
 
 ### 编辑器（`/edit?path=`）
@@ -81,9 +82,10 @@
 
 ### 设置（`/settings`）
 
-- 左侧五张纸（内容与排除、Frontmatter 字段、提交消息、编辑与预览、外观），右侧安全卡 + 当前配置卡。
+- 左侧六张纸（内容与排除、本机文章缓存、Frontmatter 字段、提交消息、编辑与预览、外观），右侧安全卡 + 当前配置卡。
 - **安全卡**：显示「当前解锁方式」，下方是三张 radio 卡片（设备指纹 / 密码 / 密码 + 设备双因子）与「更新解锁方式」按钮；模式与密码单独保存、立即生效，不参与顶部「保存设置」。选中双因子时就地给出 danger 边说明「两者必须同时匹配，任一丢失只能重置保险库」，旧版并存保险库额外显示升级提示。demo 模式下隐藏解锁方式、锁定与重置入口。
-- **索引并发**：内容与排除纸底部可调 1–10（默认 3），决定首页索引同时读取几个 20 篇批次；调高更快，过高可能触发 GitHub 限流。保存写入设置，下一次索引生效。
+- **本机文章缓存**：内容与排除纸下方一张纸，显示「演示模式 · 仅内存」或「N 篇 · AES-GCM」、已缓存篇数 / 上次同步时间 / 树 sha 短值；ghost 按钮「检查更新」「强制全量更新」（强制先 `window.confirm`），同步中显示等宽进度并禁用；demo 禁用并说明不写本机。文案解释首次全量、之后按路径 + blob sha 只读新增/修改、删除已删除文章，以及真实仓库用保险库子密钥加密、锁定后不可读。
+- **索引并发**：内容与排除纸底部可调 1–10（默认 3），决定首次全量读取与增量同步同时进行几个 20 篇批次；调高更快，过高可能触发 GitHub 限流。保存写入设置，下一次同步生效。
 - **外观**：主题可选「跟随系统 / 昼 / 夜」，即时生效并随设置持久化；默认跟随系统。夜间与昼间共用同一套 token，切换不改变布局与字号。
 - **Frontmatter 字段**：可增删字段行（名称 / 类型 / 必填）；「恢复常用字段」回到 hello-world 参考集；字段定义非法（空名、重复、保留名、非法字符）时阻止保存并就地说明。删除字段不会删除已有文件里的键，编辑器会把它作为未知字段保留。
 - 演示模式下连接字段禁用并说明；Frontmatter 字段、提交模板、字号、自动锁定、外观等仍可调。
@@ -101,7 +103,7 @@
 
 - `.abs-paper` / `.abs-sheet` / `.abs-sticky` / `.abs-receipt` / `.abs-stamp` / `.abs-tape` / `.abs-seal` / `.abs-badge-*` / `.abs-tree-row` / `.abs-input` / `.abs-btn*` / `.abs-seg` / `.abs-progress` 是设计系统组件，集中定义在 `src/styles/app.css`，Tailwind 原子类只做布局与间距。
 - **主题**：`ThemeProvider` 把 `settings.appearance.theme`（`system / day / night`）解析为 `<html data-theme>`；`index.html` 内联脚本在首帧前应用，避免白闪；需要布尔值的组件（CodeMirror 的 dark 主题）用 `useResolvedTheme()`。不新增主题命名空间，也不允许组件里写夜间分支。
-- 状态：Zustand `settings`（persist）、`vault`（不持久化）、`ui`、`rate-limit`、`last-commit`、`editor guard`、`pending-post`、`pwa`；未保存备份走 `useEditorBackup` + `lib/backup`（IndexedDB），不放进 service worker 缓存；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
+- 状态：Zustand `settings`（persist）、`vault`（不持久化）、`content`（本机文章缓存状态：status/progress/summaries/错误，不持久化，锁定即清空）、`ui`、`rate-limit`、`last-commit`、`editor guard`、`pending-post`、`pwa`；未保存备份走 `useEditorBackup` + `lib/backup`（IndexedDB），本机文章缓存走 `lib/content`（IndexedDB `abs-content`，AES-GCM），两者都不放进 service worker 缓存；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
 - 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。toast 右侧常驻 `.abs-toast-close` X（纸底、1.5px 线边框的 24px 方块，hover 转 ink），点击立即关闭；自动消失与滑动关闭保留。
 - **PWA 更新提示**：`PwaUpdate` 挂在 App 根部（`virtual:pwa-register/react`）。新版本进入 waiting 时用 Radix `AlertDialog` 弹「网站有新版本」，按钮「稍后」（`.abs-btn-ghost`）/「立即刷新」（默认 `.abs-btn`，**不用**实心樱粉——实心樱粉仍只属于「新建文章」）。点过「稍后」后顶栏出现带樱粉圆点的 `.abs-icon-btn`，可再次唤起弹窗；编辑器脏状态时弹窗内多一行 danger 提示，刷新时沿用现有 `beforeunload` 兜底。只有用户点「立即刷新」才整页 reload，**不自动刷新**。`pnpm dev` 不注册 Service Worker，PWA 只在构建产物里可见。
 

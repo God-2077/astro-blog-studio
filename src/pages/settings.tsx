@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, KeyRound, LockKeyhole, RotateCcw } from 'lucide-react';
+import { ArrowLeft, KeyRound, LockKeyhole, RefreshCw, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -7,6 +7,7 @@ import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor'
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Field } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
+import { useContentActions } from '@/hooks/use-content-sync';
 import { backupKeyPrefix } from '@/lib/backup/model';
 import { clearBackupsByPrefix } from '@/lib/backup/store';
 import { clampIndexConcurrency, INDEX_CONCURRENCY_MAX, INDEX_CONCURRENCY_MIN } from '@/lib/config/schema';
@@ -19,7 +20,9 @@ import {
 import { useGateway } from '@/lib/gateway/context';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
 import { THEME_OPTIONS, type ThemePreference } from '@/lib/theme/theme';
+import { formatInTimeZone } from '@/lib/utils/date';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode, vaultModeLabel } from '@/lib/vault/mode';
+import { useContent } from '@/stores/content';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
 
@@ -27,6 +30,8 @@ export function SettingsPage() {
   const { mode, repo, config } = useGateway();
   const settings = useSettings();
   const vault = useVault();
+  const content = useContent();
+  const { checkNow, busy: cacheBusy } = useContentActions();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -158,6 +163,21 @@ export function SettingsPage() {
     else toast.error('清除失败，请稍后再试');
   };
 
+  const cacheLastSynced = content.lastSyncedAt ? formatInTimeZone(new Date(content.lastSyncedAt), config.timezone) : '尚未同步';
+
+  const checkCache = async (): Promise<void> => {
+    await checkNow({ notify: true });
+  };
+
+  const forceReloadCache = async (): Promise<void> => {
+    if (isDemo) {
+      toast.error('演示模式不写本机缓存');
+      return;
+    }
+    if (!window.confirm('强制全量更新会清除本仓库的本机文章缓存，并重新读取全部文章。继续吗？')) return;
+    await checkNow({ forceFull: true, notify: true });
+  };
+
   const resetVault = async (): Promise<void> => {
     if (
       !window.confirm(
@@ -242,7 +262,7 @@ export function SettingsPage() {
             </div>
             <Field
               label="索引并发"
-              hint={`${INDEX_CONCURRENCY_MIN}–${INDEX_CONCURRENCY_MAX}，默认 3。首页索引同时读取的批次数（每批 20 篇）；调高更快，过高可能触发 GitHub 限流。`}
+              hint={`${INDEX_CONCURRENCY_MIN}–${INDEX_CONCURRENCY_MAX}，默认 3。首次全量读取与增量同步时同时进行的 20 篇批次数；调高更快，过高可能触发 GitHub 限流。`}
               className="mt-3"
             >
               <input
@@ -262,6 +282,59 @@ export function SettingsPage() {
                 disabled={isDemo}
               />
             </Field>
+          </section>
+
+          <section className="abs-paper relative p-3.5">
+            <span className="abs-tape abs-tape-mint" aria-hidden />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-[16px] font-bold">本机文章缓存</h2>
+              <span className="font-mono text-[9px] text-muted">
+                {isDemo ? '演示模式 · 仅内存' : `${content.cachedCount} 篇 · AES-GCM`}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
+              首次打开会把全库文章读一遍并加密保存在本机 IndexedDB；之后每次只拉取文件树，按路径与 blob sha
+              比对，只重新读取新增或修改的文章，并从缓存里删除已删除的文章。
+            </p>
+            <div className="mt-2 grid gap-2 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2 font-mono text-[10px] text-muted sm:grid-cols-3">
+              <span>已缓存 {content.cachedCount} 篇</span>
+              <span>上次同步 {cacheLastSynced}</span>
+              <span>树 {content.treeSha ? content.treeSha.slice(0, 8) : '—'}</span>
+            </div>
+            {cacheBusy ? (
+              <p className="mt-2 font-mono text-[10px] text-muted">
+                正在同步 {content.progress.done} / {content.progress.total || content.indexed}
+              </p>
+            ) : null}
+            {content.persist === 'failed' ? (
+              <p className="mt-2 text-[10px] leading-relaxed text-muted">
+                本机缓存写入失败（可能是空间不足）；本次会话仍可浏览，重新打开网站会重新读取。
+              </p>
+            ) : null}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="abs-btn abs-btn-ghost text-[10.5px]"
+                onClick={() => void checkCache()}
+                disabled={cacheBusy || isDemo}
+              >
+                <RefreshCw aria-hidden className="size-3" />
+                检查更新
+              </button>
+              <button
+                type="button"
+                className="abs-btn abs-btn-ghost text-[10.5px]"
+                onClick={() => void forceReloadCache()}
+                disabled={cacheBusy || isDemo}
+              >
+                强制全量更新
+              </button>
+            </div>
+            <p className="mt-2 text-[9px] leading-relaxed text-muted">
+              {isDemo
+                ? '演示仓库只存在内存里，演示模式不写本机缓存。'
+                : '真实仓库用保险库数据密钥派生的子密钥加密；锁定后无法读取，重置保险库会一并清除。'}
+            </p>
           </section>
 
           <section className="abs-paper relative p-3.5">
