@@ -85,7 +85,9 @@ export function BackupDialog({
             </p>
           ) : null}
 
-          <p className="mt-3 text-[10px] leading-relaxed text-muted">备份只保存在这台设备的浏览器里。</p>
+          <p className="mt-3 text-[10px] leading-relaxed text-muted">
+            备份只保存在这台设备的浏览器里；真实仓库的备份已用保险库密钥加密，只能在解锁后读取。
+          </p>
 
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             {allowDefer ? <AlertDialog.Cancel className="abs-btn abs-btn-ghost text-[11px]">稍后</AlertDialog.Cancel> : null}

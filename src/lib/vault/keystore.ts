@@ -13,6 +13,7 @@ import {
   randomBytes,
 } from './crypto';
 import { getDeviceId, getDeviceIdForSource } from './fingerprint';
+import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode, type VaultModeState } from './mode';
 
 export const VAULT_STORAGE_KEY = 'abs.vault.v1';
 
@@ -27,6 +28,11 @@ export interface DeviceWrap extends WrappedKey {
 }
 
 export interface PasswordWrap extends WrappedKey {
+  /**
+   * Legacy field name: when true the password KEK mixes in the device
+   * fingerprint, so the password and this device are both required. New
+   * two-factor vaults use it and never store an independent device wrap.
+   */
   requireDevice: boolean;
 }
 
@@ -39,7 +45,12 @@ export interface VaultPayload {
   createdAt: string;
 }
 
-export type VaultErrorCode = 'WRONG_PASSWORD' | 'FINGERPRINT_CHANGED' | 'CORRUPT' | 'NO_METHOD';
+export interface VaultSecrets {
+  token: string;
+  dataKey: Uint8Array;
+}
+
+export type VaultErrorCode = 'WRONG_PASSWORD' | 'FINGERPRINT_CHANGED' | 'CORRUPT' | 'NO_METHOD' | 'INVALID_INPUT';
 
 export class VaultError extends Error {
   readonly code: VaultErrorCode;
@@ -80,6 +91,21 @@ export function clearVault(): void {
   localStorage.removeItem(VAULT_STORAGE_KEY);
 }
 
+/**
+ * How the existing payload is unlocked. `legacy-mixed` is only produced by
+ * older versions that stored a device wrap next to a password wrap; new vaults
+ * never have both, which is what makes `密码 + 设备双因子` a real AND.
+ */
+export function vaultModeOf(payload: VaultPayload | null): VaultModeState | null {
+  if (!payload) return null;
+  const hasDevice = Boolean(payload.device);
+  const hasPassword = Boolean(payload.password);
+  if (hasDevice && hasPassword) return 'legacy-mixed';
+  if (hasDevice) return 'device';
+  if (hasPassword) return payload.password?.requireDevice ? 'two-factor' : 'password';
+  return null;
+}
+
 async function wrapDataKey(key: Uint8Array, kek: CryptoKey, aad: string): Promise<WrappedKey> {
   const encrypted = await encryptBytes(kek, key, aad);
   return {
@@ -91,46 +117,6 @@ async function wrapDataKey(key: Uint8Array, kek: CryptoKey, aad: string): Promis
 
 async function unwrapDataKey(wrap: WrappedKey, kek: CryptoKey, aad: string): Promise<Uint8Array> {
   return decryptBytes(kek, base64ToBytes(wrap.iv), base64ToBytes(wrap.wrappedKey), aad);
-}
-
-export interface CreateVaultInput {
-  token: string;
-  password?: string;
-  useDevice: boolean;
-  requireDevice?: boolean;
-  iterations?: number;
-}
-
-export async function createVault(input: CreateVaultInput): Promise<VaultPayload> {
-  const iterations = input.iterations ?? DEFAULT_ITERATIONS;
-  const dataKey = randomBytes(32);
-  const tokenKey = await importAesKey(dataKey);
-  const encryptedToken = await encryptBytes(tokenKey, encodeUtf8(input.token), AAD_TOKEN);
-
-  const deviceId = input.useDevice ? await getDeviceId() : null;
-  const device = deviceId ? await wrapWithDevice(dataKey, deviceId.id, deviceId.source, iterations) : undefined;
-  const password = input.password
-    ? await wrapWithPassword(dataKey, input.password, Boolean(input.requireDevice), deviceId?.id, iterations)
-    : undefined;
-
-  if (!device && !password) {
-    throw new VaultError('NO_METHOD', '至少需要一种解锁方式');
-  }
-
-  const payload: VaultPayload = {
-    v: 1,
-    kdf: { name: 'PBKDF2-SHA256', iterations },
-    ...(device ? { device } : {}),
-    ...(password ? { password } : {}),
-    token: {
-      iv: bytesToBase64(encryptedToken.iv),
-      ciphertext: bytesToBase64(encryptedToken.ciphertext),
-    },
-    createdAt: new Date().toISOString(),
-  };
-
-  saveVault(payload);
-  return payload;
 }
 
 async function wrapWithDevice(
@@ -158,6 +144,102 @@ async function wrapWithPassword(
   return { ...wrapped, salt: bytesToBase64(salt), requireDevice };
 }
 
+interface BuildPayloadInput {
+  token: string;
+  dataKey: Uint8Array;
+  mode: VaultMode;
+  password?: string;
+  iterations: number;
+}
+
+async function buildPayload(input: BuildPayloadInput): Promise<VaultPayload> {
+  if (modeNeedsPassword(input.mode)) {
+    if (!input.password || input.password.length < MIN_VAULT_PASSWORD_LENGTH) {
+      throw new VaultError('INVALID_INPUT', `密码至少 ${MIN_VAULT_PASSWORD_LENGTH} 位`);
+    }
+  }
+
+  const tokenKey = await importAesKey(input.dataKey);
+  const encryptedToken = await encryptBytes(tokenKey, encodeUtf8(input.token), AAD_TOKEN);
+
+  let device: DeviceWrap | undefined;
+  let password: PasswordWrap | undefined;
+
+  if (input.mode === 'device') {
+    const deviceId = await getDeviceId();
+    device = await wrapWithDevice(input.dataKey, deviceId.id, deviceId.source, input.iterations);
+  } else if (input.mode === 'two-factor') {
+    // The device is mixed into the password KEK instead of getting its own
+    // wrap: no credential can unwrap the data key without the other factor.
+    const deviceId = await getDeviceId();
+    password = await wrapWithPassword(input.dataKey, input.password as string, true, deviceId.id, input.iterations);
+  } else {
+    password = await wrapWithPassword(input.dataKey, input.password as string, false, undefined, input.iterations);
+  }
+
+  return {
+    v: 1,
+    kdf: { name: 'PBKDF2-SHA256', iterations: input.iterations },
+    ...(device ? { device } : {}),
+    ...(password ? { password } : {}),
+    token: {
+      iv: bytesToBase64(encryptedToken.iv),
+      ciphertext: bytesToBase64(encryptedToken.ciphertext),
+    },
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export interface CreateVaultInput {
+  token: string;
+  mode: VaultMode;
+  password?: string;
+  iterations?: number;
+}
+
+export interface CreatedVault {
+  payload: VaultPayload;
+  dataKey: Uint8Array;
+}
+
+export async function createVault(input: CreateVaultInput): Promise<CreatedVault> {
+  const dataKey = randomBytes(32);
+  const payload = await buildPayload({
+    token: input.token,
+    dataKey,
+    mode: input.mode,
+    ...(input.password ? { password: input.password } : {}),
+    iterations: input.iterations ?? DEFAULT_ITERATIONS,
+  });
+  saveVault(payload);
+  return { payload, dataKey };
+}
+
+export interface RewrapInput {
+  token: string;
+  dataKey: Uint8Array;
+  mode: VaultMode;
+  password?: string;
+  iterations?: number;
+}
+
+/**
+ * Change the unlock mode/password while already unlocked. The data key is
+ * deliberately preserved: backups encrypted with the derived key must stay
+ * readable after the change.
+ */
+export async function rewrapVault(input: RewrapInput): Promise<VaultPayload> {
+  const payload = await buildPayload({
+    token: input.token,
+    dataKey: input.dataKey,
+    mode: input.mode,
+    ...(input.password ? { password: input.password } : {}),
+    iterations: input.iterations ?? DEFAULT_ITERATIONS,
+  });
+  saveVault(payload);
+  return payload;
+}
+
 async function decryptToken(payload: VaultPayload, dataKey: Uint8Array): Promise<string> {
   const tokenKey = await importAesKey(dataKey);
   const tokenBytes = await decryptBytes(
@@ -169,43 +251,39 @@ async function decryptToken(payload: VaultPayload, dataKey: Uint8Array): Promise
   return decodeUtf8(tokenBytes);
 }
 
-export async function unlockWithPassword(payload: VaultPayload, password: string): Promise<string> {
+async function secretsFromDataKey(payload: VaultPayload, dataKey: Uint8Array): Promise<VaultSecrets> {
+  return { token: await decryptToken(payload, dataKey), dataKey };
+}
+
+export async function unlockWithPassword(payload: VaultPayload, password: string): Promise<VaultSecrets> {
   const wrap = payload.password;
   if (!wrap) throw new VaultError('NO_METHOD', '没有设置密码');
   try {
     const deviceId = wrap.requireDevice ? (await getDeviceId()).id : undefined;
     const kek = await deriveKek(passphraseForPassword(password, deviceId), base64ToBytes(wrap.salt), payload.kdf.iterations);
     const dataKey = await unwrapDataKey(wrap, kek, AAD_KEY_PASSWORD);
-    return await decryptToken(payload, dataKey);
+    return await secretsFromDataKey(payload, dataKey);
   } catch (error) {
     if (error instanceof VaultError) throw error;
-    throw new VaultError('WRONG_PASSWORD', '密码错误，或者数据已损坏。');
+    throw new VaultError(
+      'WRONG_PASSWORD',
+      wrap.requireDevice
+        ? '密码不正确，或本机指纹与设置时不一致。双因子要求同一台设备；仍无法解锁时只能重置保险库并重新输入 PAT。'
+        : '密码错误，或者数据已损坏。',
+    );
   }
 }
 
-export async function unlockWithDevice(payload: VaultPayload): Promise<string> {
+export async function unlockWithDevice(payload: VaultPayload): Promise<VaultSecrets> {
   const wrap = payload.device;
   if (!wrap) throw new VaultError('NO_METHOD', '没有绑定这台设备');
   try {
     const deviceId = await getDeviceIdForSource(wrap.source);
     const kek = await deriveKek(passphraseForDevice(deviceId), base64ToBytes(wrap.salt), payload.kdf.iterations);
     const dataKey = await unwrapDataKey(wrap, kek, AAD_KEY_DEVICE);
-    return await decryptToken(payload, dataKey);
+    return await secretsFromDataKey(payload, dataKey);
   } catch (error) {
     if (error instanceof VaultError) throw error;
     throw new VaultError('FINGERPRINT_CHANGED', '设备指纹已变化，请用密码解锁或重新绑定。');
   }
-}
-
-export interface RewrapInput {
-  token: string;
-  password?: string;
-  useDevice: boolean;
-  requireDevice?: boolean;
-  iterations?: number;
-}
-
-/** Unwrap with the current token, then wrap a fresh data key and token again. */
-export async function rewrapVault(input: RewrapInput): Promise<VaultPayload> {
-  return createVault(input);
 }

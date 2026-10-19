@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type BackupSnapshot, type UseEditorBackupOptions, useEditorBackup } from '@/hooks/use-editor-backup';
+import { flushActiveBackup } from '@/lib/backup/flush';
 import type { BackupRecord } from '@/lib/backup/model';
 import { clearAllBackups, readBackup, writeBackup } from '@/lib/backup/store';
 
@@ -174,6 +175,47 @@ describe('useEditorBackup', () => {
     unmount();
     await waitForStored((record) => {
       expect(record?.text).toContain('title: FLUSH');
+    });
+  });
+
+  it('flushes the latest snapshot immediately when a lock asks for it', async () => {
+    const { rerender } = render(<Probe options={baseOptions} />);
+    await waitFor(() => expect(screen.getByTestId('checking').textContent).toBe('false'));
+
+    rerender(
+      <Probe
+        options={{
+          ...baseOptions,
+          debounceMs: 5_000,
+          snapshot: makeSnapshot('---\ntitle: LOCK\n---\n\nlock body\n'),
+        }}
+      />,
+    );
+
+    await flushActiveBackup();
+    await waitForStored((record) => {
+      expect(record?.text).toContain('title: LOCK');
+    });
+  });
+
+  it('does not overwrite a pending recovery prompt when flushing for a lock', async () => {
+    await writeBackup(makeRecord());
+    const { rerender } = render(<Probe options={baseOptions} />);
+    await waitFor(() => expect(screen.getByTestId('candidate').textContent).toBe(PATH));
+
+    rerender(
+      <Probe
+        options={{
+          ...baseOptions,
+          debounceMs: 5_000,
+          snapshot: makeSnapshot('---\ntitle: LOCKED\n---\n\nlocked body\n'),
+        }}
+      />,
+    );
+
+    await flushActiveBackup();
+    await waitForStored((record) => {
+      expect(record?.text).toContain('OLD');
     });
   });
 

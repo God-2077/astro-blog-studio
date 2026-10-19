@@ -52,6 +52,29 @@ export async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', raw as BufferSource, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 }
 
+/**
+ * Domain-separated key for the local unsaved-draft backups. Deriving it from the
+ * vault data key means drafts are only readable while the vault is unlocked and
+ * follow the same credential as the PAT.
+ */
+export const BACKUP_KEY_INFO = 'abs:backup:v1';
+
+export async function deriveBackupKey(dataKey: Uint8Array): Promise<CryptoKey> {
+  const material = await crypto.subtle.importKey('raw', dataKey as BufferSource, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: new Uint8Array(0),
+      info: encoder.encode(BACKUP_KEY_INFO),
+    },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
 export function passphraseForDevice(id: string): string {
   return `abs:vault:v1|device|${id}`;
 }

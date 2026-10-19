@@ -1,39 +1,48 @@
 import { create } from 'zustand';
+import { flushActiveBackup } from '@/lib/backup/flush';
+import { clearBackupsByPrefix, dropBackupMemory, migrateBackups } from '@/lib/backup/store';
 import {
   clearVault,
   createVault,
   loadVault,
+  rewrapVault,
   unlockWithDevice,
   unlockWithPassword,
   type VaultPayload,
+  type VaultSecrets,
+  vaultModeOf,
 } from '@/lib/vault/keystore';
+import type { VaultMode, VaultModeState } from '@/lib/vault/mode';
 import { vaultSession } from '@/lib/vault/session';
 
 export type VaultStatus = 'empty' | 'locked' | 'unlocked';
 
 interface VaultState {
   status: VaultStatus;
-  hasDevice: boolean;
-  hasPassword: boolean;
+  mode: VaultModeState | null;
   busy: boolean;
   error: string | null;
   initialize: () => void;
-  setup: (input: { token: string; password?: string; useDevice: boolean; requireDevice?: boolean }) => Promise<void>;
+  setup: (input: { token: string; mode: VaultMode; password?: string }) => Promise<void>;
   unlockPassword: (password: string) => Promise<void>;
   unlockDevice: () => Promise<void>;
-  lock: () => void;
-  reset: () => void;
+  changeUnlock: (input: { mode: VaultMode; password?: string }) => Promise<void>;
+  lock: () => Promise<void>;
+  reset: () => Promise<void>;
   clearError: () => void;
 }
 
-function flags(payload: VaultPayload | null): Pick<VaultState, 'hasDevice' | 'hasPassword'> {
-  return { hasDevice: Boolean(payload?.device), hasPassword: Boolean(payload?.password) };
+function modeOf(payload: VaultPayload | null): VaultModeState | null {
+  return vaultModeOf(payload);
+}
+
+function unlockedSecrets(secrets: VaultSecrets): void {
+  vaultSession.set(secrets.token, secrets.dataKey);
 }
 
 export const useVault = create<VaultState>()((set) => ({
   status: 'empty',
-  hasDevice: false,
-  hasPassword: false,
+  mode: null,
   busy: false,
   error: null,
 
@@ -41,7 +50,7 @@ export const useVault = create<VaultState>()((set) => ({
     const payload = loadVault();
     set({
       status: payload ? 'locked' : 'empty',
-      ...flags(payload),
+      mode: modeOf(payload),
       busy: false,
       error: null,
     });
@@ -50,9 +59,10 @@ export const useVault = create<VaultState>()((set) => ({
   setup: async (input) => {
     set({ busy: true, error: null });
     try {
-      const payload = await createVault(input);
-      vaultSession.set(input.token);
-      set({ status: 'unlocked', busy: false, ...flags(payload) });
+      const created = await createVault(input);
+      unlockedSecrets({ token: input.token, dataKey: created.dataKey });
+      set({ status: 'unlocked', busy: false, mode: modeOf(created.payload) });
+      void migrateBackups();
     } catch (error) {
       set({ busy: false, error: error instanceof Error ? error.message : String(error) });
       throw error;
@@ -62,14 +72,14 @@ export const useVault = create<VaultState>()((set) => ({
   unlockPassword: async (password) => {
     const payload = loadVault();
     if (!payload) {
-      set({ status: 'empty', error: '没有找到保险库，请重新配置。' });
+      set({ status: 'empty', mode: null, error: '没有找到保险库，请重新配置。' });
       return;
     }
     set({ busy: true, error: null });
     try {
-      const token = await unlockWithPassword(payload, password);
-      vaultSession.set(token);
-      set({ status: 'unlocked', busy: false, ...flags(payload) });
+      unlockedSecrets(await unlockWithPassword(payload, password));
+      set({ status: 'unlocked', busy: false, mode: modeOf(payload) });
+      void migrateBackups();
     } catch (error) {
       set({ busy: false, error: error instanceof Error ? error.message : String(error) });
     }
@@ -78,29 +88,48 @@ export const useVault = create<VaultState>()((set) => ({
   unlockDevice: async () => {
     const payload = loadVault();
     if (!payload) {
-      set({ status: 'empty', error: '没有找到保险库，请重新配置。' });
+      set({ status: 'empty', mode: null, error: '没有找到保险库，请重新配置。' });
       return;
     }
     set({ busy: true, error: null });
     try {
-      const token = await unlockWithDevice(payload);
-      vaultSession.set(token);
-      set({ status: 'unlocked', busy: false, ...flags(payload) });
+      unlockedSecrets(await unlockWithDevice(payload));
+      set({ status: 'unlocked', busy: false, mode: modeOf(payload) });
+      void migrateBackups();
     } catch (error) {
       set({ busy: false, error: error instanceof Error ? error.message : String(error) });
     }
   },
 
-  lock: () => {
-    vaultSession.clear();
-    const payload = loadVault();
-    set({ status: payload ? 'locked' : 'empty', ...flags(payload), error: null });
+  changeUnlock: async (input) => {
+    const token = vaultSession.get();
+    const dataKey = vaultSession.getDataKey();
+    if (!token || !dataKey) throw new Error('会话已锁定，请重新解锁后再修改解锁方式');
+    set({ busy: true, error: null });
+    try {
+      const payload = await rewrapVault({ token, dataKey, mode: input.mode, password: input.password });
+      // The data key is reused, so decrypted backup keys stay valid.
+      set({ busy: false, mode: modeOf(payload) });
+    } catch (error) {
+      set({ busy: false });
+      throw error;
+    }
   },
 
-  reset: () => {
+  lock: async () => {
+    await flushActiveBackup();
+    dropBackupMemory();
+    vaultSession.clear();
+    const payload = loadVault();
+    set({ status: payload ? 'locked' : 'empty', mode: modeOf(payload), error: null });
+  },
+
+  reset: async () => {
     clearVault();
     vaultSession.clear();
-    set({ status: 'empty', hasDevice: false, hasPassword: false, error: null });
+    dropBackupMemory();
+    await clearBackupsByPrefix('live:');
+    set({ status: 'empty', mode: null, error: null });
   },
 
   clearError: () => set({ error: null }),

@@ -70,7 +70,6 @@ export const settingsSchema = z.object({
   }),
   security: z.object({
     autoLockMinutes: z.number().min(0).max(240),
-    deviceBindingForPassword: z.boolean(),
   }),
   advanced: z.object({
     debug: z.boolean(),

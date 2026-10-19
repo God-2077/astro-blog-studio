@@ -2,7 +2,23 @@ import { Fingerprint, KeyRound, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Spinner } from '@/components/ui';
+import type { VaultModeState } from '@/lib/vault/mode';
 import { useVault } from '@/stores/vault';
+
+function modeDescription(mode: VaultModeState | null): string {
+  switch (mode) {
+    case 'device':
+      return '保险库还在这台设备上。正在用指纹揭开封印。';
+    case 'password':
+      return '保险库还在这台设备上。输入密码揭开封印。';
+    case 'two-factor':
+      return '双因子已开启：密码，加上与设置时一致的本机指纹，两者都匹配才能揭开。';
+    case 'legacy-mixed':
+      return '这是旧版保险库：密码或设备指纹任一即可解锁。建议在设置里升级为双因子。';
+    default:
+      return '保险库记录不完整，无法判断解锁方式；请重置后重新输入 PAT。';
+  }
+}
 
 export function UnlockPage() {
   const navigate = useNavigate();
@@ -10,22 +26,40 @@ export function UnlockPage() {
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    if (vault.status === 'locked' && vault.hasDevice && !vault.hasPassword && !vault.busy) {
+    if (vault.status === 'locked' && vault.mode === 'device' && !vault.busy) {
       void vault.unlockDevice();
     }
-  }, [vault.status, vault.hasDevice, vault.hasPassword, vault.busy, vault.unlockDevice]);
+  }, [vault.status, vault.mode, vault.busy, vault.unlockDevice]);
 
   if (vault.status === 'empty') return <Navigate to="/setup" replace />;
   if (vault.status === 'unlocked') return <Navigate to="/" replace />;
 
-  const handleUnlock = async (): Promise<void> => {
-    await vault.unlockPassword(password);
+  const mode = vault.mode;
+  const needsPassword = mode === 'password' || mode === 'two-factor' || mode === 'legacy-mixed';
+
+  const finishUnlock = (): void => {
     if (useVault.getState().status === 'unlocked') navigate('/', { replace: true });
   };
 
-  const handleReset = (): void => {
-    if (!window.confirm('重置保险库会删除本机保存的令牌，需要重新输入 PAT。继续吗？')) return;
-    vault.reset();
+  const handleUnlock = async (): Promise<void> => {
+    await vault.unlockPassword(password);
+    finishUnlock();
+  };
+
+  const handleDevice = async (): Promise<void> => {
+    await vault.unlockDevice();
+    finishUnlock();
+  };
+
+  const handleReset = async (): Promise<void> => {
+    if (
+      !window.confirm(
+        '重置保险库会删除本机保存的令牌，以及本机所有真实仓库的未保存备份（演示备份保留），需要重新输入 PAT。继续吗？',
+      )
+    ) {
+      return;
+    }
+    await vault.reset();
     navigate('/setup', { replace: true });
   };
 
@@ -38,11 +72,9 @@ export function UnlockPage() {
             樱
           </div>
           <h1 className="font-display text-[28px] font-bold">欢迎回来</h1>
-          <p className="mx-auto mt-1 max-w-[34ch] text-[11.5px] leading-relaxed text-ink-soft">
-            保险库还在这台设备上。输入密码，或者直接用指纹揭开。
-          </p>
+          <p className="mx-auto mt-1 max-w-[36ch] text-[11.5px] leading-relaxed text-ink-soft">{modeDescription(mode)}</p>
 
-          {vault.hasPassword ? (
+          {needsPassword ? (
             <form
               className="mt-5 text-left"
               onSubmit={(event) => {
@@ -72,12 +104,12 @@ export function UnlockPage() {
                 )}
               </button>
             </form>
-          ) : (
+          ) : mode === 'device' ? (
             <div className="mt-5">
               <button
                 type="button"
                 className="abs-btn abs-btn-primary w-full"
-                onClick={() => void vault.unlockDevice()}
+                onClick={() => void handleDevice()}
                 disabled={vault.busy}
               >
                 {vault.busy ? (
@@ -90,18 +122,24 @@ export function UnlockPage() {
                 )}
               </button>
             </div>
-          )}
+          ) : null}
 
-          {vault.hasDevice && vault.hasPassword ? (
+          {mode === 'legacy-mixed' ? (
             <button
               type="button"
               className="abs-btn abs-btn-ghost mt-2 w-full"
-              onClick={() => void vault.unlockDevice()}
+              onClick={() => void handleDevice()}
               disabled={vault.busy}
             >
               <Fingerprint aria-hidden className="size-3.5" />
-              用设备指纹自动解锁
+              旧版：用设备指纹解锁
             </button>
+          ) : null}
+
+          {mode === 'two-factor' ? (
+            <p className="mt-3 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2 text-[10px] leading-relaxed text-muted">
+              双因子需要同一台设备的指纹。换设备或指纹变化后无法找回，只能重置保险库；本机真实仓库的备份会一起清除。
+            </p>
           ) : null}
 
           {vault.error ? (
@@ -122,7 +160,7 @@ export function UnlockPage() {
           <button
             type="button"
             className="mt-3 inline-flex items-center gap-1 font-mono text-[9px] text-muted underline decoration-dashed underline-offset-2 hover:text-sakura"
-            onClick={handleReset}
+            onClick={() => void handleReset()}
           >
             <RotateCcw aria-hidden className="size-3" />
             重置保险库
@@ -135,8 +173,8 @@ export function UnlockPage() {
             指纹只在本机计算，不发送到任何服务器。
           </div>
           <div className="rotate-[1.2deg] rounded-xl border border-line bg-paper px-3.5 py-3 text-[10.5px] leading-relaxed text-ink-soft">
-            <strong className="block font-display text-[12px] text-ink">密码可选</strong>
-            设置密码后，每次新标签页都需要验证。
+            <strong className="block font-display text-[12px] text-ink">双因子是 AND</strong>
+            密码与指纹必须同时匹配；不是任选其一。
           </div>
           <div className="-rotate-[0.8deg] rounded-xl border border-line bg-paper px-3.5 py-3 text-[10.5px] leading-relaxed text-ink-soft">
             <strong className="block font-display text-[12px] text-ink">只读也安心</strong>

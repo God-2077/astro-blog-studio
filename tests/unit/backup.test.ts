@@ -1,5 +1,7 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { createStore, get as idbGet, set as idbSet } from 'idb-keyval';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { type BackupEnvelope, isBackupEnvelope } from '@/lib/backup/envelope';
 import {
   type BackupRecord,
   backupCharCount,
@@ -11,12 +13,25 @@ import {
   MAX_BACKUP_CHARS,
   restoreToEditorState,
 } from '@/lib/backup/model';
-import { clearAllBackups, clearBackupsByPrefix, listBackups, readBackup, removeBackup, writeBackup } from '@/lib/backup/store';
+import {
+  backupStorageKey,
+  clearAllBackups,
+  clearBackupsByPrefix,
+  dropBackupMemory,
+  listBackups,
+  migrateBackups,
+  readBackup,
+  removeBackup,
+  writeBackup,
+} from '@/lib/backup/store';
 import { parseDocument } from '@/lib/markdown/document';
+import { vaultSession } from '@/lib/vault/session';
 
 const REPO_KEY = 'demo:God-2077/astro-blog-content@main';
 const PREFIX = 'demo:God-2077/astro-blog-content@';
 const PATH = 'src/content/blog/note/便笺.md';
+const LIVE_KEY = 'live:God-2077/astro-blog-content@main';
+const rawStore = createStore('abs-backups', 'backups');
 
 function makeRecord(overrides: Partial<BackupRecord> = {}): BackupRecord {
   const text = '---\ntitle: 原题\n---\n\n正文\n';
@@ -44,6 +59,11 @@ function makeRecord(overrides: Partial<BackupRecord> = {}): BackupRecord {
 
 beforeEach(async () => {
   await clearAllBackups();
+  vaultSession.set('test-token', new Uint8Array(32).fill(7));
+});
+
+afterEach(() => {
+  vaultSession.clear();
 });
 
 describe('backup record validation', () => {
@@ -223,5 +243,100 @@ describe('IndexedDB backup store', () => {
     const record = makeRecord({ size: MAX_BACKUP_CHARS + 1 });
     expect(await writeBackup(record)).toBe('too-large');
     expect(await readBackup(REPO_KEY, PATH)).toBeNull();
+  });
+});
+
+describe('encrypted live backups', () => {
+  it('stores only a ciphertext envelope and hides the draft from IndexedDB', async () => {
+    const record = makeRecord({ repoKey: LIVE_KEY });
+    expect(await writeBackup(record)).toBe('saved');
+
+    const raw = await idbGet(backupStorageKey(LIVE_KEY, PATH), rawStore);
+    const serialized = JSON.stringify(raw);
+    expect(isBackupEnvelope(raw)).toBe(true);
+    expect(serialized).not.toContain('原题');
+    expect(serialized).not.toContain('正文');
+    expect(serialized).not.toContain('sha-old');
+
+    await expect(readBackup(LIVE_KEY, PATH)).resolves.toMatchObject({ text: record.text, baseSha: 'sha-old' });
+  });
+
+  it('keeps demo backups plaintext because there is no vault in demo mode', async () => {
+    await writeBackup(makeRecord());
+    const raw = await idbGet(backupStorageKey(REPO_KEY, PATH), rawStore);
+    expect(isBackupRecord(raw)).toBe(true);
+    expect((raw as BackupRecord).text).toContain('原题');
+  });
+
+  it('rejects a tampered envelope and a cross-slot copy', async () => {
+    await writeBackup(makeRecord({ repoKey: LIVE_KEY }));
+    const slot = backupStorageKey(LIVE_KEY, PATH);
+    const envelope = (await idbGet(slot, rawStore)) as BackupEnvelope;
+
+    await idbSet(slot, { ...envelope, ciphertext: `${envelope.ciphertext.slice(0, -4)}AAAA` }, rawStore);
+    dropBackupMemory();
+    expect(await readBackup(LIVE_KEY, PATH)).toBeNull();
+
+    await idbSet(slot, envelope, rawStore);
+    const otherPath = 'src/content/blog/note/other.md';
+    await idbSet(backupStorageKey(LIVE_KEY, otherPath), envelope, rawStore);
+    dropBackupMemory();
+    expect(await readBackup(LIVE_KEY, otherPath)).toBeNull();
+  });
+
+  it('refuses to write plaintext when the vault is locked', async () => {
+    vaultSession.clear();
+    dropBackupMemory();
+    const record = makeRecord({ repoKey: LIVE_KEY });
+    expect(await writeBackup(record)).toBe('locked');
+    expect(await idbGet(backupStorageKey(LIVE_KEY, PATH), rawStore)).toBeUndefined();
+    expect(await readBackup(LIVE_KEY, PATH)).toBeNull();
+  });
+
+  it('lists only readable records when the vault locks', async () => {
+    await writeBackup(makeRecord({ repoKey: LIVE_KEY }));
+    await writeBackup(makeRecord());
+    expect(await listBackups('')).toHaveLength(2);
+
+    vaultSession.clear();
+    dropBackupMemory();
+    const locked = await listBackups('');
+    expect(locked).toHaveLength(1);
+    expect(locked[0]?.repoKey).toBe(REPO_KEY);
+  });
+
+  it('keeps the newest twenty encrypted records', async () => {
+    for (let index = 0; index < 21; index += 1) {
+      const text = `---\ntitle: ${index}\n---\n\nbody\n`;
+      await writeBackup(
+        makeRecord({
+          repoKey: LIVE_KEY,
+          path: `src/content/blog/note/${index}.md`,
+          savedAt: index + 1,
+          size: text.length,
+          text,
+        }),
+      );
+    }
+
+    const records = await listBackups('live:');
+    expect(records).toHaveLength(20);
+    expect(records.some((record) => record.savedAt === 1)).toBe(false);
+    expect(records.some((record) => record.savedAt === 21)).toBe(true);
+  });
+
+  it('re-encrypts plaintext records left by older versions', async () => {
+    const slot = backupStorageKey(LIVE_KEY, PATH);
+    const legacy = makeRecord({ repoKey: LIVE_KEY });
+    await idbSet(slot, legacy, rawStore);
+    expect(await readBackup(LIVE_KEY, PATH)).toMatchObject({ baseSha: 'sha-old' });
+
+    await migrateBackups();
+    const raw = await idbGet(slot, rawStore);
+    expect(isBackupEnvelope(raw)).toBe(true);
+    expect(JSON.stringify(raw)).not.toContain('原题');
+
+    dropBackupMemory();
+    await expect(readBackup(LIVE_KEY, PATH)).resolves.toMatchObject({ text: legacy.text });
   });
 });

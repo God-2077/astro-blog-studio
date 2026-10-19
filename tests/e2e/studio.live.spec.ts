@@ -1,4 +1,4 @@
-import { expect, request, test } from '@playwright/test';
+import { expect, type Page, request, test } from '@playwright/test';
 
 const token = process.env.GITHUB_TEST_TOKEN;
 const slug = process.env.GITHUB_TEST_REPO ?? 'God-2077/astro-blog-content-test';
@@ -20,6 +20,34 @@ function apiHeaders(): Record<string, string> {
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
   };
+}
+
+interface RawBackupRow {
+  v?: number;
+  alg?: string;
+  iv?: string;
+  ciphertext?: string;
+}
+
+/** Reads the raw IndexedDB rows so the test can prove the draft is not plaintext. */
+async function readRawBackups(page: Page): Promise<RawBackupRow[]> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const open = indexedDB.open('abs-backups');
+      open.onsuccess = () => resolve(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    try {
+      const rows = await new Promise<unknown[]>((resolve, reject) => {
+        const request = db.transaction('backups', 'readonly').objectStore('backups').getAll();
+        request.onsuccess = () => resolve(request.result as unknown[]);
+        request.onerror = () => reject(request.error);
+      });
+      return rows as RawBackupRow[];
+    } finally {
+      db.close();
+    }
+  });
 }
 
 test.describe('live studio', () => {
@@ -92,5 +120,37 @@ test.describe('live studio', () => {
     await expect(page.getByText('已归档')).toBeVisible();
     const link = page.locator('.abs-receipt a');
     await expect(link).toHaveAttribute('href', /github\.com\/.*\/commit\//);
+  });
+
+  test('keeps an unsaved draft encrypted across a lock and restores it after unlock', async ({ page }) => {
+    await page.goto(`/#/edit?path=${encodeURIComponent(filePath)}`);
+    await expect(page.locator('.cm-editor')).toBeVisible({ timeout: 30_000 });
+
+    const title = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' }).locator('input.abs-input').first();
+    await title.fill('E2E 加密备份标题');
+    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 15_000 });
+
+    const beforeLock = await readRawBackups(page);
+    expect(beforeLock.length).toBeGreaterThan(0);
+    expect(JSON.stringify(beforeLock)).not.toContain('E2E 加密备份标题');
+    for (const row of beforeLock) {
+      expect(row.v).toBe(2);
+      expect(row.alg).toBe('AES-GCM');
+      expect(row.ciphertext).toBeTruthy();
+    }
+
+    await page.getByRole('button', { name: '锁定' }).click();
+    await expect(page).toHaveURL(/#\/unlock/, { timeout: 15_000 });
+    expect(JSON.stringify(await readRawBackups(page))).not.toContain('E2E 加密备份标题');
+
+    await page.locator('input[type="password"]').fill(password);
+    await page.getByRole('button', { name: /揭开封印/ }).click();
+    await expect(page.getByText('今天写点什么？')).toBeVisible({ timeout: 30_000 });
+
+    await page.goto(`/#/edit?path=${encodeURIComponent(filePath)}`);
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: '恢复备份' }).click();
+    await expect(title).toHaveValue('E2E 加密备份标题');
   });
 });

@@ -46,3 +46,17 @@ describe('index concurrency setting', () => {
     expect(clampIndexConcurrency(Number.NaN)).toBe(INDEX_CONCURRENCY_DEFAULT);
   });
 });
+
+describe('security settings migration', () => {
+  it('drops the retired deviceBindingForPassword field instead of resetting the settings', () => {
+    const parsed = settingsSchema.safeParse({
+      ...defaultSettings,
+      security: { autoLockMinutes: 7, deviceBindingForPassword: true },
+    });
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.security.autoLockMinutes).toBe(7);
+    expect('deviceBindingForPassword' in parsed.data.security).toBe(false);
+  });
+});

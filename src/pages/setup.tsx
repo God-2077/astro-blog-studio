@@ -2,11 +2,13 @@ import { ArrowRight, ArrowUpRight, Github, KeyRound, NotebookPen, ShieldCheck, S
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Field, Spinner } from '@/components/ui';
+import { UnlockModePicker } from '@/components/unlock-mode-picker';
 import { APP_DESCRIPTION, APP_NAME, APP_URL, APP_URL_LABEL } from '@/lib/config/app-meta';
 import { SUGGESTED_EXCLUDES } from '@/lib/config/defaults';
 import { mapError } from '@/lib/github/errors';
 import { LiveGateway } from '@/lib/github/live';
 import { parseRepoInput } from '@/lib/github/repo-input';
+import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode } from '@/lib/vault/mode';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
 
@@ -20,9 +22,7 @@ export function SetupPage() {
   const [rootDir, setRootDir] = useState(settings.content.rootDir || 'src');
   const [excludes, setExcludes] = useState(SUGGESTED_EXCLUDES.join('\n'));
   const [password, setPassword] = useState('');
-  const [usePassword, setUsePassword] = useState(false);
-  const [useDevice, setUseDevice] = useState(true);
-  const [requireDevice, setRequireDevice] = useState(false);
+  const [unlockMode, setUnlockMode] = useState<VaultMode>('device');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +30,7 @@ export function SetupPage() {
     if (vault.status === 'unlocked' && settings.repo) navigate('/', { replace: true });
   }, [vault.status, settings.repo, navigate]);
 
+  if (vault.status === 'locked') return <Navigate to="/unlock" replace />;
   if (vault.status === 'unlocked' && settings.repo) return <Navigate to="/" replace />;
 
   const handleSubmit = async (): Promise<void> => {
@@ -37,8 +38,9 @@ export function SetupPage() {
     const parsed = parseRepoInput(repoInput);
     if (!token.trim()) return setError('请先粘贴 GitHub PAT。');
     if (!parsed) return setError('仓库格式应为 owner/repository，或完整的 GitHub URL。');
-    if (!useDevice && !usePassword) return setError('至少选择一种解锁方式：设备指纹或密码。');
-    if (usePassword && password.length < 8) return setError('密码至少 8 位。');
+    if (modeNeedsPassword(unlockMode) && password.length < MIN_VAULT_PASSWORD_LENGTH) {
+      return setError(`密码至少 ${MIN_VAULT_PASSWORD_LENGTH} 位。`);
+    }
     setBusy(true);
     try {
       const branchValue = branch.trim() || 'main';
@@ -64,9 +66,8 @@ export function SetupPage() {
       });
       await vault.setup({
         token: token.trim(),
-        password: usePassword ? password : undefined,
-        useDevice,
-        requireDevice: useDevice ? requireDevice : false,
+        mode: unlockMode,
+        ...(modeNeedsPassword(unlockMode) ? { password } : {}),
       });
       navigate('/', { replace: true });
     } catch (caught) {
@@ -147,54 +148,20 @@ export function SetupPage() {
               <ShieldCheck aria-hidden className="size-4 text-sakura" />
               解锁方式
             </p>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <label className="flex items-start gap-2 rounded-lg border border-line bg-paper px-3 py-2 text-[11px]">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 size-3.5 accent-[var(--abs-sakura)]"
-                  checked={useDevice}
-                  onChange={(event) => setUseDevice(event.target.checked)}
-                />
-                <span>
-                  <strong className="block">设备指纹自动解锁</strong>
-                  <span className="text-muted">FingerprintJS；刷新后自动打开。</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 rounded-lg border border-line bg-paper px-3 py-2 text-[11px]">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 size-3.5 accent-[var(--abs-sakura)]"
-                  checked={usePassword}
-                  onChange={(event) => setUsePassword(event.target.checked)}
-                />
-                <span>
-                  <strong className="block">同时设置密码</strong>
-                  <span className="text-muted">每次新标签页都要验证。</span>
-                </span>
-              </label>
+            <div className="mt-2">
+              <UnlockModePicker value={unlockMode} onChange={setUnlockMode} hideLegend />
             </div>
-            {usePassword || !useDevice ? (
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <Field label="密码" hint="至少 8 位；忘记只能重输 PAT">
-                  <input
-                    className="abs-input"
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="设置一个密码"
-                    autoComplete="new-password"
-                  />
-                </Field>
-                <label className="mt-4 flex items-center gap-1.5 text-[11px]">
-                  <input
-                    type="checkbox"
-                    className="size-3.5 accent-[var(--abs-sakura)]"
-                    checked={requireDevice}
-                    onChange={(event) => setRequireDevice(event.target.checked)}
-                  />
-                  密码 + 设备双因子
-                </label>
-              </div>
+            {modeNeedsPassword(unlockMode) ? (
+              <Field label="密码" hint={`至少 ${MIN_VAULT_PASSWORD_LENGTH} 位；忘记只能重置保险库并重输 PAT`} className="mt-2">
+                <input
+                  className="abs-input"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="设置一个密码"
+                  autoComplete="new-password"
+                />
+              </Field>
             ) : null}
           </div>
 
@@ -240,10 +207,12 @@ export function SetupPage() {
               令牌怎么存
             </p>
             <p className="mt-1.5 text-muted">
-              用设备指纹（或你设置的密码）经 PBKDF2 派生的密钥包装；令牌只以 AES-GCM 密文存在
-              localStorage，解锁前不会进入网络请求。
+              用设备指纹或密码经 PBKDF2 派生的密钥包装；双因子时密码与指纹会一起参与派生，两者缺一不可。令牌只以 AES-GCM
+              密文存在 localStorage，解锁前不会进入网络请求。
             </p>
-            <p className="mt-2 text-[10px] text-muted">设备指纹不是秘密；密码才是真正的安全边界。</p>
+            <p className="mt-2 text-[10px] text-muted">
+              设备指纹不是秘密；密码才是真正的安全边界。换设备或指纹变化后，双因子只能重置保险库。
+            </p>
           </div>
           <div className="relative rotate-[0.6deg] rounded-[14px] border-[1.5px] border-edge bg-butter px-4 py-3.5 text-[10.5px] leading-relaxed shadow-sticker">
             <span className="abs-tape abs-tape-mint" aria-hidden />

@@ -16,12 +16,14 @@ export function useAutoLock(enabled: boolean): void {
     const arm = (): void => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        if (useEditorGuard.getState().dirty && !window.confirm('有未保存的修改，锁定会丢弃它们。继续锁定吗？')) {
+        if (useEditorGuard.getState().dirty && !window.confirm('有未保存的修改；锁定前会先写入本机加密备份。继续锁定吗？')) {
           arm();
           return;
         }
-        useVault.getState().lock();
-        navigate('/unlock');
+        void (async () => {
+          await useVault.getState().lock();
+          navigate('/unlock');
+        })();
       }, minutes * 60_000);
     };
 

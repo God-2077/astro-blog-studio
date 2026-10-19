@@ -51,8 +51,8 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', handler);
   }, [setSidebarOpen]);
 
-  const handleLock = (): void => {
-    lock();
+  const handleLock = async (): Promise<void> => {
+    await lock();
     navigate('/unlock');
   };
 
@@ -124,7 +124,7 @@ export function AppShell() {
             </button>
           ) : null}
           {mode === 'live' ? (
-            <button type="button" className="abs-icon-btn" onClick={handleLock} aria-label="锁定" title="锁定">
+            <button type="button" className="abs-icon-btn" onClick={() => void handleLock()} aria-label="锁定" title="锁定">
               <LockKeyhole aria-hidden className="size-3.5" />
             </button>
           ) : (

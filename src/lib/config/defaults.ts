@@ -40,7 +40,6 @@ export const defaultSettings: Settings = {
   },
   security: {
     autoLockMinutes: 15,
-    deviceBindingForPassword: false,
   },
   advanced: {
     debug: false,

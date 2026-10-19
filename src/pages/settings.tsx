@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Field } from '@/components/ui';
+import { UnlockModePicker } from '@/components/unlock-mode-picker';
 import { backupKeyPrefix } from '@/lib/backup/model';
 import { clearBackupsByPrefix } from '@/lib/backup/store';
 import { clampIndexConcurrency, INDEX_CONCURRENCY_MAX, INDEX_CONCURRENCY_MIN } from '@/lib/config/schema';
@@ -18,8 +19,7 @@ import {
 import { useGateway } from '@/lib/gateway/context';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
 import { THEME_OPTIONS, type ThemePreference } from '@/lib/theme/theme';
-import { rewrapVault } from '@/lib/vault/keystore';
-import { vaultSession } from '@/lib/vault/session';
+import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode, vaultModeLabel } from '@/lib/vault/mode';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
 
@@ -46,7 +46,12 @@ export function SettingsPage() {
   const [backupUnsaved, setBackupUnsaved] = useState(settings.editor.backupUnsaved);
   const [autoLockMinutes, setAutoLockMinutes] = useState(String(settings.security.autoLockMinutes));
   const [newPassword, setNewPassword] = useState('');
-  const [requireDevice, setRequireDevice] = useState(settings.security.deviceBindingForPassword);
+  const [unlockMode, setUnlockMode] = useState<VaultMode>(() => {
+    const current = useVault.getState().mode;
+    if (current === 'password' || current === 'two-factor') return current;
+    if (current === 'legacy-mixed') return 'two-factor';
+    return 'device';
+  });
   const [fields, setFields] = useState(() => cloneFrontmatterFields(settings.frontmatter.fields));
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -111,7 +116,6 @@ export function SettingsPage() {
         security: {
           ...settings.security,
           autoLockMinutes: Math.min(240, Math.max(0, Number(autoLockMinutes) || 0)),
-          deviceBindingForPassword: requireDevice,
         },
       });
       await queryClient.invalidateQueries({ queryKey: ['tree'] });
@@ -121,27 +125,20 @@ export function SettingsPage() {
     }
   };
 
-  const changePassword = async (): Promise<void> => {
+  const updateUnlock = async (): Promise<void> => {
     if (isDemo) return;
-    const token = vaultSession.get();
-    if (!token) {
-      toast.error('先解锁保险库再改密码');
-      return;
-    }
-    if (newPassword && newPassword.length < 8) {
-      toast.error('密码至少 8 位');
+    if (modeNeedsPassword(unlockMode) && newPassword.length < MIN_VAULT_PASSWORD_LENGTH) {
+      toast.error(`密码至少 ${MIN_VAULT_PASSWORD_LENGTH} 位`);
       return;
     }
     setPasswordBusy(true);
     try {
-      await rewrapVault({
-        token,
-        password: newPassword || undefined,
-        useDevice: true,
-        requireDevice: requireDevice && Boolean(newPassword),
+      await vault.changeUnlock({
+        mode: unlockMode,
+        ...(modeNeedsPassword(unlockMode) ? { password: newPassword } : {}),
       });
       setNewPassword('');
-      toast.success(newPassword ? '密码已更新' : '密码已移除，仅保留设备指纹');
+      toast.success(`解锁方式已更新：${vaultModeLabel(unlockMode)}`);
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -149,8 +146,8 @@ export function SettingsPage() {
     }
   };
 
-  const lockNow = (): void => {
-    vault.lock();
+  const lockNow = async (): Promise<void> => {
+    await vault.lock();
     navigate('/unlock');
   };
 
@@ -161,16 +158,22 @@ export function SettingsPage() {
     else toast.error('清除失败，请稍后再试');
   };
 
-  const resetVault = (): void => {
-    if (!window.confirm('重置保险库会删除本机令牌，需要重新输入 PAT。继续吗？')) return;
-    vault.reset();
+  const resetVault = async (): Promise<void> => {
+    if (
+      !window.confirm(
+        '重置保险库会删除本机令牌，以及本机所有真实仓库的未保存加密备份（演示备份保留），需要重新输入 PAT。继续吗？',
+      )
+    ) {
+      return;
+    }
+    await vault.reset();
     settings.setRepo(null);
     navigate('/setup');
   };
 
-  const reconfigure = (): void => {
-    if (!window.confirm('重新配置会删除本机保险库，然后回到首次配置。继续吗？')) return;
-    vault.reset();
+  const reconfigure = async (): Promise<void> => {
+    if (!window.confirm('重新配置会删除本机保险库与真实仓库的未保存备份，然后回到首次配置。继续吗？')) return;
+    await vault.reset();
     navigate('/setup');
   };
 
@@ -384,7 +387,8 @@ export function SettingsPage() {
                 备份未保存的修改
               </label>
               <p className="mt-1 text-[10px] leading-relaxed text-muted">
-                明文写在本机 IndexedDB；进入编辑器时会检查并提示恢复。关闭后不再写入新备份。
+                真实仓库的备份用保险库密钥加密后写在本机
+                IndexedDB，只能在解锁后恢复；演示模式不加密。进入编辑器时会检查并提示恢复。
               </p>
               <button
                 type="button"
@@ -430,6 +434,11 @@ export function SettingsPage() {
               安全
             </h2>
             <p className="mt-1 break-all font-mono text-[9px] text-muted">令牌：{isDemo ? '演示模式无令牌' : '已加密保存'}</p>
+            {!isDemo ? (
+              <p className="mt-1 text-[10px] leading-relaxed text-muted">
+                当前解锁方式：<strong className="text-ink">{vaultModeLabel(vault.mode)}</strong>
+              </p>
+            ) : null}
             <Field label="自动锁定（分钟，0 关闭）" className="mt-2">
               <input
                 className="abs-input"
@@ -443,57 +452,63 @@ export function SettingsPage() {
 
             {!isDemo ? (
               <div className="mt-3 border-t border-dashed border-line pt-3">
-                <Field label="设置 / 更换密码" hint="留空并保存则移除密码，仅保留设备指纹">
-                  <input
-                    className="abs-input"
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    placeholder="新的密码（可留空）"
-                    autoComplete="new-password"
-                  />
-                </Field>
-                <label className="mt-2 flex items-center gap-2 text-[10.5px]">
-                  <input
-                    type="checkbox"
-                    className="size-3.5 accent-[var(--abs-sakura)]"
-                    checked={requireDevice}
-                    onChange={(event) => setRequireDevice(event.target.checked)}
-                  />
-                  密码 + 设备双因子
-                </label>
+                {vault.mode === 'legacy-mixed' ? (
+                  <p className="mb-2 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[10px] leading-relaxed text-danger">
+                    这是旧版「密码或指纹」模式。选择一种方式并更新后，会改为严格双因子或单一方式；设备包装会被移除。
+                  </p>
+                ) : null}
+                <UnlockModePicker value={unlockMode} onChange={setUnlockMode} />
+                {modeNeedsPassword(unlockMode) ? (
+                  <Field label="新密码" hint={`至少 ${MIN_VAULT_PASSWORD_LENGTH} 位；不要求旧密码`} className="mt-2">
+                    <input
+                      className="abs-input"
+                      type="password"
+                      value={newPassword}
+                      onChange={(event) => setNewPassword(event.target.value)}
+                      placeholder="输入新密码"
+                      autoComplete="new-password"
+                    />
+                  </Field>
+                ) : null}
                 <button
                   type="button"
                   className="abs-btn mt-2 w-full text-[10.5px]"
-                  onClick={() => void changePassword()}
+                  onClick={() => void updateUnlock()}
                   disabled={passwordBusy}
                 >
-                  {passwordBusy ? '更新中…' : '更新密码'}
+                  {passwordBusy ? '更新中…' : '更新解锁方式'}
                 </button>
+                <p className="mt-1.5 text-[9px] leading-relaxed text-muted">
+                  立即生效，存在本机保险库里；已加密的未保存备份不会失效。
+                </p>
               </div>
             ) : null}
 
             <div className="mt-3 flex flex-col gap-1.5">
               {!isDemo ? (
-                <button type="button" className="abs-btn abs-btn-ghost text-[10.5px]" onClick={lockNow}>
+                <button type="button" className="abs-btn abs-btn-ghost text-[10.5px]" onClick={() => void lockNow()}>
                   <LockKeyhole aria-hidden className="size-3" />
                   立即锁定
                 </button>
               ) : null}
-              <button type="button" className="abs-btn abs-btn-ghost text-[10.5px]" onClick={reconfigure}>
-                <RotateCcw aria-hidden className="size-3" />
-                重新配置仓库
-              </button>
-              <button
-                type="button"
-                className="abs-btn abs-btn-ghost border-danger/40 text-[10.5px] text-danger"
-                onClick={resetVault}
-              >
-                重置保险库
-              </button>
+              {!isDemo ? (
+                <button type="button" className="abs-btn abs-btn-ghost text-[10.5px]" onClick={() => void reconfigure()}>
+                  <RotateCcw aria-hidden className="size-3" />
+                  重新配置仓库
+                </button>
+              ) : null}
+              {!isDemo ? (
+                <button
+                  type="button"
+                  className="abs-btn abs-btn-ghost border-danger/40 text-[10.5px] text-danger"
+                  onClick={() => void resetVault()}
+                >
+                  重置保险库
+                </button>
+              ) : null}
             </div>
             <p className="mt-2 text-[9px] leading-relaxed text-muted">
-              忘记密码无法找回，只能重新输入 PAT。指纹变化时可用密码恢复。
+              双因子下忘记密码或指纹变化都无法找回，只能重置保险库并重新输入 PAT；本机真实仓库的未保存备份会一起清除。
             </p>
           </section>
 
@@ -507,7 +522,9 @@ export function SettingsPage() {
               {config.excludes.length} 条排除
             </p>
             <p className="mt-2 text-[9px]">
-              {isDemo ? '演示模式的仓库内容只在内存里；未保存备份保存在本机演示键。' : '备份只写本机 IndexedDB，不会上传。'}
+              {isDemo
+                ? '演示模式的仓库内容只在内存里；未保存备份保存在本机演示键（不加密）。'
+                : '备份加密后只写本机 IndexedDB，不会上传。'}
             </p>
           </section>
         </aside>

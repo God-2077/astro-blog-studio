@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { registerBackupFlush } from '@/lib/backup/flush';
 import type { BackupRecord, BackupState } from '@/lib/backup/model';
-import { readBackup, removeBackup, writeBackup } from '@/lib/backup/store';
+import { type BackupWriteResult, readBackup, removeBackup, writeBackup } from '@/lib/backup/store';
 
 export const BACKUP_DEBOUNCE_MS = 600;
 
@@ -58,9 +59,9 @@ function toRecord(snapshot: BackupSnapshot, repoKey: string): BackupRecord {
   };
 }
 
-function persist(snapshot: BackupSnapshot | null, repoKey: string): void {
-  if (!snapshot) return;
-  void writeBackup(toRecord(snapshot, repoKey));
+async function persist(snapshot: BackupSnapshot | null, repoKey: string): Promise<BackupWriteResult | null> {
+  if (!snapshot) return null;
+  return writeBackup(toRecord(snapshot, repoKey));
 }
 
 /**
@@ -158,6 +159,12 @@ export function useEditorBackup(options: UseEditorBackupOptions): EditorBackupCo
           setStatus('saved');
           setSavedAt(record.savedAt);
           setFailure(null);
+        } else if (result === 'locked') {
+          // The vault locked before this write: keep no plaintext fallback and
+          // stay quiet (the lock flow already flushed what it could).
+          setStatus('idle');
+          setSavedAt(null);
+          setFailure(null);
         } else {
           setStatus('failed');
           setFailure(result === 'too-large' ? 'too-large' : 'storage');
@@ -173,26 +180,33 @@ export function useEditorBackup(options: UseEditorBackupOptions): EditorBackupCo
     };
   }, [enabled, path, snapshot, repoKey, candidate, deferred, debounceMs]);
 
-  const flush = useCallback(() => {
+  const flushNow = useCallback(async (): Promise<void> => {
     if (!enabled || !path || suppressRef.current || blockedRef.current) return;
-    persist(snapshotRef.current, repoKey);
+    await persist(snapshotRef.current, repoKey);
   }, [enabled, path, repoKey]);
+
+  // Locking calls this before the vault key is cleared, so the latest draft is
+  // still stored as an encrypted backup.
+  useEffect(() => {
+    registerBackupFlush(flushNow);
+    return () => registerBackupFlush(null);
+  }, [flushNow]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const onVisibilityChange = (): void => {
-      if (document.visibilityState === 'hidden') flush();
+      if (document.visibilityState === 'hidden') void flushNow();
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-  }, [flush]);
+  }, [flushNow]);
 
   // Unmount-only flush: the session key changes when the user opens another file.
   useEffect(() => {
     return () => {
       if (!enabled || !path) return;
       if (suppressRef.current || blockedRef.current) return;
-      persist(snapshotRef.current, repoKey);
+      void persist(snapshotRef.current, repoKey);
     };
   }, [enabled, path, repoKey]);
 

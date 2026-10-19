@@ -19,7 +19,9 @@ setup('create the encrypted live vault', async ({ page }) => {
 
   await page.locator('input[type="password"]').first().fill(token);
   await page.locator('input[placeholder*="God-2077"]').fill(repo);
-  await page.locator('label').filter({ hasText: '同时设置密码' }).locator('input[type="checkbox"]').check();
+  // Password-only keeps the live suite independent from fingerprint sources;
+  // strict two-factor is covered by unit tests and the manual checklist.
+  await page.getByRole('radio', { name: '密码', exact: true }).check();
   await page.locator('input[placeholder="设置一个密码"]').fill(password);
 
   await page.getByRole('button', { name: /连接仓库/ }).click();

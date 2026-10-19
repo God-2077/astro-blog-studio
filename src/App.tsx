@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AppShell } from '@/components/app-shell';
@@ -12,6 +12,7 @@ import { DashboardPage } from '@/pages/dashboard';
 import { SettingsPage } from '@/pages/settings';
 import { SetupPage } from '@/pages/setup';
 import { UnlockPage } from '@/pages/unlock';
+import { useVault } from '@/stores/vault';
 
 const EditorPage = lazy(async () => {
   const module = await import('@/pages/editor');
@@ -31,6 +32,12 @@ export function App() {
         },
       }),
   );
+  const vaultStatus = useVault((state) => state.status);
+
+  // Locking must also drop decrypted article/file data kept by React Query.
+  useEffect(() => {
+    if (vaultStatus !== 'unlocked') queryClient.clear();
+  }, [vaultStatus, queryClient]);
 
   return (
     <ErrorBoundary>

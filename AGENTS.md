@@ -39,6 +39,7 @@ src/
     tree-panel.tsx          文件树、搜索、排除计数、离开未保存确认
     new-post-dialog.tsx     新建文章 → 本地草稿（不写 API）
     backup-dialog.tsx       「发现未保存的备份」AlertDialog（稍后 / 丢弃 / 恢复）
+    unlock-mode-picker.tsx  设备指纹 / 密码 / 密码 + 设备双因子（严格 AND）
     frontmatter-form.tsx    按设置字段配置渲染的动态 frontmatter 表单
     frontmatter-fields-editor.tsx  设置页的字段增删/类型/必填编辑
     pwa-update.tsx          注册 SW、轮询更新、把状态同步进 store（dev 下是 no-op）
@@ -48,7 +49,9 @@ src/
   hooks/                    use-data / use-auto-lock / use-editor-backup
   lib/
     backup/model.ts         备份记录校验、整文件快照、恢复映射
-    backup/store.ts         IndexedDB（idb-keyval）+ 同页写穿、上限与清理
+    backup/envelope.ts      AES-GCM 备份信封（整份记录 + AAD 绑定槽位/元数据）
+    backup/store.ts         IndexedDB（idb-keyval）+ 同页写穿、加密写入、迁移、上限与清理
+    backup/flush.ts         锁定前 flush 当前草稿的注册表（带超时、吞错）
     github/live.ts          Octokit + GraphQL：getRepo/getTree/readFile/readFiles/writeFile/deleteFile/moveFile
     github/fixture.ts       内存 gateway（demo）
     github/errors.ts        AppError + mapError（唯一错误翻译层）
@@ -60,7 +63,7 @@ src/
     paths/                  normalize / exclusion matcher
     pwa/update-polling.ts   SW 更新检测：节流 + single-flight + 可见/在线判断
     tree/model.ts           文件树模型（相对根目录显示，路径保留全路径；按 tree 引用 memo）
-    vault/                  crypto / fingerprint / keystore / session
+    vault/                  crypto(HKDF 备份子密钥) / fingerprint / keystore(三种解锁模式) / session / mode
     demo/fixtures.ts         演示仓库与 12 篇示例
   stores/                   zustand：settings(persist)、vault、ui、rate-limit、last-commit、editor guard、pending-post、pwa
   styles/app.css            Tailwind v4 tokens + .abs-* 设计系统
@@ -75,9 +78,10 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
 
 1. **PAT 安全**
    - 不允许明文 PAT 进 localStorage / 日志 / DOM / URL / 构建产物 / 测试快照。
-   - 解锁后的 PAT 只在 `vaultSession` 内存；锁定要清空 session 和 React Query 缓存。
+   - `vaultSession` 只在内存保存 PAT、数据密钥与派生的备份密钥；锁定必须先 flush 加密草稿，再清空 session、备份内存和 React Query 缓存。
    - `.env.local` 只给 Node 测试；不要提交；测试结束后轮换 token。
    - 不引入第三方统计、脚本、字体 CDN、iframe、外链图片上传。
+   - 解锁方式只有三种：`device` / `password` / `two-factor`。双因子是严格 AND：密码 KEK 混入本机指纹，payload 里**不得**同时存在独立的 `device` 包装；也不要恢复「设备指纹自动解锁」按钮。
 2. **浏览器纯前端**
    - 不新增后端、不调用自建 API、不在构建时读取私有内容。
    - 外部网络只有 `api.github.com`（以及 GitHub 的 html_url 点击跳转）。
@@ -116,6 +120,8 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
    - `public/icon-*.png` 是生成物：改图标要改 `scripts/generate-pwa-icons.mjs` 并重跑 `pnpm pwa:icons`，不要手改 PNG。
 9. **未保存备份**
    - 只写本机 IndexedDB（`lib/backup/store.ts`）；键含 `mode:owner/name@branch` + path；不得上传、不得包含 PAT；不得把备份写进 CacheStorage。
+   - **真实仓库（`live:`）备份必须加密**：整份 `BackupRecord` 用保险库数据密钥经 HKDF 派生的 AES-GCM 子密钥加密（`lib/backup/envelope.ts`）；没有密钥时写入返回 `'locked'` 且不得回落明文。demo（`demo:`）没有保险库，保持明文。
+   - 锁定前必须 `flushActiveBackup()` 再清密钥；`reset`（重置保险库）要清空本机所有 `live:` 备份并清备份内存；解锁后 best-effort 迁移旧明文备份。
    - 每个编辑器会话进入时只检查一次；恢复已有文件必须保留备份的 `baseSha`，保存仍走 409 冲突；恢复新稿只写 `usePendingPost`，首次保存前不得有写 API。
    - 保存、移动、删除成功后清除对应备份；保存成功后要同步抑制该会话的卸载 flush，避免把刚删除的记录写回。
    - `settings.editor.backupUnsaved` 关闭后停止读写；设置页的清除只清当前模式的当前仓库（所有分支）。
@@ -125,8 +131,8 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
 
 1. `pnpm test:seed`（测试仓库为空或需要恢复种子）。
 2. `pnpm test` / `pnpm test:live`；live 会创建 `src/_e2e/<runId>/*` 并自动清理。
-3. `pnpm test:e2e`：setup 建本地加密保险库（`tests/e2e/.auth/`，已 gitignore），demo 验证 fixture/字段配置/源文件模式/新稿草稿/`{title}`/未保存备份恢复与丢弃，live 创建/清理 `src/_e2e/*`，并断言新稿保存前 404、保存后单提交、dashboard 1 次 GraphQL 批量且 0 次 summary Contents 请求。`pwa` 组会先用 `vite build` 构建再 `vite preview`：断言 manifest/图标/SW、断网从预缓存打开、以及 waiting 新版本 → 弹窗 → 「稍后」→ 徽标 → 「立即刷新」才 reload（会临时 append `dist/sw.js` 并在 afterAll 还原）。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。只想验 PWA 用 `pnpm test:e2e:pwa`。
-4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；源文件模式改整份文件并切回表单；未保存备份：改标题/源文件/新稿 → 刷新 → 稍后 → 恢复 → 保存后不再提示，以及丢弃后不再提示；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；移动/删除/冲突；390px；`pnpm build` 后 `pnpm preview` 断网重载与更新弹窗。
+3. `pnpm test:e2e`：setup 用「密码」模式建本地加密保险库（`tests/e2e/.auth/`，已 gitignore；不要用双因子，避免指纹来源波动导致 flaky），demo 验证 fixture/字段配置/源文件模式/新稿草稿/`{title}`/未保存备份恢复与丢弃，live 创建/清理 `src/_e2e/*`，并断言新稿保存前 404、保存后单提交、dashboard 1 次 GraphQL 批量且 0 次 summary Contents 请求、真实草稿在 IndexedDB 中是 `v: 2` 密文且锁定/解锁后可恢复。`pwa` 组会先用 `vite build` 构建再 `vite preview`：断言 manifest/图标/SW、断网从预缓存打开、以及 waiting 新版本 → 弹窗 → 「稍后」→ 徽标 → 「立即刷新」才 reload（会临时 append `dist/sw.js` 并在 afterAll 还原）。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。只想验 PWA 用 `pnpm test:e2e:pwa`。
+4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；源文件模式改整份文件并切回表单；未保存备份：改标题/源文件/新稿 → 刷新 → 稍后 → 恢复 → 保存后不再提示，以及丢弃后不再提示；双因子 Setup → 刷新必须输密码且不自动解锁、换指纹后失败并提示重置；真实仓库改标题后 IndexedDB 只有密文、锁定 → 解锁 → 恢复；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；移动/删除/冲突；390px；`pnpm build` 后 `pnpm preview` 断网重载与更新弹窗。
 5. `pnpm verify`；`pnpm test:clean`；轮换测试 token。
 
 ## 代码风格
