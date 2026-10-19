@@ -28,7 +28,7 @@ export function AppShell() {
   const updateReady = usePwaUpdate((state) => state.needRefresh);
   const reopenUpdate = usePwaUpdate((state) => state.reopenPrompt);
   const cachedCount = useContent((state) => state.cachedCount);
-  const { checkNow } = useContentActions();
+  const { checkNow, pending: contentPending } = useContentActions();
   const activePath = new URLSearchParams(location.search).get('path');
 
   // Load the encrypted local article cache once, then reconcile it with HEAD.
@@ -178,6 +178,7 @@ export function AppShell() {
               model={model}
               activePath={activePath}
               isLoading={tree.isLoading}
+              refreshing={contentPending}
               error={tree.error}
               onRetry={retryTree}
               onRefresh={() => void checkNow()}
@@ -224,6 +225,7 @@ export function AppShell() {
               model={model}
               activePath={activePath}
               isLoading={tree.isLoading}
+              refreshing={contentPending}
               error={tree.error}
               onRetry={retryTree}
               onRefresh={() => void checkNow()}

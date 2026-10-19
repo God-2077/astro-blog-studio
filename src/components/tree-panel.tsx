@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FileCardIcon, FolderCardIcon } from '@/components/paper-icons';
 import { ErrorNote, SkeletonList } from '@/components/ui';
 import type { TreeModel, TreeNode } from '@/lib/tree/model';
+import { cn } from '@/lib/utils/cn';
 import { useEditorGuard } from '@/stores/editor';
 import { useUi } from '@/stores/ui';
 
@@ -29,12 +30,14 @@ interface TreePanelProps {
   model: TreeModel | null;
   activePath: string | null;
   isLoading: boolean;
+  /** An explicit 检查更新 / cache reconcile is running. */
+  refreshing: boolean;
   error: unknown;
   onRetry: () => void;
   onRefresh: () => void;
 }
 
-export function TreePanel({ model, activePath, isLoading, error, onRetry, onRefresh }: TreePanelProps) {
+export function TreePanel({ model, activePath, isLoading, refreshing, error, onRetry, onRefresh }: TreePanelProps) {
   const navigate = useNavigate();
   const setSidebarOpen = useUi((state) => state.setSidebarOpen);
   const [query, setQuery] = useState('');
@@ -117,10 +120,12 @@ export function TreePanel({ model, activePath, isLoading, error, onRetry, onRefr
           type="button"
           className="abs-icon-btn ml-auto size-7"
           onClick={onRefresh}
-          title="检查更新（文件树 + 文章）"
+          disabled={refreshing}
+          aria-busy={refreshing}
+          title={refreshing ? '正在检查更新' : '检查更新（文件树 + 文章）'}
           aria-label="检查更新"
         >
-          <RefreshCw aria-hidden className="size-3" />
+          <RefreshCw aria-hidden className={cn('size-3', refreshing && 'animate-spin')} />
         </button>
       </div>
 

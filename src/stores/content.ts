@@ -30,6 +30,8 @@ interface ContentState {
   repoKey: string | null;
   signature: string | null;
   status: ContentStatus;
+  /** True from an explicit “检查更新” click until the tree + cache reconcile settles. */
+  checkPending: boolean;
   /** Mode of the last sync: `full` on a first load, `delta` when reconciling. */
   mode: SyncMode | null;
   progress: { done: number; total: number };
@@ -49,6 +51,12 @@ interface ContentState {
   error: string | null;
   prepare: (input: ContentPrepareInput) => Promise<void>;
   syncWithTree: (input: ContentSyncInput) => Promise<SyncResult | null>;
+  /** Mark an explicit user check as running; shared by every “检查更新” button. */
+  beginCheck: () => void;
+  /** Release one explicit check; keeps the flag until the last one settles. */
+  endCheck: () => void;
+  /** Surface a failure that happened before `syncWithTree` could report it. */
+  fail: (message: string) => void;
   /** Drop the local cache for this repo and re-read it on the next sync. */
   clearLocal: () => Promise<void>;
   reset: () => void;
@@ -65,6 +73,7 @@ let signatureStored: string | null = null;
 let epoch = 0;
 let queued: Promise<void> = Promise.resolve();
 let summariesByPath = new Map<string, PostSummary>();
+let activeChecks = 0;
 
 function yieldToUi(): Promise<void> {
   return new Promise((resolve) => {
@@ -123,6 +132,7 @@ export const useContent = create<ContentState>()((set) => ({
   repoKey: null,
   signature: null,
   status: 'idle',
+  checkPending: false,
   mode: null,
   progress: { done: 0, total: 0 },
   summaries: [],
@@ -265,6 +275,20 @@ export const useContent = create<ContentState>()((set) => ({
     return next;
   },
 
+  beginCheck: () => {
+    activeChecks += 1;
+    set({ checkPending: true });
+  },
+
+  endCheck: () => {
+    activeChecks = Math.max(0, activeChecks - 1);
+    set({ checkPending: activeChecks > 0 });
+  },
+
+  fail: (message) => {
+    set({ status: 'error', error: message, progress: { done: 0, total: 0 } });
+  },
+
   clearLocal: async () => {
     epoch += 1;
     const active = storage;
@@ -289,6 +313,7 @@ export const useContent = create<ContentState>()((set) => ({
 
   reset: () => {
     epoch += 1;
+    activeChecks = 0;
     storage = null;
     preparing = null;
     preparedId = null;
@@ -301,6 +326,7 @@ export const useContent = create<ContentState>()((set) => ({
       repoKey: null,
       signature: null,
       status: 'idle',
+      checkPending: false,
       mode: null,
       progress: { done: 0, total: 0 },
       summaries: [],

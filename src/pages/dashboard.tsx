@@ -8,6 +8,7 @@ import { useContentActions } from '@/hooks/use-content-sync';
 import { useTreeModel } from '@/hooks/use-data';
 import { useGateway } from '@/lib/gateway/context';
 import { pickRecent } from '@/lib/posts/summary';
+import { cn } from '@/lib/utils/cn';
 import { displayDate } from '@/lib/utils/date';
 import { useContent } from '@/stores/content';
 import { useLastCommit } from '@/stores/last-commit';
@@ -17,7 +18,7 @@ export function DashboardPage() {
   const { mode, config, repo } = useGateway();
   const { tree, model } = useTreeModel();
   const content = useContent();
-  const { checkNow, busy } = useContentActions();
+  const { checkNow, busy, pending } = useContentActions();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,6 +36,8 @@ export function DashboardPage() {
     : content.indexed > 0
       ? `全库 ${content.indexed} 篇`
       : '读取 frontmatter';
+  const syncLabel = content.status === 'loading' || content.status === 'updating' ? '同步中…' : busy ? '检查中…' : '检查更新';
+  const effectiveStatus = pending && !isSyncing ? 'checking' : content.status;
   const today = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full', timeZone: config.timezone }).format(new Date());
 
   const openDialog = params.get('new') === '1' || dialogOpen;
@@ -66,9 +69,10 @@ export function DashboardPage() {
               className="abs-btn abs-btn-ghost h-8"
               onClick={() => void checkNow({ notify: true })}
               disabled={busy}
+              aria-busy={busy}
             >
-              <RefreshCw aria-hidden className="size-3.5" />
-              {busy ? '同步中…' : '检查更新'}
+              <RefreshCw aria-hidden className={cn('size-3.5', busy && 'animate-spin')} />
+              {syncLabel}
             </button>
             <button type="button" className="abs-btn abs-btn-primary" onClick={() => setDialog(true)}>
               <Plus aria-hidden className="size-3.5" />
@@ -83,7 +87,7 @@ export function DashboardPage() {
         ) : null}
 
         <ContentSyncStatus
-          status={content.status}
+          status={effectiveStatus}
           mode={content.mode}
           progress={content.progress}
           counts={content.counts}

@@ -11,9 +11,15 @@ import { buildTreeModel } from '@/lib/tree/model';
 import { useContent } from '@/stores/content';
 import { useSettings } from '@/stores/settings';
 
+/** One toast id so a repeated check updates the same loading toast in place. */
+const CHECK_TOAST_ID = 'content-check';
+
 export interface ContentActions {
   checkNow: (options?: { forceFull?: boolean; notify?: boolean }) => Promise<SyncResult | null>;
+  /** A manual check is running, or the content store is syncing. */
   busy: boolean;
+  /** An explicit “检查更新” click is in flight (shared by all buttons). */
+  pending: boolean;
 }
 
 function isBusyStatus(status: string): boolean {
@@ -58,52 +64,92 @@ export function useContentActions(): ContentActions {
   const { gateway, repo, config, mode } = useGateway();
   const { tree } = useTreeModel();
   const indexConcurrency = useSettings((state) => state.content.indexConcurrency);
-  const busy = useContent((state) => isBusyStatus(state.status));
+  const pending = useContent((state) => state.checkPending);
+  const busy = useContent((state) => state.checkPending || isBusyStatus(state.status));
   const repoKey = contentRepoKey(mode, repo, repo.defaultBranch);
   const signature = contentSignature(config);
 
   const checkNow = useCallback<ContentActions['checkNow']>(
     async (options = {}) => {
       const forceFull = Boolean(options.forceFull);
-      if (forceFull) await useContent.getState().clearLocal();
-      // Idempotent: returns immediately when this repo/config is already prepared.
-      await useContent.getState().prepare({ repoKey, signature, kind: mode });
+      const notify = Boolean(options.notify);
+      const state = useContent.getState();
+      // Single-flight: every button disables itself, this also protects forced reloads.
+      if (state.checkPending) return null;
 
-      let fresh: Awaited<ReturnType<typeof tree.refetch>>;
+      state.beginCheck();
+      const toastId = notify
+        ? toast.loading(forceFull ? '正在重新读取全部文章…' : '正在检查远端更新…', { id: CHECK_TOAST_ID })
+        : null;
+      let outcome: { ok: boolean; message: string } | null = null;
+
+      /** Tree/refresh failures must not leave the store stuck on `checking`. */
+      const failWith = (message: string): null => {
+        outcome = { ok: false, message };
+        const current = useContent.getState();
+        if (isBusyStatus(current.status) || current.status === 'error') current.fail(message);
+        return null;
+      };
+
       try {
-        fresh = await tree.refetch();
+        if (forceFull) await state.clearLocal();
+        // Idempotent: returns immediately when this repo/config is already prepared.
+        await state.prepare({ repoKey, signature, kind: mode });
+
+        let fresh: Awaited<ReturnType<typeof tree.refetch>>;
+        try {
+          fresh = await tree.refetch();
+        } catch (caught) {
+          return failWith(mapError(caught).message);
+        }
+        if (!fresh.data) {
+          return failWith(fresh.error ? mapError(fresh.error).message : '读取文件树失败，请重试');
+        }
+
+        const plan = planIndex(buildTreeModel(fresh.data.entries, config).files, INDEX_CHUNK_SIZE, MAX_INDEX_FILES);
+        const result = await useContent.getState().syncWithTree({
+          chunks: plan.chunks,
+          treeSha: fresh.data.sha,
+          truncated: fresh.data.truncated,
+          forceFull,
+          readFiles: (paths) => gateway.readFiles(paths),
+          concurrency: clampIndexConcurrency(indexConcurrency),
+          visibleTotal: plan.total,
+          indexed: plan.indexed,
+        });
+
+        if (!result) {
+          outcome = { ok: false, message: '同步没有完成，请稍后重试' };
+          return null;
+        }
+        if (!result.ok) {
+          outcome = { ok: false, message: '部分文章同步失败，请重试' };
+          return result;
+        }
+
+        outcome = {
+          ok: true,
+          message:
+            result.mode === 'unchanged'
+              ? '已是最新'
+              : result.mode === 'full'
+                ? `已读取全部 ${result.meta?.files.length ?? plan.indexed} 篇`
+                : `已同步 · 新增 ${result.counts.added} / 修改 ${result.counts.modified} / 删除 ${result.counts.deleted}`,
+        };
+        return result;
       } catch (caught) {
-        if (options.notify) toast.error(mapError(caught).message);
-        return null;
+        return failWith(mapError(caught).message);
+      } finally {
+        useContent.getState().endCheck();
+        if (toastId !== null) {
+          if (outcome?.ok) toast.success(outcome.message, { id: toastId });
+          else if (outcome) toast.error(outcome.message, { id: toastId });
+          else toast.dismiss(toastId);
+        }
       }
-      if (!fresh.data) {
-        if (options.notify) toast.error(fresh.error ? mapError(fresh.error).message : '读取文件树失败，请重试');
-        return null;
-      }
-
-      const plan = planIndex(buildTreeModel(fresh.data.entries, config).files, INDEX_CHUNK_SIZE, MAX_INDEX_FILES);
-      const result = await useContent.getState().syncWithTree({
-        chunks: plan.chunks,
-        treeSha: fresh.data.sha,
-        truncated: fresh.data.truncated,
-        forceFull,
-        readFiles: (paths) => gateway.readFiles(paths),
-        concurrency: clampIndexConcurrency(indexConcurrency),
-        visibleTotal: plan.total,
-        indexed: plan.indexed,
-      });
-
-      if (!options.notify) return result;
-      if (!result) toast.error('同步没有完成，请稍后重试');
-      else if (!result.ok) toast.error('部分文章同步失败，请重试');
-      else if (result.mode === 'unchanged') toast.success('已是最新');
-      else if (result.mode === 'full') toast.success(`已读取全部 ${result.meta?.files.length ?? plan.indexed} 篇`);
-      else
-        toast.success(`已同步 · 新增 ${result.counts.added} / 修改 ${result.counts.modified} / 删除 ${result.counts.deleted}`);
-      return result;
     },
     [repoKey, signature, mode, tree, gateway, config, indexConcurrency],
   );
 
-  return { checkNow, busy };
+  return { checkNow, busy, pending };
 }

@@ -37,10 +37,19 @@ class CountingGateway extends FixtureGateway {
   }
 }
 
+class SlowTreeGateway extends CountingGateway {
+  delayMs = 0;
+
+  override async getTree() {
+    if (this.delayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, this.delayMs));
+    return super.getTree();
+  }
+}
+
 function Probe() {
   useContentSync();
   const content = useContent();
-  const { checkNow, busy } = useContentActions();
+  const { checkNow, busy, pending } = useContentActions();
   return (
     <div>
       <span data-testid="status">{content.status}</span>
@@ -49,6 +58,7 @@ function Probe() {
       <span data-testid="indexed">{content.indexed}</span>
       <span data-testid="titles">{content.summaries.map((post) => post.title).join('|')}</span>
       <span data-testid="busy">{String(busy)}</span>
+      <span data-testid="pending">{String(pending)}</span>
       <button type="button" onClick={() => void checkNow()}>
         check
       </button>
@@ -134,5 +144,17 @@ describe('local article cache', () => {
     await waitForCount(24);
     expect(gateway.batchCalls).toBe(before);
     expect(screen.getByTestId('titles').textContent).not.toContain('T0');
+  });
+
+  it('reports a pending check while the tree refetch is in flight', async () => {
+    const gateway = new SlowTreeGateway(buildSeed(5));
+    renderProbe(gateway);
+    await waitForCount(5);
+
+    gateway.delayMs = 200;
+    await userEvent.click(screen.getByRole('button', { name: 'check' }));
+    await waitFor(() => expect(screen.getByTestId('pending').textContent).toBe('true'));
+    expect(screen.getByTestId('busy').textContent).toBe('true');
+    await waitFor(() => expect(screen.getByTestId('pending').textContent).toBe('false'), { timeout: 3000 });
   });
 });

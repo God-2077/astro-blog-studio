@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Collapse } from '@/components/collapse';
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
 import { useResolvedTheme } from '@/components/theme-provider';
-import { Field } from '@/components/ui';
+import { Field, Spinner } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
 import { useContentActions } from '@/hooks/use-content-sync';
 import { backupKeyPrefix } from '@/lib/backup/model';
@@ -21,6 +21,7 @@ import {
 import { useGateway } from '@/lib/gateway/context';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
 import { THEME_OPTIONS, type ThemePreference } from '@/lib/theme/theme';
+import { cn } from '@/lib/utils/cn';
 import { formatInTimeZone } from '@/lib/utils/date';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode, vaultModeLabel } from '@/lib/vault/mode';
 import { useContent } from '@/stores/content';
@@ -165,6 +166,16 @@ export function SettingsPage() {
   };
 
   const cacheLastSynced = content.lastSyncedAt ? formatInTimeZone(new Date(content.lastSyncedAt), config.timezone) : '尚未同步';
+  const cachePhaseLabel =
+    content.status === 'loading'
+      ? content.mode === 'full'
+        ? '正在读取全部文章…'
+        : '正在读取本机缓存…'
+      : content.status === 'updating'
+        ? '正在同步文章变更…'
+        : '正在检查远端更新…';
+  const cachePercent =
+    content.progress.total > 0 ? Math.min(100, Math.round((content.progress.done / content.progress.total) * 100)) : 0;
 
   const checkCache = async (): Promise<void> => {
     await checkNow({ notify: true });
@@ -298,9 +309,21 @@ export function SettingsPage() {
               <span>树 {content.treeSha ? content.treeSha.slice(0, 8) : '—'}</span>
             </div>
             {cacheBusy ? (
-              <p className="mt-2 font-mono text-[10px] text-muted">
-                正在同步 {content.progress.done} / {content.progress.total || content.indexed}
-              </p>
+              <div className="mt-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Spinner label={cachePhaseLabel} />
+                  {content.progress.total > 0 ? (
+                    <span className="font-mono text-[10px] text-muted">
+                      {content.progress.done} / {content.progress.total}
+                    </span>
+                  ) : null}
+                </div>
+                {content.progress.total > 0 ? (
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full border border-edge/20 bg-blush-2">
+                    <span className="abs-progress" style={{ width: `${cachePercent}%` }} />
+                  </div>
+                ) : null}
+              </div>
             ) : null}
             {content.persist === 'failed' ? (
               <p className="mt-2 text-[10px] leading-relaxed text-muted">
@@ -313,9 +336,10 @@ export function SettingsPage() {
                 className="abs-btn abs-btn-ghost text-[10.5px]"
                 onClick={() => void checkCache()}
                 disabled={cacheBusy || isDemo}
+                aria-busy={cacheBusy}
               >
-                <RefreshCw aria-hidden className="size-3" />
-                检查更新
+                <RefreshCw aria-hidden className={cn('size-3', cacheBusy && 'animate-spin')} />
+                {cacheBusy ? '检查中…' : '检查更新'}
               </button>
               <button
                 type="button"
