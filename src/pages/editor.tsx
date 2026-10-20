@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { BackupDialog } from '@/components/backup-dialog';
+import { confirmAction } from '@/components/confirm-toast';
 import { FrontmatterForm } from '@/components/frontmatter-form';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Badge, ErrorNote, Field, Spinner } from '@/components/ui';
@@ -367,6 +368,19 @@ function EditorSession({
     setDirty(true);
     setPristine(false);
     setSaveOpen(false);
+  };
+
+  const leaveEditor = async (): Promise<void> => {
+    if (dirty) {
+      const leave = await confirmAction('有未保存的修改，确定离开吗？', {
+        description: '离开后这些修改不会写入仓库；本机备份开启时，回到这篇还能看到备份提示。',
+        confirmLabel: '离开',
+        cancelLabel: '继续编辑',
+        danger: true,
+      });
+      if (!leave) return;
+    }
+    navigate('/');
   };
 
   const updateField = (name: string, value: FrontmatterFormValue): void => {
@@ -822,10 +836,7 @@ function EditorSession({
               <button
                 type="button"
                 className="abs-icon-btn mt-0.5"
-                onClick={() => {
-                  if (dirty && !window.confirm('有未保存的修改，确定离开吗？')) return;
-                  navigate('/');
-                }}
+                onClick={() => void leaveEditor()}
                 aria-label="回到工作台"
               >
                 <ArrowLeft aria-hidden className="size-3.5" />

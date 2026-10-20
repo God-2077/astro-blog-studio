@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ContentSyncStatus } from '@/components/content-status';
+import { confirmAction } from '@/components/confirm-toast';
 import { NewPostDialog } from '@/components/new-post-dialog';
 import { Badge, EmptyState, ErrorNote, SkeletonList } from '@/components/ui';
 import { useContentActions } from '@/hooks/use-content-sync';
@@ -107,11 +108,23 @@ export function DashboardPage() {
   };
 
   const removeDraftItem = async (draft: DraftBoxItem): Promise<void> => {
-    if (!window.confirm(`从草稿箱删除「${draft.title}」？本机这份草稿（含自动备份）会被清除，无法恢复。`)) return;
-    await useDrafts.getState().remove(repoKey, draft.path);
+    const confirmed = await confirmAction(`从草稿箱删除「${draft.title}」？`, {
+      description: '本机这份草稿（含自动备份）会被清除，无法恢复。',
+      confirmLabel: '删除草稿',
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      await useDrafts.getState().remove(repoKey, draft.path);
+    } catch (caught) {
+      toast.error('没能删除这份草稿', {
+        description: caught instanceof Error ? caught.message : '本机存储不可用，稍后再试。',
+      });
+      return;
+    }
     // A deleted new-post draft must not be resurrected by the next park.
-    const pending = usePendingPost.getState().draft;
-    if (pending && normalizeRepoPath(pending.path) === normalizeRepoPath(draft.path)) {
+    const pendingPost = usePendingPost.getState().draft;
+    if (pendingPost && normalizeRepoPath(pendingPost.path) === normalizeRepoPath(draft.path)) {
       usePendingPost.getState().clearDraft();
     }
     toast.success('已从草稿箱删除');

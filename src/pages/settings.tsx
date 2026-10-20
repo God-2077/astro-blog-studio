@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Collapse } from '@/components/collapse';
+import { confirmAction } from '@/components/confirm-toast';
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Field, Spinner } from '@/components/ui';
@@ -63,6 +64,7 @@ export function SettingsPage() {
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [passwordBusy, setPasswordBusy] = useState(false);
+  const [clearingBackups, setClearingBackups] = useState(false);
 
   const isDemo = mode === 'demo';
   const resolvedTheme = useResolvedTheme();
@@ -159,10 +161,21 @@ export function SettingsPage() {
   };
 
   const clearLocalBackups = async (): Promise<void> => {
-    if (!window.confirm('清除本仓库在这台设备上的未保存备份？此操作不可恢复。')) return;
-    const ok = await clearBackupsByPrefix(backupKeyPrefix(mode, repo));
-    if (ok) toast.success('已清除本仓库的本机备份');
-    else toast.error('清除失败，请稍后再试');
+    if (clearingBackups) return;
+    const confirmed = await confirmAction('清除本仓库在这台设备上的未保存备份？此操作不可恢复。', {
+      description: '只清当前仓库当前分支的本机备份，不会动 GitHub 上的文件；正在编辑的内容会重新写入。',
+      confirmLabel: '清除备份',
+      danger: true,
+    });
+    if (!confirmed) return;
+    setClearingBackups(true);
+    try {
+      const ok = await clearBackupsByPrefix(backupKeyPrefix(mode, repo));
+      if (ok) toast.success('已清除本仓库的本机备份');
+      else toast.error('清除失败，请稍后再试');
+    } finally {
+      setClearingBackups(false);
+    }
   };
 
   const cacheLastSynced = content.lastSyncedAt ? formatInTimeZone(new Date(content.lastSyncedAt), config.timezone) : '尚未同步';
@@ -186,31 +199,45 @@ export function SettingsPage() {
       toast.error('演示模式不写本机缓存');
       return;
     }
-    if (!window.confirm('强制全量更新会清除本仓库的本机文章缓存，并重新读取全部文章。继续吗？')) return;
+    const confirmed = await confirmAction('强制全量更新会清除本仓库的本机文章缓存，并重新读取全部文章。继续吗？', {
+      description: '按当前索引并发重新读取；只影响这台设备上的缓存，不会改 GitHub 上的文件。',
+      confirmLabel: '重新读取',
+    });
+    if (!confirmed) return;
     await checkNow({ forceFull: true, notify: true });
   };
 
   const resetVault = async (): Promise<void> => {
-    if (
-      !window.confirm(
-        '重置保险库会删除本机令牌，以及本机所有真实仓库的未保存加密备份（演示备份保留），需要重新输入 PAT。继续吗？',
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirmAction(
+      '重置保险库会删除本机令牌，以及本机所有真实仓库的未保存加密备份（演示备份保留），需要重新输入 PAT。继续吗？',
+      {
+        description: 'GitHub 上的文章不受影响；未提交到仓库的本机备份无法找回。',
+        confirmLabel: '重置保险库',
+        danger: true,
+      },
+    );
+    if (!confirmed) return;
     await vault.reset();
     settings.setRepo(null);
     navigate('/setup');
   };
 
   const reconfigure = async (): Promise<void> => {
-    if (!window.confirm('重新配置会删除本机保险库与真实仓库的未保存备份，然后回到首次配置。继续吗？')) return;
+    const confirmed = await confirmAction('重新配置会删除本机保险库与真实仓库的未保存备份，然后回到首次配置。继续吗？', {
+      confirmLabel: '重新配置',
+      danger: true,
+    });
+    if (!confirmed) return;
     await vault.reset();
     navigate('/setup');
   };
 
-  const resetFields = (): void => {
-    if (!window.confirm('恢复 hello-world 常用字段？当前字段列表会被替换。')) return;
+  const resetFields = async (): Promise<void> => {
+    const confirmed = await confirmAction('恢复 hello-world 常用字段？当前字段列表会被替换。', {
+      description: '已保存文章里的其他 frontmatter 键不会被删除，编辑器会按未知字段保留它们。',
+      confirmLabel: '恢复默认',
+    });
+    if (!confirmed) return;
     setFields(cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS));
     setFieldError(null);
   };
@@ -489,8 +516,10 @@ export function SettingsPage() {
                 type="button"
                 className="abs-btn abs-btn-ghost mt-2 text-[10.5px]"
                 onClick={() => void clearLocalBackups()}
+                disabled={clearingBackups}
+                aria-busy={clearingBackups}
               >
-                清除本仓库的本机备份
+                {clearingBackups ? '清除中…' : '清除本仓库的本机备份'}
               </button>
             </div>
           </Collapse>

@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { confirmAction } from '@/components/confirm-toast';
 import { FileCardIcon, FolderCardIcon } from '@/components/paper-icons';
 import { ErrorNote, SkeletonList } from '@/components/ui';
 import type { TreeModel, TreeNode } from '@/lib/tree/model';
@@ -52,9 +53,15 @@ export function TreePanel({ model, activePath, isLoading, refreshing, error, onR
     return model.files.filter((file) => file.path.toLowerCase().includes(needle) || file.name.toLowerCase().includes(needle));
   }, [model, query]);
 
-  const openFile = (path: string): void => {
-    if (path !== activePath && useEditorGuard.getState().dirty && !window.confirm('当前文章有未保存的修改，确定离开吗？'))
-      return;
+  const openFile = async (path: string): Promise<void> => {
+    if (path !== activePath && useEditorGuard.getState().dirty) {
+      const leave = await confirmAction('当前文章有未保存的修改，确定离开吗？', {
+        confirmLabel: '离开',
+        cancelLabel: '继续编辑',
+        danger: true,
+      });
+      if (!leave) return;
+    }
     navigate(`/edit?path=${encodeURIComponent(path)}`);
     setSidebarOpen(false);
   };
@@ -100,7 +107,7 @@ export function TreePanel({ model, activePath, isLoading, refreshing, error, onR
           type="button"
           className="abs-tree-row"
           data-selected={activePath === node.path ? 'true' : 'false'}
-          onClick={() => openFile(node.path)}
+          onClick={() => void openFile(node.path)}
           title={node.path}
           style={{ paddingLeft: `${7 + depth * 12}px` }}
         >
@@ -167,7 +174,7 @@ export function TreePanel({ model, activePath, isLoading, refreshing, error, onR
                     type="button"
                     className="abs-tree-row"
                     data-selected={activePath === file.path ? 'true' : 'false'}
-                    onClick={() => openFile(file.path)}
+                    onClick={() => void openFile(file.path)}
                     title={file.path}
                   >
                     <FileCardIcon className="size-3.5 shrink-0 text-tree-file" />

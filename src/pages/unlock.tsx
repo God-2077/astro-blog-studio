@@ -1,6 +1,7 @@
 import { Fingerprint, KeyRound, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { confirmAction } from '@/components/confirm-toast';
 import { Spinner } from '@/components/ui';
 import type { VaultModeState } from '@/lib/vault/mode';
 import { useVault } from '@/stores/vault';
@@ -52,13 +53,15 @@ export function UnlockPage() {
   };
 
   const handleReset = async (): Promise<void> => {
-    if (
-      !window.confirm(
-        '重置保险库会删除本机保存的令牌，以及本机所有真实仓库的未保存备份（演示备份保留），需要重新输入 PAT。继续吗？',
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirmAction(
+      '重置保险库会删除本机保存的令牌，以及本机所有真实仓库的未保存备份（演示备份保留），需要重新输入 PAT。继续吗？',
+      {
+        description: 'GitHub 上的文章不受影响；未提交到仓库的本机备份无法找回。',
+        confirmLabel: '重置保险库',
+        danger: true,
+      },
+    );
+    if (!confirmed) return;
     await vault.reset();
     navigate('/setup', { replace: true });
   };

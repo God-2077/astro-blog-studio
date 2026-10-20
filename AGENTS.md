@@ -39,6 +39,7 @@ src/
     tree-panel.tsx          文件树、搜索、排除计数、离开未保存确认
     new-post-dialog.tsx     新建文章 → 本地草稿（不写 API）
     backup-dialog.tsx       「发现未保存的备份」AlertDialog（稍后 / 丢弃 / 恢复）
+    confirm-toast.tsx       sonner 确认条：confirmAction → Promise<boolean>（取代 window.confirm）
     unlock-mode-picker.tsx  设备指纹 / 密码 / 密码 + 设备双因子（严格 AND）
     frontmatter-form.tsx    按设置字段配置渲染的动态 frontmatter 表单
     frontmatter-fields-editor.tsx  设置页的字段增删/类型/必填编辑
@@ -123,6 +124,7 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
    - 组件样式优先用 `.abs-*` 设计系统；不要引入通用 SaaS 卡片网格/渐变/玻璃拟态。
    - 编辑器内部保持安静：无纹理、无旋转、无入场动画；动效尊重 `prefers-reduced-motion`。
    - 唯一实心樱粉按钮是「新建文章」；印章是唯一的红。
+   - 用户确认统一走 `confirmAction`（`components/confirm-toast.tsx`），不要再用 `window.confirm` / `alert`；它返回 `Promise<boolean>`，调用方必须 `await` 并在确认后继续 `await` 自己的异步动作。破坏性操作的确认按钮用 `.abs-btn-danger`。
    - 改视觉先看 `DESIGN.md` 和 `design/directions.html`，不要另起一套主题。
 8. **PWA 与缓存**
    - Service Worker 只预缓存同源构建产物（html/js/css/woff2/图标）；`api.github.com` 必须保持 `NetworkOnly`，**不得把 API 响应写进 CacheStorage**（私有内容与令牌语义）。

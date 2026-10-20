@@ -1,6 +1,7 @@
 import { Github, LockKeyhole, Menu, Plus, RefreshCw, Settings, Sparkles, X } from 'lucide-react';
 import { type MouseEvent, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { confirmAction } from '@/components/confirm-toast';
 import { TreePanel } from '@/components/tree-panel';
 import { useAutoLock } from '@/hooks/use-auto-lock';
 import { useContentActions, useContentSync } from '@/hooks/use-content-sync';
@@ -34,9 +35,23 @@ export function AppShell() {
   // Load the encrypted local article cache once, then reconcile it with HEAD.
   useContentSync();
 
-  const confirmLeave = (): boolean => !dirty || window.confirm('当前文章有未保存的修改，确定离开吗？');
-  const guardLeave = (event: MouseEvent<HTMLAnchorElement>): void => {
-    if (!confirmLeave()) event.preventDefault();
+  const confirmLeave = async (): Promise<boolean> =>
+    !dirty ||
+    (await confirmAction('当前文章有未保存的修改，确定离开吗？', {
+      confirmLabel: '离开',
+      cancelLabel: '继续编辑',
+      danger: true,
+    }));
+
+  // 未保存时同步 preventDefault 挡住 <Link> 的默认跳转，等确认后再 navigate；
+  // 带修饰键或中键仍交给浏览器（新标签页打开），不改原生行为。
+  const guardLeave = (to: string) => (event: MouseEvent<HTMLAnchorElement>): void => {
+    if (!dirty) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    void confirmLeave().then((leave) => {
+      if (leave) navigate(to);
+    });
   };
 
   useAutoLock(mode === 'live');
@@ -84,7 +99,9 @@ export function AppShell() {
           type="button"
           className="abs-brand text-left"
           onClick={() => {
-            if (confirmLeave()) navigate('/');
+            void confirmLeave().then((leave) => {
+              if (leave) navigate('/');
+            });
           }}
           aria-label="回到工作台"
         >
@@ -109,13 +126,13 @@ export function AppShell() {
         <div className="ml-auto flex items-center gap-1.5">
           <Link
             to="/?new=1"
-            onClick={guardLeave}
+            onClick={guardLeave('/?new=1')}
             className="abs-btn abs-btn-primary hidden h-8 px-3 text-[11px] sm:inline-flex"
           >
             <Plus aria-hidden className="size-3.5" />
             新建
           </Link>
-          <Link to="/settings" onClick={guardLeave} className="abs-icon-btn" aria-label="设置" title="设置">
+          <Link to="/settings" onClick={guardLeave('/settings')} className="abs-icon-btn" aria-label="设置" title="设置">
             <Settings aria-hidden className="size-3.5" />
           </Link>
           {updateReady ? (
@@ -155,7 +172,7 @@ export function AppShell() {
           <div className="flex items-center gap-3">
             <Link
               to="/settings"
-              onClick={guardLeave}
+              onClick={guardLeave('/settings')}
               className="underline decoration-line underline-offset-2 hover:text-sakura"
             >
               看设置

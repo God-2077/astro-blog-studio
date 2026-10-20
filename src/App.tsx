@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AppShell } from '@/components/app-shell';
+import { dismissConfirm } from '@/components/confirm-toast';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { PwaUpdate } from '@/components/pwa-update';
@@ -18,6 +19,16 @@ const EditorPage = lazy(async () => {
   const module = await import('@/pages/editor');
   return { default: module.EditorPage };
 });
+
+/** 路由变了，上一条确认就不再对应屏幕上的内容：按取消收口，避免离开后误点。 */
+function DismissConfirmOnNavigate(): null {
+  const location = useLocation();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 路径或查询变化都要收起确认
+  useEffect(() => {
+    dismissConfirm();
+  }, [location.pathname, location.search]);
+  return null;
+}
 
 export function App() {
   const [queryClient] = useState(
@@ -45,6 +56,7 @@ export function App() {
         <QueryClientProvider client={queryClient}>
           <PwaUpdate />
           <HashRouter>
+            <DismissConfirmOnNavigate />
             <Routes>
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/unlock" element={<UnlockPage />} />

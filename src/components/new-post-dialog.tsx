@@ -2,6 +2,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { FilePlus2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { confirmAction, dismissConfirm } from '@/components/confirm-toast';
 import { Field } from '@/components/ui';
 import { useParkPendingDraft } from '@/hooks/use-pending-draft';
 import { buildNewPostDocument } from '@/lib/frontmatter/fields';
@@ -40,6 +41,8 @@ export function NewPostDialog({
   const [filename, setFilename] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [parking, setParking] = useState(false);
+  /** 确认条挂在 sonner 根层：等待回答期间先解除 Dialog 的模态，否则 body 的 pointer-events 会挡住它。 */
+  const [confirming, setConfirming] = useState(false);
 
   const folders = useMemo(
     () => (model ? collectFolders(model.nodes).map((folder) => joinPath(config.rootDir, folder.path)) : []),
@@ -73,7 +76,7 @@ export function NewPostDialog({
   const collision = Boolean(model?.files.some((file) => file.path === path));
 
   const handleCreate = async (): Promise<void> => {
-    if (parking) return;
+    if (parking || confirming) return;
     if (!title.trim()) {
       setError('标题不能为空');
       return;
@@ -88,13 +91,14 @@ export function NewPostDialog({
     }
     const existing = usePendingPost.getState().draft;
     if (existing) {
-      if (
-        !window.confirm(
-          '已经有一篇未提交的新文章草稿。继续会先把上一篇存入本机草稿箱，再从空白开始；之后可以在草稿箱里重新打开。继续吗？',
-        )
-      ) {
-        return;
-      }
+      setConfirming(true);
+      const confirmed = await confirmAction('已经有一篇未提交的新文章草稿。', {
+        description: '继续会先把上一篇存入本机草稿箱，再从空白开始；之后可以在草稿箱里重新打开。',
+        confirmLabel: '存入草稿箱并继续',
+        cancelLabel: '先不新建',
+      });
+      setConfirming(false);
+      if (!confirmed) return;
       setParking(true);
       const result = await parkPendingDraft();
       setParking(false);
@@ -111,10 +115,26 @@ export function NewPostDialog({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        // 关闭草稿框等于放弃这次新建：顺带把还没回答的确认按「取消」收口。
+        if (!next) dismissConfirm();
+        onOpenChange(next);
+      }}
+      modal={!confirming}
+    >
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px] data-[state=open]:animate-[abs-pop_160ms_ease-out]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(600px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop outline-none">
+        <Dialog.Content
+          className="fixed left-1/2 top-1/2 z-50 w-[min(600px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop outline-none"
+          onInteractOutside={(event) => {
+            // 确认条在 Dialog 之外：点它不算「离开弹窗」，否则选「先不新建」也会把草稿框关掉。
+            if (event.target instanceof Element && event.target.closest('[data-abs-confirm]')) {
+              event.preventDefault();
+            }
+          }}
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">new draft</p>
@@ -184,7 +204,7 @@ export function NewPostDialog({
               type="button"
               className="abs-btn abs-btn-primary h-8 text-[11px]"
               onClick={() => void handleCreate()}
-              disabled={parking}
+              disabled={parking || confirming}
             >
               <FilePlus2 aria-hidden className="size-3.5" />
               {parking ? '存入草稿箱…' : '开始起草'}

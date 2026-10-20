@@ -1,4 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
+
+/** 等 sonner 确认条出现，再点其中一个按钮（取代原生 confirm 的 accept）。 */
+async function answerConfirm(page: Page, label: string): Promise<void> {
+  const confirm = page.locator('[data-abs-confirm]').last();
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: label }).click();
+  await expect(confirm).toBeHidden();
+}
 
 test.describe('demo mode', () => {
   test('opens the workbench, saves a note, and shows the in-memory receipt', async ({ page }) => {
@@ -184,14 +192,15 @@ test.describe('demo mode', () => {
   });
 
   test('keeps several drafts in the local draft box and retires one after commit', async ({ page }) => {
-    page.on('dialog', (dialog) => void dialog.accept());
     await page.goto('/?demo=1');
 
-    const saveNewDraft = async (title: string, marker: string): Promise<void> => {
+    const saveNewDraft = async (title: string, marker: string, carriesPrevious = false): Promise<void> => {
       await page.getByRole('button', { name: '新建文章' }).first().click();
       const dialog = page.getByRole('dialog');
       await dialog.locator('input.abs-input').first().fill(title);
       await dialog.getByRole('button', { name: '开始起草' }).click();
+      // 第二篇起：上一篇还在内存里，确认后会先存入草稿箱再开新稿。
+      if (carriesPrevious) await answerConfirm(page, '存入草稿箱并继续');
       await expect(page.locator('.cm-editor')).toBeVisible();
       await page.locator('.cm-content').click();
       await page.keyboard.press('Control+End');
@@ -199,11 +208,12 @@ test.describe('demo mode', () => {
       await page.getByRole('button', { name: '保存草稿' }).click();
       await expect(page.getByText('已存入本机草稿箱').first()).toBeVisible();
       await page.locator('.abs-brand').click();
+      await answerConfirm(page, '离开');
       await expect(page.getByText('今天写点什么？')).toBeVisible();
     };
 
     await saveNewDraft('草稿甲', '正文甲');
-    await saveNewDraft('草稿乙', '正文乙');
+    await saveNewDraft('草稿乙', '正文乙', true);
 
     // 「最近动过」切换成草稿箱，两篇新稿都在。
     await page.getByRole('button', { name: /草稿箱/ }).first().click();
@@ -234,14 +244,18 @@ test.describe('demo mode', () => {
     await expect(sheet.getByText('草稿甲', { exact: true })).toHaveCount(0);
     await expect(sheet.locator('ul li')).toHaveCount(1);
 
-    // 删除最后一篇后回到空状态。
+    // 删除最后一篇后回到空状态：确认条只删本机草稿，取消则保持原样。
     await sheet.getByRole('button', { name: '从草稿箱删除：草稿乙' }).click();
+    await answerConfirm(page, '取消');
+    await expect(sheet.getByText('草稿乙', { exact: true })).toBeVisible();
+
+    await sheet.getByRole('button', { name: '从草稿箱删除：草稿乙' }).click();
+    await answerConfirm(page, '删除草稿');
     await expect(page.getByText('已从草稿箱删除')).toBeVisible();
     await expect(page.getByText('草稿箱是空的')).toBeVisible();
   });
 
   test('lists an autosave backup in the draft box', async ({ page }) => {
-    page.on('dialog', (dialog) => void dialog.accept());
     await page.goto('/?demo=1');
     await page.locator('.abs-tree-row').filter({ hasText: 'note' }).first().click();
     await page.locator('.abs-tree-row').filter({ hasText: '便笺-Markdown-备忘单.md' }).click();
@@ -252,6 +266,7 @@ test.describe('demo mode', () => {
     await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
 
     await page.locator('.abs-brand').click();
+    await answerConfirm(page, '离开');
     await expect(page.getByText('今天写点什么？')).toBeVisible();
     await page.getByRole('button', { name: /草稿箱/ }).first().click();
 
