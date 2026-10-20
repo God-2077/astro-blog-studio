@@ -46,12 +46,17 @@ src/
     pwa-update-dialog.tsx   「网站有新版本」AlertDialog（只提醒，不自动刷新）
     ui.tsx                  Badge / Field / Spinner / ErrorNote / EmptyState / Skeleton
   pages/                    dashboard / editor / settings / setup / unlock
-  hooks/                    use-data / use-content-sync / use-auto-lock / use-editor-backup
+  hooks/                    use-data / use-content-sync / use-auto-lock / use-editor-backup / use-pending-draft
   lib/
     backup/model.ts         备份记录校验、整文件快照、恢复映射
     backup/envelope.ts      AES-GCM 备份信封（整份记录 + AAD 绑定槽位/元数据）
     backup/store.ts         IndexedDB（idb-keyval）+ 同页写穿、加密写入、迁移、上限与清理
     backup/flush.ts         锁定前 flush 当前草稿的注册表（带超时、吞错）
+    drafts/model.ts         草稿记录校验、文本/备份 → 草稿、标题回退
+    drafts/envelope.ts      AES-GCM 草稿信封（AAD 绑定槽位/时间/大小）
+    drafts/store.ts         IndexedDB `abs-drafts`、加密读写、列表/删除、按仓库清理
+    drafts/box.ts           草稿箱视图合并显式草稿 + 自动备份（按路径去重、取较新）
+    drafts/pending.ts       内存新稿 → 草稿箱（优先最新备份，避免回退旧内容）
     content/model.ts        文章缓存记录/上限/校验、repoKey/slot/signature
     content/diff.ts         按路径 + blob sha 的 added/modified/deleted diff
     content/envelope.ts     AES-GCM 文章信封（AAD 绑定仓库/路径/sha）
@@ -68,9 +73,9 @@ src/
     paths/                  normalize / exclusion matcher
     pwa/update-polling.ts   SW 更新检测：节流 + single-flight + 可见/在线判断
     tree/model.ts           文件树模型（相对根目录显示，路径保留全路径；按 tree 引用 memo）
-    vault/                  crypto(HKDF 备份/文章子密钥) / fingerprint / keystore(三种解锁模式) / session / mode
+    vault/                  crypto(HKDF 备份/草稿/文章子密钥) / fingerprint / keystore(三种解锁模式) / session / mode
     demo/fixtures.ts         演示仓库与 12 篇示例
-  stores/                   zustand：settings(persist)、vault、content、ui、rate-limit、last-commit、editor guard、pending-post、pwa
+  stores/                   zustand：settings(persist)、vault、content、drafts、ui、rate-limit、last-commit、editor guard、pending-post、pwa
   styles/app.css            Tailwind v4 tokens + .abs-* 设计系统
   vite-env.d.ts             virtual:pwa-register/react 的类型引用
 tests/unit | live | e2e
@@ -83,7 +88,7 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
 
 1. **PAT 安全**
    - 不允许明文 PAT 进 localStorage / 日志 / DOM / URL / 构建产物 / 测试快照。
-   - `vaultSession` 只在内存保存 PAT、数据密钥与派生的备份/文章缓存密钥；锁定必须先 flush 加密草稿，再清空 session、备份内存、文章缓存明文摘要和 React Query 缓存。
+   - `vaultSession` 只在内存保存 PAT、数据密钥与派生的备份/草稿/文章缓存密钥；锁定必须先 flush 加密草稿，再清空 session、备份/草稿内存、文章缓存明文摘要和 React Query 缓存。
    - `.env.local` 只给 Node 测试；不要提交；测试结束后轮换 token。
    - 不引入第三方统计、脚本、字体 CDN、iframe、外链图片上传。
    - 解锁方式只有三种：`device` / `password` / `two-factor`。双因子是严格 AND：密码 KEK 混入本机指纹，payload 里**不得**同时存在独立的 `device` 包装；也不要恢复「设备指纹自动解锁」按钮。
@@ -138,6 +143,14 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
     - 锁定必须 `dropContentMemory()` + `useContent.reset()`；重置保险库要 `clearContentByPrefix('live:')`。缓存不得进入 CacheStorage，也不得包含 PAT。
     - 配置签名（rootDir/扩展名/排除）变化等同首次；同一 tree sha 且记录完整时才允许 0 读取；`truncated` 跳过删除；写入失败只降级并提示，不得丢会话。
     - 新增/修改同步逻辑必须覆盖：首次全量、无变化零读取、只读变更、删除、失败重试、强制全量、截断、配置变化、配额降级；README/DESIGN 与测试计数同步更新。
+11. **草稿箱（显式草稿 + 自动备份）**
+    - 只写本机 IndexedDB `abs-drafts`（`lib/drafts/store.ts`）；键含 `mode:owner/name@branch` + path，同一路径只保留最新一份；不得上传、不得包含 PAT、不得写进 CacheStorage。
+    - **草稿箱列表必须合并 `abs-drafts` 与 `abs-backups`**（`lib/drafts/box.ts`）：`useDrafts` 同时 `listDrafts` + `listBackups`，按仓库/分支 + 路径去重、保存时间更新的胜出，自动备份标记 `origin: 'backup'`；不得只列显式草稿。打开备份条目仍走 `draft=1`（编辑器自己比较草稿与备份取较新者）；删除条目必须同时 `removeDraft` + `removeBackup`，避免删一份又冒出另一份。
+    - **真实仓库（`live:`）草稿必须加密**：整份 `DraftRecord` 用数据密钥经 HKDF（`abs:draft:v1`，与备份/缓存子密钥分离）派生的 AES-GCM 子密钥加密；没有密钥时写入返回 `'locked'`，不得回落明文。demo（`demo:`）没有保险库，保持明文。
+    - 锁定必须 `dropDraftMemory()` + `useDrafts.reset()`；重置保险库要 `clearDraftsByPrefix('live:')`。解密后的草稿只在内存写穿缓存，锁定即丢弃。
+    - 编辑器「保存草稿」只写本机，**不调用任何写 API**；记录必须带完整的 `state`（表单/源文件模式、原始 YAML、正文、`sourceText`）与已有文件的 `baseSha`。从草稿箱打开走 `restoreToEditorState`，保存仍按 `baseSha` 走 409 冲突。
+    - 新建文章仍先在 `usePendingPost` 起草；开始下一篇前必须先把上一篇经 `capturePendingDraft`（优先最新编辑器备份 → 已有草稿 → 初始文本）写入草稿箱，写入成功后才能清内存草稿；失败要中止并提示，不得覆盖丢失。
+    - 从草稿箱打开时跳过自动备份弹窗；若同路径自动备份比草稿新，必须用备份内容恢复（不丢离开前的最新编辑）。提交成功（新建稿或本次会话来自草稿）后清除该路径草稿；移动/删除同步清理。普通打开文章时不要自动删除草稿箱里的旧草稿。
 
 ## 测试协议
 

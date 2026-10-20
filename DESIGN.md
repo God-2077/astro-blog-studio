@@ -60,19 +60,21 @@
 - 演示模式：顶栏下一条虚线提示条，含「看设置」「退出演示」。
 - 主体 `lg:grid-cols-[252px_1fr]`：
   - **索引卡**（左）：纸面、搜索、目录树、底部排除计数；移动端为抽屉。
-  - **桌面**（中）：`DEMO WORKSPACE / WORKSPACE` 眉题、大标题「今天写点什么？」、日期行、ghost「检查更新」+ 实心樱粉「新建文章」；三张旋转便签（总数/草稿/加密）；本机缓存状态条；最近动过列表；提交小票；今日小目标；API 卡。
+  - **桌面**（中）：`DEMO WORKSPACE / WORKSPACE` 眉题、大标题「今天写点什么？」、日期行、ghost「检查更新」+ ghost「草稿箱（数量）」+ 实心樱粉「新建文章」；三张旋转便签（总数/草稿/加密）；本机缓存状态条；最近动过 / 草稿箱列表；提交小票；今日小目标；API 卡。
 - **本机文章缓存状态条**：表头下方一条 `.abs-paper` 虚线纸片（`role="status"`、`aria-live="polite"`）。首次加载显示「首次加载 · 正在读取全部文章」+ 等宽 `done / total` + 1.5px 薄荷进度条；检查/同步时显示「正在检查远端更新…」「正在同步文章变更」；完成后留一行等宽「已同步 · 新增 a / 修改 m / 删除 d」；失败就地 `ErrorNote` + 「重试」ghost 按钮；配额写入失败显示一行 muted 说明。只有进度/状态使用薄荷，实心樱粉仍只给「新建文章」。
 - **检查更新反馈**：点击后按钮立刻禁用并把图标换成旋转态，文案按阶段显示「检查中…」/「同步中…」；tree refetch 阶段状态条已显示「正在检查远端更新…」，顶部 loading toast 持续到结果返回后才替换为成功/失败；索引卡刷新按钮同步旋转。失败不会留下永久「检查中」。
 - 最近列表为行式，不用卡片网格；日期 64px 等宽，标题 + 路径，右侧状态徽章。
 - 「最近动过」按 frontmatter 的 `updated` / `date` 全库降序，不做路径切片采样；表头右侧是 `.abs-seg` 的 `updated` / `date` 切换，切换后重置为 20 篇。列表下方「加载更多」每次追加 20 篇，到底显示「已全部显示 N 篇」；表头在索引中显示「同步中 X / Y」，完成后显示「全库 Y 篇」。有缓存摘要时即使文件树还在加载/失败也先渲染列表。
+- **草稿箱**：操作行「草稿箱」按钮（ghost，带数量徽章；激活时纸底 `bg-blush-2` + `aria-pressed`）把同一张纸切换成本机草稿列表，表头标题改为「草稿箱」，右侧显示「N 篇 · 含自动备份 · 仅本机」与「AES-GCM 加密 / 演示模式 · 明文」，排序控件隐藏；再次点击回到「最近动过」。列表合并显式草稿与自动备份：同一路径只留保存时间更新的一份（自动备份显示「自动备份」徽章），因此未点「保存草稿」的编辑也会出现在这里。每行日期为保存/备份时间，标题 + 路径 + 「新稿 / 已有文章」「自动备份」「源文件」徽章与字数，行尾垃圾桶按钮 `window.confirm` 后同时清除该路径的显式草稿与备份；空状态说明「保存草稿或自动备份」并提供「新建文章」。草稿箱只读本机，不触发任何 GitHub 请求。
 - 右栏是独立纸张，与主栏 3px 间隙；不抢焦点。
 
 ### 编辑器（`/edit?path=`）
 
-- 三张纸：文件头（返回、文件名、状态、GitHub/移动/删除）、frontmatter 纸、Markdown 纸；右栏实时预览。
+- 三张纸：文件头（返回、文件名、状态、保存草稿/GitHub/移动/删除）、frontmatter 纸、Markdown 纸；右栏实时预览。
+- **保存草稿**：文件头 ghost「保存草稿」把当前编辑状态（表单/源文件模式、原始 YAML、正文、`sourceText`、已有文件的 `baseSha`）写入本机草稿箱；只写 IndexedDB，**不调用任何写 API**。真实仓库用保险库数据密钥经 HKDF（`abs:draft:v1`）派生的 AES-GCM 子密钥加密，demo 明文；成功后底栏在备份状态旁显示「草稿箱 HH:mm」并 toast。盖章提交（新建稿，或本次会话来自草稿箱）后移除该路径草稿，移动/删除同步清理；从草稿箱打开时若同路径自动备份更新，优先用备份内容，避免丢掉离开前的编辑。
 - **frontmatter 纸由设置中的字段配置动态生成**：名称、类型（string/date/number/boolean/list）、必填标记；string 单行、date 文本 + 格式提示、number 数字、boolean 复选、list 逗号分隔（categories 支持 `>` 层级）；password 字段掩码。必填为空或格式错误时在字段下就地提示并阻止提交。
 - **表单 / 源文件切换**：Markdown 纸头右侧「N 字 · 约 N 分钟」旁复用 `.abs-seg` 分段控件（`aria-pressed`，与设置页主题切换同一组件）。源文件模式把整份文件（`---` frontmatter + 正文）放进同一块 CodeMirror、隐藏 frontmatter 纸，眉题改为 `SOURCE · 整份文件`；页脚细条显示换行风格、字段数、未知字段数、缺少必填与「源文件模式不改写 updated」。源文件模式保存只还原原文件的 CRLF/LF 与 BOM，不解析 frontmatter、不改写键、不折叠结尾空行；YAML 损坏时纸头出现红色细条提示但仍允许保存。来源就是仓库里的那份文件，所以没有新增纹理/动画，安静规则照旧。模式是会话内视图状态（默认表单），刷新回到表单。
-- **新稿状态**：新建文章先在本地起草，URL 带 `new=1`；头部显示「未提交」，隐藏 GitHub/移动/删除，底栏提示「未提交」。第一次盖章保存才创建文件（一次 API），成功后 URL 去掉 `new` 并切换为普通编辑态。刷新/直接打开没有内存草稿的 `new=1` 时先检查本机备份：有备份就弹窗恢复，没有才显示「草稿已丢失」，绝不创建空文件。
+- **新稿状态**：新建文章先在本地起草，URL 带 `new=1`；头部显示「未提交」，隐藏 GitHub/移动/删除，底栏提示「未提交」。第一次盖章保存才创建文件（一次 API），成功后 URL 去掉 `new` 并切换为普通编辑态。刷新/直接打开没有内存草稿的 `new=1` 时先检查本机备份：有备份就弹窗恢复，没有才显示「草稿已丢失」，绝不创建空文件。开始下一篇新稿时，上一篇内存草稿先经 `capturePendingDraft` 存入草稿箱（优先最新备份，其次已有草稿，最后初始文本），确认后才清空内存草稿；因此可以同时保留多篇新稿。
 - **未保存备份**：编辑时约 600ms 防抖把整份文件快照写入本机 IndexedDB（同一文件只留最新一份；键含 mode + repo + branch + path），底栏在「未保存」旁显示「本机已备份 HH:mm」。真实仓库的快照以 AES-GCM 信封落盘（密钥由保险库数据密钥经 HKDF 派生），demo 快照保持明文；锁定前先 flush 再清密钥。进入编辑器时读取备份并弹 `AlertDialog`「发现未保存的备份」：显示保存时间、字数、路径，远端已变化时多一条 danger 提示；操作为「稍后 / 丢弃备份 / 恢复备份」。恢复用 `.abs-btn`（**不引入实心樱粉**），丢弃为 ghost + `border-danger/40 text-danger`，稍后为 ghost；「稍后」后文件头下方出现 butter 细条（恢复 / 丢弃），期间暂停覆盖式备份。恢复已有文件保留备份的 base sha，保存仍走 409；恢复新稿回到「未提交」，只写 pending draft。保存/移动/删除成功后删除备份；设置里可关闭或清除本仓库备份。弹窗不开入场动画，安静规则照旧。
 - **安静规则**：编辑纸无纹理、无旋转、无入场动画；只有 CodeMirror 的活动行/选区使用极浅腮红。印章是唯一的实心红。
 - 提交：底栏「盖章保存」旋转印章；开启确认时弹出提交消息纸片；新稿按钮为「确认创建」，普通保存为「确认盖章」；成功后回执 toast。
@@ -105,7 +107,7 @@
 
 - `.abs-paper` / `.abs-sheet` / `.abs-sticky` / `.abs-receipt` / `.abs-stamp` / `.abs-tape` / `.abs-seal` / `.abs-badge-*` / `.abs-tree-row` / `.abs-input` / `.abs-btn*` / `.abs-seg` / `.abs-progress` 是设计系统组件，集中定义在 `src/styles/app.css`，Tailwind 原子类只做布局与间距。
 - **主题**：`ThemeProvider` 把 `settings.appearance.theme`（`system / day / night`）解析为 `<html data-theme>`；`index.html` 内联脚本在首帧前应用，避免白闪；需要布尔值的组件（CodeMirror 的 dark 主题）用 `useResolvedTheme()`。不新增主题命名空间，也不允许组件里写夜间分支。
-- 状态：Zustand `settings`（persist）、`vault`（不持久化）、`content`（本机文章缓存状态：status/progress/summaries/错误，不持久化，锁定即清空）、`ui`、`rate-limit`、`last-commit`、`editor guard`、`pending-post`、`pwa`；未保存备份走 `useEditorBackup` + `lib/backup`（IndexedDB），本机文章缓存走 `lib/content`（IndexedDB `abs-content`，AES-GCM），两者都不放进 service worker 缓存；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
+- 状态：Zustand `settings`（persist）、`vault`（不持久化）、`content`（本机文章缓存状态：status/progress/summaries/错误，不持久化，锁定即清空）、`drafts`（草稿箱列表：显式草稿 + 自动备份合并后的 items/status，锁定即清空）、`ui`、`rate-limit`、`last-commit`、`editor guard`、`pending-post`、`pwa`；未保存备份走 `useEditorBackup` + `lib/backup`（IndexedDB），草稿箱走 `lib/drafts`（IndexedDB `abs-drafts`，AES-GCM 子密钥），本机文章缓存走 `lib/content`（IndexedDB `abs-content`，AES-GCM），三者都不放进 service worker 缓存；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
 - 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。toast 右侧常驻 `.abs-toast-close` X（纸底、1.5px 线边框的 24px 方块，hover 转 ink），点击立即关闭；自动消失与滑动关闭保留。
 - **PWA 更新提示**：`PwaUpdate` 挂在 App 根部（`virtual:pwa-register/react`）。新版本进入 waiting 时用 Radix `AlertDialog` 弹「网站有新版本」，按钮「稍后」（`.abs-btn-ghost`）/「立即刷新」（默认 `.abs-btn`，**不用**实心樱粉——实心樱粉仍只属于「新建文章」）。点过「稍后」后顶栏出现带樱粉圆点的 `.abs-icon-btn`，可再次唤起弹窗；编辑器脏状态时弹窗内多一行 danger 提示，刷新时沿用现有 `beforeunload` 兜底。只有用户点「立即刷新」才整页 reload，**不自动刷新**。`pnpm dev` 不注册 Service Worker，PWA 只在构建产物里可见。浏览器标签图标与 `apple-touch-icon` 统一使用 `public/apple-touch-icon.png`。
 

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { flushActiveBackup } from '@/lib/backup/flush';
 import { clearBackupsByPrefix, dropBackupMemory, migrateBackups } from '@/lib/backup/store';
 import { clearContentByPrefix, dropContentMemory } from '@/lib/content/storage';
+import { clearDraftsByPrefix, dropDraftMemory } from '@/lib/drafts/store';
 import {
   clearVault,
   createVault,
@@ -16,6 +17,7 @@ import {
 import type { VaultMode, VaultModeState } from '@/lib/vault/mode';
 import { vaultSession } from '@/lib/vault/session';
 import { useContent } from '@/stores/content';
+import { useDrafts } from '@/stores/drafts';
 
 export type VaultStatus = 'empty' | 'locked' | 'unlocked';
 
@@ -122,7 +124,9 @@ export const useVault = create<VaultState>()((set) => ({
     await flushActiveBackup();
     dropBackupMemory();
     dropContentMemory();
+    dropDraftMemory();
     useContent.getState().reset();
+    useDrafts.getState().reset();
     vaultSession.clear();
     const payload = loadVault();
     set({ status: payload ? 'locked' : 'empty', mode: modeOf(payload), error: null });
@@ -133,9 +137,12 @@ export const useVault = create<VaultState>()((set) => ({
     vaultSession.clear();
     dropBackupMemory();
     dropContentMemory();
+    dropDraftMemory();
     useContent.getState().reset();
+    useDrafts.getState().reset();
     await clearBackupsByPrefix('live:');
     await clearContentByPrefix('live:');
+    await clearDraftsByPrefix('live:');
     set({ status: 'empty', mode: null, error: null });
   },
 

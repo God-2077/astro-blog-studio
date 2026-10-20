@@ -5,7 +5,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import * as Popover from '@radix-ui/react-popover';
 import { useQueryClient } from '@tanstack/react-query';
 import CodeMirror from '@uiw/react-codemirror';
-import { ArrowLeft, ArrowUpRight, Check, FileWarning, MoveRight, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Check, FileWarning, MoveRight, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -23,6 +23,9 @@ import {
   buildBackupText,
   restoreToEditorState,
 } from '@/lib/backup/model';
+import { readBackup } from '@/lib/backup/store';
+import { type DraftRecord, draftFromBackup, draftToBackup } from '@/lib/drafts/model';
+import { readDraft, removeDraft, writeDraft } from '@/lib/drafts/store';
 import {
   buildFrontmatterPatch,
   type FrontmatterFormValue,
@@ -44,6 +47,7 @@ import { renderMarkdown } from '@/lib/markdown/render';
 import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
 import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
 import { formatInTimeZone } from '@/lib/utils/date';
+import { useDrafts } from '@/stores/drafts';
 import { useEditorGuard } from '@/stores/editor';
 import { useLastCommit } from '@/stores/last-commit';
 import { usePendingPost } from '@/stores/pending-post';
@@ -82,10 +86,26 @@ export function EditorPage() {
   const [params] = useSearchParams();
   const path = params.get('path');
   const isNew = params.get('new') === '1';
-  return <EditorSession key={`${path ?? ''}|${isNew ? 'new' : 'edit'}`} path={path} isNew={isNew} />;
+  const draftRequested = params.get('draft') === '1';
+  return (
+    <EditorSession
+      key={`${path ?? ''}|${isNew ? 'new' : 'edit'}|${draftRequested ? 'draft' : 'live'}`}
+      path={path}
+      isNew={isNew}
+      draftRequested={draftRequested}
+    />
+  );
 }
 
-function EditorSession({ path, isNew }: { path: string | null; isNew: boolean }) {
+function EditorSession({
+  path,
+  isNew,
+  draftRequested,
+}: {
+  path: string | null;
+  isNew: boolean;
+  draftRequested: boolean;
+}) {
   const navigate = useNavigate();
   const { gateway, repo, config, key, mode } = useGateway();
   const settings = useSettings();
@@ -122,11 +142,19 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
   const [sourceText, setSourceText] = useState('');
   const [originalText, setOriginalText] = useState('');
   const [pristine, setPristine] = useState(false);
+  const [draftReady, setDraftReady] = useState(!draftRequested);
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+  const [draftSaving, setDraftSaving] = useState(false);
   /** Set when a restored new-post backup was in source mode; consumed by the load effect. */
   const pendingNewRestoreRef = useRef<{ path: string; sourceText: string } | null>(null);
+  /** The draft box record chosen in the dashboard; consumed once by the load effect. */
+  const openedDraftRef = useRef<DraftRecord | null>(null);
+  /** This session's content came from the draft box, so committing retires it. */
+  const draftLoadedRef = useRef(false);
 
   useEffect(() => {
     if (!path) return;
+    if (!draftReady) return;
     const source = isNew ? pendingDraft : file.data ? { path: file.data.path, text: file.data.text } : null;
     if (isNew && (!source || source.path !== path)) {
       setDraftLost(true);
@@ -157,7 +185,26 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
       setEditorMode('source');
     }
     setPristine(true);
-  }, [isNew, pendingDraft, file.data, path, fields]);
+
+    const openedDraft = openedDraftRef.current;
+    if (openedDraft && openedDraft.isNew === isNew && normalizeRepoPath(openedDraft.path) === normalizeRepoPath(path)) {
+      openedDraftRef.current = null;
+      const restored = restoreToEditorState(draftToBackup(openedDraft), source.text);
+      setRawInner(restored.rawInner);
+      setHasFrontmatter(restored.hasFrontmatter);
+      setBody(restored.body);
+      setForm({ ...restored.form });
+      setFmError(restored.fmError);
+      setSourceText(restored.sourceText);
+      setOriginalData(isNew ? parsed.data : restored.originalData);
+      setLoadedSha(isNew ? '' : restored.loadedSha);
+      setEditorMode(restored.mode);
+      setDirty(true);
+      setPristine(false);
+      setDraftSavedAt(openedDraft.savedAt);
+      draftLoadedRef.current = true;
+    }
+  }, [isNew, pendingDraft, file.data, path, fields, draftReady]);
 
   const sourceActive = editorMode === 'source';
   const sourceParsed = useMemo(() => parseDocument(sourceText), [sourceText]);
@@ -211,6 +258,40 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
 
   const backupEnabled = settings.editor.backupUnsaved;
   const repoKey = backupRepoKey(mode, repo);
+
+  // Opening from the draft box: read the explicit draft once, then let the
+  // load effect apply its full editor state over the remote/pending source.
+  useEffect(() => {
+    if (!draftRequested || !path) return;
+    let cancelled = false;
+    void Promise.all([readDraft(repoKey, path), readBackup(repoKey, path).catch(() => null)]).then(
+      ([record, backup]) => {
+        if (cancelled) return;
+        // Edits made after opening a draft live in the autosave backup; when
+        // that copy is newer — or the only copy — restore it instead of
+        // silently losing the latest work.
+        const chosen =
+          backup && backup.isNew === isNew && (!record || record.isNew !== isNew || backup.savedAt > record.savedAt)
+            ? draftFromBackup(backup)
+            : record;
+        if (chosen && chosen.isNew === isNew && normalizeRepoPath(chosen.path) === normalizeRepoPath(path)) {
+          openedDraftRef.current = chosen;
+          setDraftSavedAt(chosen.savedAt);
+          if (chosen.isNew) {
+            const live = usePendingPost.getState().draft;
+            if (!live || normalizeRepoPath(live.path) !== normalizeRepoPath(chosen.path)) {
+              usePendingPost.getState().setDraft({ path: chosen.path, text: chosen.text });
+            }
+          }
+        }
+        setDraftReady(true);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [draftRequested, path, repoKey, isNew]);
+
   const backupSnapshot = useMemo<BackupSnapshot | null>(() => {
     if (!backupEnabled || !path || !dirty || saving || draftLost) return null;
     const snapshotMode = sourceActive ? 'source' : 'form';
@@ -258,7 +339,8 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
     path,
     isNew,
     ready: isNew ? true : Boolean(file.data) && !file.error && !file.isFetching,
-    skipPrompt: isNew && pendingDraft?.path === path,
+    // Opening a draft is an explicit choice; a crash backup must not cover it.
+    skipPrompt: (isNew && pendingDraft?.path === path) || draftRequested,
     snapshot: backupSnapshot,
   });
 
@@ -396,6 +478,70 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
     backup.defer();
   };
 
+  /** After a commit/move/delete the explicit local draft is obsolete. */
+  const clearLocalDraft = async (): Promise<void> => {
+    if (!path) return;
+    await removeDraft(repoKey, path);
+    useDrafts.getState().forget(repoKey, path);
+    setDraftSavedAt(null);
+    draftLoadedRef.current = false;
+  };
+
+  const handleSaveDraft = async (): Promise<void> => {
+    if (!path || draftSaving) return;
+    setDraftSaving(true);
+    try {
+      const text = buildBackupText({
+        mode: editorMode,
+        sourceText,
+        meta,
+        rawInner,
+        body,
+        hasFrontmatter,
+        fields,
+        form,
+        originalData,
+      });
+      const record: DraftRecord = {
+        version: 1,
+        repoKey,
+        path,
+        title: currentTitle || path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '') || '无标题',
+        isNew,
+        baseSha: isNew ? '' : loadedSha,
+        mode: editorMode,
+        savedAt: Date.now(),
+        size: text.length,
+        text,
+        state: { body, rawInner, hasFrontmatter, fmError, form, sourceText },
+      };
+      const result = await writeDraft(record);
+      if (result === 'saved') {
+        setDraftSavedAt(record.savedAt);
+        draftLoadedRef.current = true;
+        useDrafts.getState().remember(record);
+        toast.success('已存入本机草稿箱', {
+          description:
+            mode === 'demo'
+              ? '演示模式没有保险库，草稿以明文保存在本机。盖章前不会提交。'
+              : '已用保险库密钥加密保存；盖章前不会提交到 GitHub。',
+        });
+        return;
+      }
+      if (result === 'locked') {
+        toast.error('保险库已锁定，草稿没有保存', { description: '重新解锁后再点一次「保存草稿」。' });
+        return;
+      }
+      if (result === 'too-large') {
+        toast.error('文章太大，未能存入草稿箱', { description: '单篇草稿上限约 100 万字符。' });
+        return;
+      }
+      toast.error('草稿保存失败', { description: '浏览器存储空间可能不足；先删掉一些草稿或备份再试。' });
+    } finally {
+      setDraftSaving(false);
+    }
+  };
+
   const applySaved = async (result: { sha: string; contentSha?: string; htmlUrl?: string }, text: string): Promise<void> => {
     const wasNew = isNew;
     setDirty(false);
@@ -406,6 +552,7 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
     setConflictOpen(false);
     setFieldErrors({});
     await backup.markSaved();
+    if (wasNew || draftLoadedRef.current) await clearLocalDraft();
     if (result.contentSha) setLoadedSha(result.contentSha);
     if (path) {
       queryClient.setQueryData(['file', key, path], {
@@ -512,6 +659,7 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
         sha: loadedSha,
       });
       await backup.markSaved();
+      await clearLocalDraft();
       await queryClient.invalidateQueries({ queryKey: ['tree', key] });
       toast.success('已删除并提交');
       navigate('/');
@@ -557,6 +705,7 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
         ...(result.htmlUrl ? { htmlUrl: result.htmlUrl } : {}),
       });
       await backup.markSaved();
+      await clearLocalDraft();
       await queryClient.invalidateQueries({ queryKey: ['tree', key] });
       toast.success('已移动并提交');
       setMoveOpen(false);
@@ -580,11 +729,12 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
           ? '备份失败'
           : '';
   const draftUnavailable = isNew && (!pendingDraft || pendingDraft.path !== path);
+  const waitingForDraft = draftRequested && !draftReady;
 
-  if (draftUnavailable && backup.checking) {
+  if ((draftUnavailable && backup.checking) || waitingForDraft) {
     return (
       <div className="abs-paper p-6">
-        <Spinner label="检查本机备份" />
+        <Spinner label={draftRequested ? '读取本机草稿' : '检查本机备份'} />
       </div>
     );
   }
@@ -596,12 +746,21 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">draft lost</p>
           <h1 className="mt-1 font-display text-[24px] font-bold">没有找到这篇新文章的草稿</h1>
           <p className="mt-2 text-[11.5px] leading-relaxed text-muted">
-            新文章草稿只保存在创建它的标签页和这台设备的浏览器备份里。没有找到内存草稿或本机备份后，不会再恢复，也不会在仓库里留下空文件。
+            新文章草稿只保存在创建它的标签页、本机草稿箱和浏览器备份里。没有找到对应草稿后，不会再恢复，也不会在仓库里留下空文件。
           </p>
-          <button type="button" className="abs-btn abs-btn-primary mt-4 text-[11px]" onClick={() => navigate('/')}>
-            <ArrowLeft aria-hidden className="size-3.5" />
-            回到工作台重新新建
-          </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" className="abs-btn abs-btn-primary text-[11px]" onClick={() => navigate('/')}>
+              <ArrowLeft aria-hidden className="size-3.5" />
+              回到工作台重新新建
+            </button>
+            <button
+              type="button"
+              className="abs-btn abs-btn-ghost text-[11px]"
+              onClick={() => navigate('/?drafts=1')}
+            >
+              打开草稿箱
+            </button>
+          </div>
         </div>
         {candidate ? (
           <BackupDialog
@@ -689,6 +848,17 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                className="abs-btn abs-btn-ghost h-8 text-[10.5px]"
+                onClick={() => void handleSaveDraft()}
+                disabled={draftSaving || saving}
+                aria-busy={draftSaving}
+                title="保存到本机草稿箱（真实仓库加密），不会提交到 GitHub"
+              >
+                <Save aria-hidden className="size-3" />
+                {draftSaving ? '保存中…' : '保存草稿'}
+              </button>
               {githubUrl ? (
                 <a
                   className="abs-btn abs-btn-ghost h-8 text-[10.5px]"
@@ -851,6 +1021,11 @@ function EditorSession({ path, isNew }: { path: string | null; isNew: boolean })
                 {!isDemo && !repo.canPush ? <span className="text-danger">只读令牌</span> : null}
                 {backupEnabled && dirty && backup.status !== 'idle' ? (
                   <span className={backup.status === 'failed' ? 'text-warning' : undefined}>{backupStatusLabel}</span>
+                ) : null}
+                {draftSavedAt ? (
+                  <span className="text-muted">
+                    草稿箱 {formatInTimeZone(new Date(draftSavedAt), config.timezone).slice(11, 16)}
+                  </span>
                 ) : null}
               </p>
               {sourceActive ? (

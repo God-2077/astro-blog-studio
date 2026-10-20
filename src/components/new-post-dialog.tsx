@@ -3,6 +3,7 @@ import { FilePlus2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Field } from '@/components/ui';
+import { useParkPendingDraft } from '@/hooks/use-pending-draft';
 import { buildNewPostDocument } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
@@ -33,10 +34,12 @@ export function NewPostDialog({
   const settings = useSettings();
   const navigate = useNavigate();
   const setPendingDraft = usePendingPost((state) => state.setDraft);
+  const parkPendingDraft = useParkPendingDraft();
   const [title, setTitle] = useState('');
   const [dir, setDir] = useState(settings.editor.defaultDir || config.rootDir);
   const [filename, setFilename] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [parking, setParking] = useState(false);
 
   const folders = useMemo(
     () => (model ? collectFolders(model.nodes).map((folder) => joinPath(config.rootDir, folder.path)) : []),
@@ -69,7 +72,8 @@ export function NewPostDialog({
   });
   const collision = Boolean(model?.files.some((file) => file.path === path));
 
-  const handleCreate = (): void => {
+  const handleCreate = async (): Promise<void> => {
+    if (parking) return;
     if (!title.trim()) {
       setError('标题不能为空');
       return;
@@ -83,7 +87,22 @@ export function NewPostDialog({
       return;
     }
     const existing = usePendingPost.getState().draft;
-    if (existing && !window.confirm('已经有一篇未提交的新文章草稿，继续会覆盖它。继续吗？')) return;
+    if (existing) {
+      if (
+        !window.confirm(
+          '已经有一篇未提交的新文章草稿。继续会先把上一篇存入本机草稿箱，再从空白开始；之后可以在草稿箱里重新打开。继续吗？',
+        )
+      ) {
+        return;
+      }
+      setParking(true);
+      const result = await parkPendingDraft();
+      setParking(false);
+      if (result === 'failed') {
+        setError('上一篇新稿没能存入草稿箱。先清理本机存储，或回到那篇新稿处理后再试。');
+        return;
+      }
+    }
 
     const text = buildNewPostDocument(settings.frontmatter.fields, { title: title.trim(), date });
     setPendingDraft({ path, text });
@@ -161,9 +180,14 @@ export function NewPostDialog({
 
           <div className="mt-5 flex items-center justify-end gap-2">
             <Dialog.Close className="abs-btn abs-btn-ghost h-8 text-[11px]">取消</Dialog.Close>
-            <button type="button" className="abs-btn abs-btn-primary h-8 text-[11px]" onClick={handleCreate}>
+            <button
+              type="button"
+              className="abs-btn abs-btn-primary h-8 text-[11px]"
+              onClick={() => void handleCreate()}
+              disabled={parking}
+            >
               <FilePlus2 aria-hidden className="size-3.5" />
-              开始起草
+              {parking ? '存入草稿箱…' : '开始起草'}
             </button>
           </div>
         </Dialog.Content>

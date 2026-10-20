@@ -183,6 +183,93 @@ test.describe('demo mode', () => {
     await expect(page.locator('.abs-tree-row').filter({ hasText: 'E2E 新建稿.md' })).toBeVisible();
   });
 
+  test('keeps several drafts in the local draft box and retires one after commit', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+    await page.goto('/?demo=1');
+
+    const saveNewDraft = async (title: string, marker: string): Promise<void> => {
+      await page.getByRole('button', { name: '新建文章' }).first().click();
+      const dialog = page.getByRole('dialog');
+      await dialog.locator('input.abs-input').first().fill(title);
+      await dialog.getByRole('button', { name: '开始起草' }).click();
+      await expect(page.locator('.cm-editor')).toBeVisible();
+      await page.locator('.cm-content').click();
+      await page.keyboard.press('Control+End');
+      await page.keyboard.type(marker);
+      await page.getByRole('button', { name: '保存草稿' }).click();
+      await expect(page.getByText('已存入本机草稿箱').first()).toBeVisible();
+      await page.locator('.abs-brand').click();
+      await expect(page.getByText('今天写点什么？')).toBeVisible();
+    };
+
+    await saveNewDraft('草稿甲', '正文甲');
+    await saveNewDraft('草稿乙', '正文乙');
+
+    // 「最近动过」切换成草稿箱，两篇新稿都在。
+    await page.getByRole('button', { name: /草稿箱/ }).first().click();
+    const sheet = page.locator('.abs-sheet');
+    await expect(sheet.getByRole('heading', { name: '草稿箱' })).toBeVisible();
+    await expect(sheet.getByText('草稿甲', { exact: true })).toBeVisible();
+    await expect(sheet.getByText('草稿乙', { exact: true })).toBeVisible();
+    await expect(sheet.locator('ul li')).toHaveCount(2);
+
+    // 打开甲：恢复正文，再盖章提交。
+    await sheet.getByText('草稿甲', { exact: true }).click();
+    await expect(page).toHaveURL(/draft=1/);
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await expect(page.locator('.cm-content')).toContainText('正文甲');
+    const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
+    await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('草稿甲');
+
+    await page.locator('.abs-stamp').click();
+    await page.getByRole('button', { name: '确认创建' }).click();
+    await expect(page.getByText('已创建并提交 · 1 个提交')).toBeVisible();
+
+    // 提交后甲从草稿箱移除，乙还在。
+    await page.locator('.abs-brand').click();
+    await page.getByRole('button', { name: /草稿箱/ }).first().click();
+    await expect(sheet.getByText('草稿乙', { exact: true })).toBeVisible();
+    await expect(sheet.getByText('草稿甲', { exact: true })).toHaveCount(0);
+    await expect(sheet.locator('ul li')).toHaveCount(1);
+
+    // 删除最后一篇后回到空状态。
+    await sheet.getByRole('button', { name: '从草稿箱删除：草稿乙' }).click();
+    await expect(page.getByText('已从草稿箱删除')).toBeVisible();
+    await expect(page.getByText('草稿箱是空的')).toBeVisible();
+  });
+
+  test('lists an autosave backup in the draft box', async ({ page }) => {
+    page.on('dialog', (dialog) => void dialog.accept());
+    await page.goto('/?demo=1');
+    await page.locator('.abs-tree-row').filter({ hasText: 'note' }).first().click();
+    await page.locator('.abs-tree-row').filter({ hasText: '便笺-Markdown-备忘单.md' }).click();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
+    await frontmatter.locator('input.abs-input').first().fill('备份也是草稿');
+    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+
+    await page.locator('.abs-brand').click();
+    await expect(page.getByText('今天写点什么？')).toBeVisible();
+    await page.getByRole('button', { name: /草稿箱/ }).first().click();
+
+    const sheet = page.locator('.abs-sheet');
+    await expect(sheet.getByText('备份也是草稿', { exact: true })).toBeVisible();
+    await expect(sheet.getByText('自动备份', { exact: true })).toBeVisible();
+
+    // 点进草稿箱条目等于从备份恢复，而不是打开远端旧内容。
+    await sheet.getByText('备份也是草稿', { exact: true }).click();
+    await expect(page).toHaveURL(/draft=1/);
+    const restoredTitle = page
+      .locator('section.abs-paper')
+      .filter({ hasText: 'FRONTMATTER' })
+      .locator('input.abs-input')
+      .first();
+    await expect(restoredTitle).toHaveValue('备份也是草稿');
+  });
+
   test('renders {title} in create and update commit templates', async ({ page }) => {
     await page.goto('/?demo=1#/settings');
     const commitSection = page.locator('section.abs-paper').filter({ hasText: '提交消息' });

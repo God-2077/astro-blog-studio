@@ -29,12 +29,12 @@ pnpm dev
 
 完整内容见 [docs/guide.md](docs/guide.md)：
 - **首次连接**：创建 fine-grained PAT、填写仓库/分支/根目录、选择解锁方式（设备指纹 / 密码 / 密码 + 设备双因子）。
-- **功能**：文件索引、CodeMirror 编辑 + 预览、frontmatter 表单、写操作与冲突处理、格式保真、提交模板、本机加密文章缓存 + 增量同步、真实/演示双模式、夜间外观、保险库、设置、响应式、PWA。
-- **安全模型**：PAT 只在浏览器内 AES-GCM 加密存储、密码才是安全边界、会话与锁定机制、真实仓库的未保存备份与文章缓存均为密文、渲染与运行时约束。
+- **功能**：文件索引、CodeMirror 编辑 + 预览、frontmatter 表单、写操作与冲突处理、格式保真、提交模板、本机加密草稿箱（显式草稿 + 自动备份，多篇并存）、本机加密文章缓存 + 增量同步、真实/演示双模式、夜间外观、保险库、设置、响应式、PWA。
+- **安全模型**：PAT 只在浏览器内 AES-GCM 加密存储、密码才是安全边界、会话与锁定机制、真实仓库的未保存备份、草稿箱与文章缓存均为密文、渲染与运行时约束。
 
 ## 已知限制
 
-完整内容见 [docs/guide.md#已知限制](docs/guide.md#已知限制)：单文件编辑（无图片上传、无跨文件搜索、无版本历史、无 PR 流程）；冲突无逐行 merge；只支持 UTF-8 Markdown/MDX；GitHub Contents API 单文件约 1 MB 限制；设备指纹非安全边界；未保存备份与文章缓存仅限本机、跨设备不同步；离线只缓存前端壳，无离线保存队列；Service Worker 更新不强制刷新。
+完整内容见 [docs/guide.md#已知限制](docs/guide.md#已知限制)：单文件编辑（无图片上传、无跨文件搜索、无版本历史、无 PR 流程）；冲突无逐行 merge；只支持 UTF-8 Markdown/MDX；GitHub Contents API 单文件约 1 MB 限制；设备指纹非安全边界；未保存备份、草稿箱与文章缓存仅限本机、跨设备不同步；离线只缓存前端壳，无离线保存队列；Service Worker 更新不强制刷新。
 
 ## 构建与部署
 
@@ -61,6 +61,7 @@ GNU Affero General Public License v3.0（`AGPL-3.0-only`），见 [LICENSE](LICE
 
 - [使用指南](docs/guide.md)：首次连接、功能清单、安全模型、已知限制。
 - [未保存备份](docs/backup.md)：加密、恢复弹窗、409、新稿、清除时机、设置开关。
+- [草稿箱](docs/drafts.md)：多篇显式草稿、加密、从草稿箱打开、提交后清理、与自动备份的区别。
 - [本机文章缓存与增量同步](docs/content-cache.md)：GraphQL 批量、diff 规则、AAD、并发、降级。
 - [测试](docs/testing.md)：测试覆盖清单、手动 E2E、测试仓库与 Playwright 说明。
 - [架构](docs/architecture.md)：目录结构、内容与提交规则、设置项、PWA 与离线/更新提醒。

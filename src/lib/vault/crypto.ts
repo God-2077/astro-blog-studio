@@ -98,6 +98,29 @@ export async function deriveContentKey(dataKey: Uint8Array): Promise<CryptoKey> 
   );
 }
 
+/**
+ * Domain-separated key for the explicit draft box. Saved drafts are a
+ * different lifecycle than crash-recovery backups, so they never share a key:
+ * a leaked draft key must not open the autosave store either.
+ */
+export const DRAFT_KEY_INFO = 'abs:draft:v1';
+
+export async function deriveDraftKey(dataKey: Uint8Array): Promise<CryptoKey> {
+  const material = await crypto.subtle.importKey('raw', dataKey as BufferSource, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: new Uint8Array(0),
+      info: encoder.encode(DRAFT_KEY_INFO),
+    },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
 export function passphraseForDevice(id: string): string {
   return `abs:vault:v1|device|${id}`;
 }
