@@ -15,11 +15,18 @@ import { usePendingPost } from '@/stores/pending-post';
 import { useSettings } from '@/stores/settings';
 
 function sanitizeFilePart(value: string): string {
-  return value
-    .replace(/[\\/:*?"<>|]/g, '-')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^\.+|\.+$/g, '');
+  const trimmed = value.trim();
+  // 先摘出 .md 扩展名，避免被后面的标点替换吃掉
+  const mdMatch = trimmed.match(/^(.*?)(\.md)$/i);
+  const base = mdMatch?.[1] ?? trimmed;
+  const ext = mdMatch?.[2] ?? '';
+
+  const cleaned = base
+    .replace(/[\p{P}\p{S}\s]+/gu, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return cleaned ? `${cleaned}${ext}` : '';
 }
 
 export function NewPostDialog({
