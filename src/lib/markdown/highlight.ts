@@ -25,6 +25,9 @@ const CACHE_LIMIT = 200;
 const cache = new Map<string, HighlightResult>();
 const inFlight = new Map<string, Promise<HighlightResult>>();
 const loadingLanguages = new Map<CodeLanguageId, Promise<void>>();
+/** 加载失败的语言集合：shiki 的错误通常是永久性的（语法正则不兼容、chunk 404 等），
+ *  重试不会变好；这里只缓存进程内失败，页面刷新后用户会得到重新尝试的机会。 */
+const failedLanguages = new Set<CodeLanguageId>();
 
 let highlighterPromise: Promise<HighlighterCore | null> | null = null;
 
@@ -54,10 +57,13 @@ async function getHighlighter(): Promise<HighlighterCore | null> {
 
 async function ensureLanguage(highlighter: HighlighterCore, id: CodeLanguageId): Promise<void> {
   if (highlighter.getLoadedLanguages().includes(id)) return;
+  // 之前加载失败过：不再重试，直接抛给 run() 的 try-catch 降级为纯文本
+  if (failedLanguages.has(id)) throw new Error(`Language ${id} previously failed to load`);
   const pending = loadingLanguages.get(id);
   if (pending) return pending;
   const task = highlighter.loadLanguage(CODE_LANGUAGES[id].load).catch((error: unknown) => {
     loadingLanguages.delete(id);
+    failedLanguages.add(id);
     throw error;
   });
   loadingLanguages.set(id, task);

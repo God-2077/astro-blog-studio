@@ -453,15 +453,34 @@ function isYaml(code: string, { lines, filled }: Sample): number {
 }
 
 function isToml(code: string): number {
-  if (/^\s*;/m.test(code)) return 0;
   if (!/^\s*\[[\w.-]+\]\s*$/m.test(code)) return 0;
-  return /^\s*[\w"'-]+\s*=\s*.+$/m.test(code) ? 0.9 : 0;
+  if (!/^\s*[\w"'-]+\s*=\s*.+$/m.test(code)) return 0;
+  // TOML 特有特征，任何一个都足以把分数拉到 INI 之上：
+  // - 带引号的值（TOML 规范值常带引号，INI 通常裸值）
+  // - 点号嵌套 section 头 [a.b]
+  // - 内联表 { key = val }（允许嵌在数组里 [{...}]）
+  // - 字符串数组 ["a", "b"]
+  if (
+    /^\s*[\w"'-]+\s*=\s*"[^"]*"/m.test(code) ||
+    /^\s*\[[\w.-]+\.[\w.-]+\]\s*$/m.test(code) ||
+    /=\s*(?:\[\s*)?\{[^}]*\}/.test(code) ||
+    /=\s*\[\s*"/.test(code)
+  ) {
+    return 0.88;
+  }
+  // 基础分 0.75：低于 INI 带注释的 0.82 和纯 INI 的 0.76，
+  // 这样只有 TOML 特有特征才会胜出；否则 INI 更可能。
+  return 0.75;
 }
 
 function isIni(code: string): number {
   if (!/^\s*\[[\w .-]+\]\s*$/m.test(code)) return 0;
   if (!/^\s*[\w.-]+\s*=\s*.+$/m.test(code)) return 0;
-  return /^\s*[;#]\s*/m.test(code) ? 0.82 : 0.72;
+  // section header 含空格是 INI 独有特征（TOML 不允许空格）
+  if (/\[[\w-]+\s+[\w-]+\]/.test(code)) return 0.92;
+  if (/^\s*[;#]\s*/m.test(code)) return 0.82;
+  // 0.76 略高于 isToml 基础分 0.75，让纯 section + key-value 无引号值优先归 INI
+  return 0.76;
 }
 
 function isMarkdown(code: string, { lines }: Sample): number {
