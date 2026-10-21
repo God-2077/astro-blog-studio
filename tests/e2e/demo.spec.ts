@@ -232,8 +232,8 @@ test.describe('demo mode', () => {
     await expect(page).not.toHaveURL(/new=1/);
 
     await page.locator('.abs-brand').click();
-    await expect(page.locator('.abs-receipt')).toContainText('create: src/content/blog/E2E 新建稿.md');
-    await expect(page.locator('.abs-tree-row').filter({ hasText: 'E2E 新建稿.md' })).toBeVisible();
+    await expect(page.locator('.abs-receipt')).toContainText('create: src/content/blog/E2E-新建稿.md');
+    await expect(page.locator('.abs-tree-row').filter({ hasText: 'E2E-新建稿.md' })).toBeVisible();
   });
 
   test('keeps several drafts in the local draft box and retires one after commit', async ({ page }) => {
@@ -358,7 +358,7 @@ test.describe('demo mode', () => {
     await expect(page.getByText('已创建并提交 · 1 个提交')).toBeVisible();
 
     await page.locator('.abs-brand').click();
-    await expect(page.locator('.abs-receipt')).toContainText('create: E2E 标题占位符 @ src/content/blog/E2E 标题占位符.md');
+    await expect(page.locator('.abs-receipt')).toContainText('create: E2E 标题占位符 @ src/content/blog/E2E-标题占位符.md');
   });
 
   test('switches appearance between system, day and night, and persists the choice', async ({ page }) => {
