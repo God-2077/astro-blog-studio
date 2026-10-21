@@ -16,3 +16,9 @@ tests/e2e/.auth/
 
 # codegraph
 .codegraph/
+
+# workbuddy
+.workbuddy
+
+# playwright
+.pw-*
