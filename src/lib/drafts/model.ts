@@ -1,5 +1,5 @@
 import { BACKUP_VERSION, type BackupRecord, type BackupState, type EditorBackupMode, isBackupRecord } from '@/lib/backup/model';
-import { formValuesFromData, type FrontmatterField } from '@/lib/frontmatter/fields';
+import { type FrontmatterField, formValuesFromData } from '@/lib/frontmatter/fields';
 import { parseDocument, toEditingText } from '@/lib/markdown/document';
 import { normalizeRepoPath } from '@/lib/paths/paths';
 

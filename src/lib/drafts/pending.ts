@@ -19,7 +19,7 @@ export interface CapturePendingDraftInput {
 export async function capturePendingDraft(input: CapturePendingDraftInput): Promise<DraftRecord> {
   const pendingPath = normalizeRepoPath(input.pending.path);
   const backup = await readBackup(input.repoKey, pendingPath).catch(() => null);
-  if (backup && backup.isNew && normalizeRepoPath(backup.path) === pendingPath) {
+  if (backup?.isNew && normalizeRepoPath(backup.path) === pendingPath) {
     return draftFromBackup(backup);
   }
   // Without a backup the memory draft only holds the initial document, which

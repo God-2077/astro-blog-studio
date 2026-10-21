@@ -62,8 +62,7 @@ export const useDrafts = create<DraftsState>()((set) => ({
     set((state) => {
       if (state.repoKey && state.repoKey !== draft.repoKey) return state;
       const others = state.items.filter(
-        (record) =>
-          !(record.repoKey === draft.repoKey && normalizeRepoPath(record.path) === normalizeRepoPath(draft.path)),
+        (record) => !(record.repoKey === draft.repoKey && normalizeRepoPath(record.path) === normalizeRepoPath(draft.path)),
       );
       return {
         repoKey: state.repoKey ?? draft.repoKey,

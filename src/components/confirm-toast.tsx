@@ -45,12 +45,10 @@ function ConfirmCard({
   }, []);
 
   return (
-    <div
+    <fieldset
       data-abs-confirm=""
-      role="group"
-      aria-label={message}
       aria-describedby={description ? descriptionId : undefined}
-      className="px-3.5 py-3"
+      className="border-0 p-0 px-3.5 py-3"
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return;
         event.preventDefault();
@@ -58,7 +56,7 @@ function ConfirmCard({
         onChoose(false);
       }}
     >
-      <p className="font-display text-[13px] font-bold leading-relaxed text-ink">{message}</p>
+      <legend className="font-display block text-[13px] font-bold leading-relaxed text-ink">{message}</legend>
       {description ? (
         <p id={descriptionId} className="mt-1 text-[11px] leading-relaxed text-muted">
           {description}
@@ -81,7 +79,7 @@ function ConfirmCard({
           {confirmLabel}
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 }
 

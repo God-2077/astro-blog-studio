@@ -45,14 +45,16 @@ export function AppShell() {
 
   // 未保存时同步 preventDefault 挡住 <Link> 的默认跳转，等确认后再 navigate；
   // 带修饰键或中键仍交给浏览器（新标签页打开），不改原生行为。
-  const guardLeave = (to: string) => (event: MouseEvent<HTMLAnchorElement>): void => {
-    if (!dirty) return;
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    event.preventDefault();
-    void confirmLeave().then((leave) => {
-      if (leave) navigate(to);
-    });
-  };
+  const guardLeave =
+    (to: string) =>
+    (event: MouseEvent<HTMLAnchorElement>): void => {
+      if (!dirty) return;
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      void confirmLeave().then((leave) => {
+        if (leave) navigate(to);
+      });
+    };
 
   useAutoLock(mode === 'live');
 

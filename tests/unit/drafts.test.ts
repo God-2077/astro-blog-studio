@@ -10,8 +10,8 @@ import {
   draftCharCount,
   draftFromBackup,
   draftFromText,
-  draftToBackup,
   draftTitle,
+  draftToBackup,
   isDraftRecord,
   MAX_DRAFT_CHARS,
 } from '@/lib/drafts/model';

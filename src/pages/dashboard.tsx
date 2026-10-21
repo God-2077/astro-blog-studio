@@ -2,8 +2,8 @@ import { Archive, ArrowUpRight, Check, ChevronDown, Clock3, Plus, RefreshCw, Tra
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ContentSyncStatus } from '@/components/content-status';
 import { confirmAction } from '@/components/confirm-toast';
+import { ContentSyncStatus } from '@/components/content-status';
 import { NewPostDialog } from '@/components/new-post-dialog';
 import { Badge, EmptyState, ErrorNote, SkeletonList } from '@/components/ui';
 import { useContentActions } from '@/hooks/use-content-sync';
@@ -252,9 +252,7 @@ export function DashboardPage() {
                 <span className="font-mono text-[9.5px] text-muted">{summaryLabel}</span>
               </div>
             ) : (
-              <span className="font-mono text-[9.5px] text-muted">
-                {mode === 'demo' ? '演示模式 · 明文' : 'AES-GCM 加密'}
-              </span>
+              <span className="font-mono text-[9.5px] text-muted">{mode === 'demo' ? '演示模式 · 明文' : 'AES-GCM 加密'}</span>
             )}
           </div>
 
@@ -299,9 +297,7 @@ export function DashboardPage() {
                           {displayDate(postSortValue(post, sortKey))}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-[12px] font-bold group-hover:text-sakura">
-                            {post.title}
-                          </span>
+                          <span className="block truncate text-[12px] font-bold group-hover:text-sakura">{post.title}</span>
                           <span className="block truncate font-mono text-[9px] text-muted">{post.path}</span>
                         </span>
                         <span className="col-span-2 flex flex-wrap justify-start gap-1 pl-[72px] sm:col-span-1 sm:pl-0">
@@ -546,9 +542,7 @@ function DraftsList({
               {draft.isNew ? <Badge tone="butter">新稿</Badge> : <Badge tone="ghost">已有文章</Badge>}
               {draft.origin === 'backup' ? <Badge tone="ghost">自动备份</Badge> : null}
               {draft.mode === 'source' ? <Badge tone="ghost">源文件</Badge> : null}
-              <span className="font-mono text-[9px] text-muted">
-                {draftCharCount(draft.text).toLocaleString('en-US')} 字
-              </span>
+              <span className="font-mono text-[9px] text-muted">{draftCharCount(draft.text).toLocaleString('en-US')} 字</span>
             </span>
           </button>
           <button
