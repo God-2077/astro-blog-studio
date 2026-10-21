@@ -1,5 +1,3 @@
-import { markdown } from '@codemirror/lang-markdown';
-import { EditorView } from '@codemirror/view';
 import * as AlarmDialog from '@radix-ui/react-alert-dialog';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Popover from '@radix-ui/react-popover';
@@ -44,6 +42,7 @@ import {
   toEditingText,
   updateFrontmatterRaw,
 } from '@/lib/markdown/document';
+import { createEditorTheme, markdownEditorExtensions } from '@/lib/markdown/editor-theme';
 import { renderMarkdown } from '@/lib/markdown/render';
 import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
 import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
@@ -53,28 +52,6 @@ import { useEditorGuard } from '@/stores/editor';
 import { useLastCommit } from '@/stores/last-commit';
 import { usePendingPost } from '@/stores/pending-post';
 import { useSettings } from '@/stores/settings';
-
-function editorTheme(fontSize: number, dark: boolean): ReturnType<typeof EditorView.theme> {
-  return EditorView.theme(
-    {
-      '&': {
-        backgroundColor: 'transparent',
-        color: 'var(--abs-ink)',
-        fontSize: `${fontSize}px`,
-      },
-      '.cm-scroller': { fontFamily: 'var(--abs-font-mono)', lineHeight: '1.9' },
-      '.cm-content': { padding: '10px 0' },
-      '.cm-gutters': { backgroundColor: 'transparent', border: 'none', color: 'var(--abs-muted)' },
-      '.cm-activeLine': { backgroundColor: 'var(--abs-active-line)' },
-      '.cm-cursor': { borderLeftColor: 'var(--abs-sakura)' },
-      '&.cm-focused': { outline: 'none' },
-      '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
-        backgroundColor: 'var(--abs-selection) !important',
-      },
-    },
-    { dark },
-  );
-}
 
 type EditorMode = 'form' | 'source';
 
@@ -98,15 +75,7 @@ export function EditorPage() {
   );
 }
 
-function EditorSession({
-  path,
-  isNew,
-  draftRequested,
-}: {
-  path: string | null;
-  isNew: boolean;
-  draftRequested: boolean;
-}) {
+function EditorSession({ path, isNew, draftRequested }: { path: string | null; isNew: boolean; draftRequested: boolean }) {
   const navigate = useNavigate();
   const { gateway, repo, config, key, mode } = useGateway();
   const settings = useSettings();
@@ -265,29 +234,27 @@ function EditorSession({
   useEffect(() => {
     if (!draftRequested || !path) return;
     let cancelled = false;
-    void Promise.all([readDraft(repoKey, path), readBackup(repoKey, path).catch(() => null)]).then(
-      ([record, backup]) => {
-        if (cancelled) return;
-        // Edits made after opening a draft live in the autosave backup; when
-        // that copy is newer — or the only copy — restore it instead of
-        // silently losing the latest work.
-        const chosen =
-          backup && backup.isNew === isNew && (!record || record.isNew !== isNew || backup.savedAt > record.savedAt)
-            ? draftFromBackup(backup)
-            : record;
-        if (chosen && chosen.isNew === isNew && normalizeRepoPath(chosen.path) === normalizeRepoPath(path)) {
-          openedDraftRef.current = chosen;
-          setDraftSavedAt(chosen.savedAt);
-          if (chosen.isNew) {
-            const live = usePendingPost.getState().draft;
-            if (!live || normalizeRepoPath(live.path) !== normalizeRepoPath(chosen.path)) {
-              usePendingPost.getState().setDraft({ path: chosen.path, text: chosen.text });
-            }
+    void Promise.all([readDraft(repoKey, path), readBackup(repoKey, path).catch(() => null)]).then(([record, backup]) => {
+      if (cancelled) return;
+      // Edits made after opening a draft live in the autosave backup; when
+      // that copy is newer — or the only copy — restore it instead of
+      // silently losing the latest work.
+      const chosen =
+        backup && backup.isNew === isNew && (!record || record.isNew !== isNew || backup.savedAt > record.savedAt)
+          ? draftFromBackup(backup)
+          : record;
+      if (chosen && chosen.isNew === isNew && normalizeRepoPath(chosen.path) === normalizeRepoPath(path)) {
+        openedDraftRef.current = chosen;
+        setDraftSavedAt(chosen.savedAt);
+        if (chosen.isNew) {
+          const live = usePendingPost.getState().draft;
+          if (!live || normalizeRepoPath(live.path) !== normalizeRepoPath(chosen.path)) {
+            usePendingPost.getState().setDraft({ path: chosen.path, text: chosen.text });
           }
         }
-        setDraftReady(true);
-      },
-    );
+      }
+      setDraftReady(true);
+    });
     return () => {
       cancelled = true;
     };
@@ -767,11 +734,7 @@ function EditorSession({
               <ArrowLeft aria-hidden className="size-3.5" />
               回到工作台重新新建
             </button>
-            <button
-              type="button"
-              className="abs-btn abs-btn-ghost text-[11px]"
-              onClick={() => navigate('/?drafts=1')}
-            >
+            <button type="button" className="abs-btn abs-btn-ghost text-[11px]" onClick={() => navigate('/?drafts=1')}>
               打开草稿箱
             </button>
           </div>
@@ -833,12 +796,7 @@ function EditorSession({
         <header className="abs-paper min-w-0 p-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="flex min-w-0 items-start gap-2">
-              <button
-                type="button"
-                className="abs-icon-btn mt-0.5"
-                onClick={() => void leaveEditor()}
-                aria-label="回到工作台"
-              >
+              <button type="button" className="abs-icon-btn mt-0.5" onClick={() => void leaveEditor()} aria-label="回到工作台">
                 <ArrowLeft aria-hidden className="size-3.5" />
               </button>
               <div className="min-w-0">
@@ -999,8 +957,8 @@ function EditorSession({
               key={editorMode}
               value={sourceActive ? sourceText : body}
               height="520px"
-              theme={editorTheme(settings.editor.fontSize, resolvedTheme === 'night')}
-              extensions={[markdown(), EditorView.lineWrapping]}
+              theme={createEditorTheme(settings.editor.fontSize, resolvedTheme === 'night')}
+              extensions={markdownEditorExtensions}
               basicSetup={{
                 lineNumbers: settings.editor.showLineNumbers,
                 foldGutter: false,
@@ -1008,6 +966,7 @@ function EditorSession({
                 autocompletion: true,
                 bracketMatching: true,
                 closeBrackets: true,
+                syntaxHighlighting: false,
               }}
               onChange={(value) => {
                 if (sourceActive) {

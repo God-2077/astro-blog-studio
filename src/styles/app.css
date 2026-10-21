@@ -44,6 +44,14 @@
   --abs-info-line: #6a9cb8;
   --abs-active-line: rgba(247, 221, 229, 0.42);
   --abs-selection: #f7dde5;
+  /* Markdown 语法角色：只做别名，底层继续跟随同一套昼/夜 token。
+     CodeMirror 高亮样式只引用这些角色，不复制颜色，也不写夜间分支。 */
+  --abs-md-heading: var(--abs-ink);
+  --abs-md-link: var(--abs-sakura-deep);
+  --abs-md-code: var(--abs-success);
+  --abs-md-string: var(--abs-warning);
+  --abs-md-muted: var(--abs-ink-soft);
+  --abs-md-rule: var(--abs-sakura-deep);
   --abs-stamp: #c93f6d;
   --abs-stamp-fill: rgba(201, 63, 109, 0.045);
   --abs-stamp-fill-hover: rgba(201, 63, 109, 0.08);

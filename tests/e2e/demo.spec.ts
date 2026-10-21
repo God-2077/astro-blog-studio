@@ -8,6 +8,51 @@ async function answerConfirm(page: Page, label: string): Promise<void> {
   await expect(confirm).toBeHidden();
 }
 
+/** 读取编辑器里每种语法 token 的颜色，并换算成对纸面的对比度。 */
+async function tokenContrast(page: Page): Promise<Array<{ color: string; ratio: number }>> {
+  return page.evaluate(() => {
+    const parse = (value: string): [number, number, number] => {
+      const text = value.trim();
+      if (text.startsWith('#')) {
+        const hex = text.slice(1);
+        const full =
+          hex.length === 3
+            ? hex
+                .split('')
+                .map((part) => part + part)
+                .join('')
+            : hex;
+        return [
+          Number.parseInt(full.slice(0, 2), 16) / 255,
+          Number.parseInt(full.slice(2, 4), 16) / 255,
+          Number.parseInt(full.slice(4, 6), 16) / 255,
+        ];
+      }
+      const body = /^rgba?\(([^)]+)\)$/.exec(text)?.[1];
+      if (!body) throw new Error(`unsupported color: ${value}`);
+      const [red = 0, green = 0, blue = 0] = body.split(',').map((part) => Number.parseFloat(part));
+      return [red / 255, green / 255, blue / 255];
+    };
+    const channel = (value: number): number => (value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+    const luminance = ([red = 0, green = 0, blue = 0]: [number, number, number]): number =>
+      0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue);
+    const contrast = (first: [number, number, number], second: [number, number, number]): number => {
+      const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+      return ((lighter ?? 0) + 0.05) / ((darker ?? 0) + 0.05);
+    };
+
+    const root = document.querySelector('.cm-content');
+    if (!root) throw new Error('editor content not found');
+    const paper = getComputedStyle(document.documentElement).getPropertyValue('--abs-paper');
+    const colors = new Map<string, number>();
+    for (const span of root.querySelectorAll('span[class]')) {
+      const color = getComputedStyle(span).color;
+      colors.set(color, contrast(parse(color), parse(paper)));
+    }
+    return [...colors].map(([color, ratio]) => ({ color, ratio }));
+  });
+}
+
 test.describe('demo mode', () => {
   test('opens the workbench, saves a note, and shows the in-memory receipt', async ({ page }) => {
     const githubCalls: string[] = [];
@@ -216,7 +261,10 @@ test.describe('demo mode', () => {
     await saveNewDraft('草稿乙', '正文乙', true);
 
     // 「最近动过」切换成草稿箱，两篇新稿都在。
-    await page.getByRole('button', { name: /草稿箱/ }).first().click();
+    await page
+      .getByRole('button', { name: /草稿箱/ })
+      .first()
+      .click();
     const sheet = page.locator('.abs-sheet');
     await expect(sheet.getByRole('heading', { name: '草稿箱' })).toBeVisible();
     await expect(sheet.getByText('草稿甲', { exact: true })).toBeVisible();
@@ -239,7 +287,10 @@ test.describe('demo mode', () => {
 
     // 提交后甲从草稿箱移除，乙还在。
     await page.locator('.abs-brand').click();
-    await page.getByRole('button', { name: /草稿箱/ }).first().click();
+    await page
+      .getByRole('button', { name: /草稿箱/ })
+      .first()
+      .click();
     await expect(sheet.getByText('草稿乙', { exact: true })).toBeVisible();
     await expect(sheet.getByText('草稿甲', { exact: true })).toHaveCount(0);
     await expect(sheet.locator('ul li')).toHaveCount(1);
@@ -268,7 +319,10 @@ test.describe('demo mode', () => {
     await page.locator('.abs-brand').click();
     await answerConfirm(page, '离开');
     await expect(page.getByText('今天写点什么？')).toBeVisible();
-    await page.getByRole('button', { name: /草稿箱/ }).first().click();
+    await page
+      .getByRole('button', { name: /草稿箱/ })
+      .first()
+      .click();
 
     const sheet = page.locator('.abs-sheet');
     await expect(sheet.getByText('备份也是草稿', { exact: true })).toBeVisible();
@@ -441,5 +495,38 @@ test.describe('demo mode', () => {
     const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
     await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('E2E 备份新稿');
     await expect(page.locator('.cm-content')).toContainText('新稿备份正文');
+  });
+
+  test('keeps markdown syntax readable in both night and day themes', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/?demo=1');
+    await page.locator('.abs-tree-row').filter({ hasText: 'note' }).first().click();
+    await page.locator('.abs-tree-row').filter({ hasText: '便笺-Markdown-备忘单.md' }).click();
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    // insertText 绕过 closeBrackets 的自动补全，避免 []/()/`` 被成对插入。
+    await page.keyboard.insertText(
+      '\n\n## 颜色标题\n\n> 引用\n\n---\n\n- [x] 任务\n\n**粗体** *斜体* ~~删除~~\n\n`代码`\n\n[链接](https://example.com "标题")\n\n<!-- 注释 -->\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n',
+    );
+    await expect(page.locator('.cm-content')).toContainText('颜色标题');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+
+    const night = await tokenContrast(page);
+    expect(night.length).toBeGreaterThanOrEqual(5);
+    for (const token of night) {
+      expect(token.ratio, `${token.color} on night paper`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(night.map((token) => token.color)).not.toContain('rgb(34, 17, 153)');
+
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'day');
+    const day = await tokenContrast(page);
+    expect(day.length).toBeGreaterThanOrEqual(5);
+    for (const token of day) {
+      expect(token.ratio, `${token.color} on day paper`).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(day.map((token) => token.color)).not.toEqual(night.map((token) => token.color));
   });
 });

@@ -70,6 +70,7 @@ src/
     frontmatter/fields.ts   字段类型/默认集/校验/form 映射/新稿初始文档
     markdown/document.ts    frontmatter 解析、compose、按 key 回写、EOL/BOM
     markdown/render.ts      marked + katex + DOMPurify + shoka 预处理
+    markdown/editor-theme.ts  CodeMirror 主题 + Markdown 语法高亮（--abs-md-* 角色）
     paths/commit-message.ts 提交模板（含 {title}）/ title 回退
     paths/                  normalize / exclusion matcher
     pwa/update-polling.ts   SW 更新检测：节流 + single-flight + 可见/在线判断
