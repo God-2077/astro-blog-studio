@@ -39,7 +39,9 @@ export default defineConfig({
         // 默认只预缓存 js/css/html；字体和图标必须显式加入，否则离线打开会丢字体。
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,woff2}'],
         // .woff/.ttf 只是旧浏览器的兜底，不占预缓存体积，需要时由下面的 runtimeCaching 缓存。
-        globIgnores: ['**/*.{woff,ttf,map}'],
+        // shiki 的语法 chunk 同理：只在读到对应语言的代码块时才下载，走运行时缓存，
+        // 不要塞进安装阶段的预缓存清单（否则 40+ 门语言会把 PWA 体积翻倍）。
+        globIgnores: ['**/*.{woff,ttf,map}', '**/assets/shiki/**'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: 'index.html',
         // prompt 模式：不自动接管页面，否则更新弹窗就没有意义了。
@@ -56,6 +58,15 @@ export default defineConfig({
             urlPattern: /\.(?:woff|ttf)$/,
             handler: 'CacheFirst',
             options: { cacheName: 'studio-legacy-fonts', expiration: { maxEntries: 24 } },
+          },
+          // 语法高亮 chunk：第一次读到该语言的代码块时缓存，之后离线也能着色。
+          {
+            urlPattern: /\/assets\/shiki\/.+\.js$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'studio-shiki',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
           },
         ],
       },
@@ -83,8 +94,19 @@ export default defineConfig({
     chunkSizeWarningLimit: 750,
     rollupOptions: {
       output: {
+        // shiki 的按需语法 chunk 单独放一个目录：Service Worker 靠这个目录名
+        // 把它们排除出预缓存，交给 runtimeCaching。
+        chunkFileNames: (chunkInfo) => {
+          const shikiOnly =
+            chunkInfo.moduleIds.length > 0 &&
+            chunkInfo.moduleIds.every((id) => /[\\/]shiki[\\/]|@shikijs[\\/]|oniguruma-to-es/.test(id));
+          return shikiOnly ? 'assets/shiki/[name]-[hash].js' : 'assets/[name]-[hash].js';
+        },
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
+          // shiki 只在预览出现代码块时按需动态 import：交给 Rollup 自然切分，
+          // 不要并进首屏 vendor，否则未用到的语法也会被塞进初始包。
+          if (/[\\/]shiki[\\/]|@shikijs[\\/]|oniguruma-to-es/.test(id)) return undefined;
           if (id.includes('@codemirror') || id.includes('@uiw') || id.includes('@lezer')) return 'editor';
           if (id.includes('marked') || id.includes('katex') || id.includes('dompurify')) return 'markdown';
           if (id.includes('@octokit')) return 'github';

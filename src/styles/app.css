@@ -969,6 +969,28 @@
   font-size: inherit;
 }
 
+/* 语法高亮由预览组件在渲染后按需注入（src/lib/markdown/highlight.ts）。
+   语言名固定在代码块右上角，给自动识别一个可见的确认。 */
+.abs-preview pre.abs-code-block {
+  position: relative;
+  padding-top: 26px;
+}
+
+.abs-preview pre.abs-code-block::after {
+  content: attr(data-lang);
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-family: var(--abs-font-mono);
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(168, 224, 207, 0.62);
+  pointer-events: none;
+  user-select: none;
+}
+
 .abs-preview blockquote {
   margin: 0 0 1em;
   padding: 6px 12px;

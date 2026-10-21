@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { BackupDialog } from '@/components/backup-dialog';
 import { confirmAction } from '@/components/confirm-toast';
 import { FrontmatterForm } from '@/components/frontmatter-form';
+import { MarkdownPreview } from '@/components/markdown-preview';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Badge, ErrorNote, Field, Spinner } from '@/components/ui';
 import { useFile } from '@/hooks/use-data';
@@ -1098,7 +1099,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
             </p>
           ) : null}
           <div className="min-h-0 flex-1 overflow-auto p-4">
-            <div className="abs-preview" dangerouslySetInnerHTML={{ __html: rendered.html }} />
+            <MarkdownPreview html={rendered.html} />
           </div>
         </div>
       </aside>

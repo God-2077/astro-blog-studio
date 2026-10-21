@@ -43,6 +43,7 @@ src/
     unlock-mode-picker.tsx  设备指纹 / 密码 / 密码 + 设备双因子（严格 AND）
     frontmatter-form.tsx    按设置字段配置渲染的动态 frontmatter 表单
     frontmatter-fields-editor.tsx  设置页的字段增删/类型/必填编辑
+    markdown-preview.tsx    预览容器 + 渲染后的代码高亮（渐进增强，失败回退纯文本）
     pwa-update.tsx          注册 SW、轮询更新、把状态同步进 store（dev 下是 no-op）
     pwa-update-dialog.tsx   「网站有新版本」AlertDialog（只提醒，不自动刷新）
     ui.tsx                  Badge / Field / Spinner / ErrorNote / EmptyState / Skeleton
@@ -70,6 +71,9 @@ src/
     frontmatter/fields.ts   字段类型/默认集/校验/form 映射/新稿初始文档
     markdown/document.ts    frontmatter 解析、compose、按 key 回写、EOL/BOM
     markdown/render.ts      marked + katex + DOMPurify + shoka 预处理
+    markdown/code-language.ts  围栏语言别名 / 语言注册表 / 无语言时的结构启发式识别
+    markdown/highlight.ts   shiki 懒加载、按语言 chunk、结果缓存（语言 + 源码）
+    markdown/highlight-theme.ts  预览代码的 `abs-ink` 深色主题（不引用 CSS 变量）
     markdown/editor-theme.ts  CodeMirror 主题 + Markdown 语法高亮（--abs-md-* 角色）
     paths/commit-message.ts 提交模板（含 {title}）/ title 回退
     paths/                  normalize / exclusion matcher
@@ -97,7 +101,7 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
 2. **浏览器纯前端**
    - 不新增后端、不调用自建 API、不在构建时读取私有内容。
    - 外部网络只有 `api.github.com`（以及 GitHub 的 html_url 点击跳转）。
-   - 预览必须经 `renderMarkdown`（DOMPurify）；禁止直接 `dangerouslySetInnerHTML` 原始 Markdown。
+   - 预览必须经 `renderMarkdown`（DOMPurify）；禁止直接 `dangerouslySetInnerHTML` 原始 Markdown。代码高亮只允许把 shiki 生成的 span 写进 `pre > code`（token 文本由 shiki 转义），不得拼接任何未转义内容。
 3. **内容保真**
    - 保存/移动要保留 CRLF/LF/BOM/结尾换行（`parseDocument` + `composeDocument`）。
    - 源文件模式（编辑器「表单 / 源文件」）直接写整份文件：只还原原文件的 EOL/BOM（`toEditingText` + `composeSourceDocument`），不解析 frontmatter 重写、不校验字段、不自动补 `updated`、不折叠结尾空行。
@@ -129,6 +133,7 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
    - 改视觉先看 `DESIGN.md` 和 `design/directions.html`，不要另起一套主题。
 8. **PWA 与缓存**
    - Service Worker 只预缓存同源构建产物（html/js/css/woff2/图标）；`api.github.com` 必须保持 `NetworkOnly`，**不得把 API 响应写进 CacheStorage**（私有内容与令牌语义）。
+   - `assets/shiki/**` 是按需下载的语法 chunk：用 `globIgnores` 排除出预缓存，由 `studio-shiki` 的 CacheFirst 运行时缓存承载；不要把它们加回 precache manifest。
    - 更新只能由用户点击「立即刷新」触发，禁止自动 reload、禁止把 `skipWaiting`/`clientsClaim` 打开来“自动升级”；「稍后」必须始终可用。
    - `pnpm dev` 不注册 SW；PWA 的任何行为只在 `pnpm build` + `pnpm preview` 或线上验证（e2e 的 `pwa` 组就是这么跑的）。
    - `public/icon-*.png` 是生成物：改图标要改 `scripts/generate-pwa-icons.mjs` 并重跑 `pnpm pwa:icons`，不要手改 PNG。
@@ -144,6 +149,12 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
     - 只写本机 IndexedDB `abs-content`（`lib/content/storage.ts`）；键含 `mode:owner/name@branch`，meta 与文章行共用 `records` store，用 `meta\0` / `file\0` 前缀区分（不要为同一 DB 建两个 idb-keyval store，升级会互相抢）。
     - **真实仓库（`live:`）必须加密**：meta 和每篇文章都用数据密钥经 HKDF（`abs:content:v1`）派生的 AES-GCM 子密钥加密；AAD 绑定仓库/分支，文章还要绑定 path + blob sha。没有密钥时读取返回 null、写入返回 `'locked'`，不得回落明文。demo 只在内存，不写 IDB。
     - 锁定必须 `dropContentMemory()` + `useContent.reset()`；重置保险库要 `clearContentByPrefix('live:')`。缓存不得进入 CacheStorage，也不得包含 PAT。
+11. **预览代码高亮**
+    - shiki 必须留在 `src/lib/markdown/highlight.ts` 里动态 `import()`：`shiki/core`、JS 正则引擎、每门语言各自成 chunk；不要在组件或 render 模块顶层静态 import，也不要把 shiki 并进 vendor/manualChunks（vite 的 `manualChunks` 已显式放行）。
+    - 语言解析与自动识别只在 `code-language.ts`：围栏写了语言就按语言（别名表），**只有完全没写语言**才走 `detectCodeLanguage`；`text`/`plaintext`/未知语言保持纯文本，不猜。
+    - 色板在 `highlight-theme.ts`（`abs-ink`，深色代码块）；新增/调整 token 色必须对 `--abs-code-bg` 昼 `#2F2A2E` / 夜 `#171114` 都 ≥4.5:1。
+    - 语言名标注走 `pre[data-lang]` + CSS `::after`（9px mono，薄荷色 62% 透明），不要再加代码块标题栏或复制按钮。
+    - 高亮是渐进增强：任何加载/着色失败都必须保留原生 `<pre><code>`，不得让预览报错或空白。
     - 配置签名（rootDir/扩展名/排除）变化等同首次；同一 tree sha 且记录完整时才允许 0 读取；`truncated` 跳过删除；写入失败只降级并提示，不得丢会话。
     - 新增/修改同步逻辑必须覆盖：首次全量、无变化零读取、只读变更、删除、失败重试、强制全量、截断、配置变化、配额降级；README/DESIGN 与测试计数同步更新。
 11. **草稿箱（显式草稿 + 自动备份）**
