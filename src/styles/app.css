@@ -40,6 +40,14 @@
   --abs-code-bg: #2f2a2e;
   --abs-code-fg: #f3e6ea;
   --abs-code-border: transparent;
+  /* 预览代码块昼夜都落在深色底上，所以 token 只定义一份，并按两个底色验算对比度。 */
+  --abs-code-comment: #b9a7ad;
+  --abs-code-keyword: #f07ca3;
+  --abs-code-string: #e8c98a;
+  --abs-code-number: #a8e0cf;
+  --abs-code-builtin: #9fc6e8;
+  --abs-code-tag: #f0a07c;
+  --abs-code-attr: #c7b6f0;
   --abs-info-surface: #eef7fb;
   --abs-info-line: #6a9cb8;
   --abs-active-line: rgba(247, 221, 229, 0.42);
@@ -967,6 +975,36 @@
   color: inherit;
   padding: 0;
   font-size: inherit;
+}
+
+/* 轻量代码高亮：只上色，不加动画/纹理，保持编辑器预览安静。 */
+.abs-preview pre code .tok-comment {
+  color: var(--abs-code-comment);
+}
+
+.abs-preview pre code .tok-keyword {
+  color: var(--abs-code-keyword);
+}
+
+.abs-preview pre code .tok-string {
+  color: var(--abs-code-string);
+}
+
+.abs-preview pre code .tok-number,
+.abs-preview pre code .tok-literal {
+  color: var(--abs-code-number);
+}
+
+.abs-preview pre code .tok-builtin {
+  color: var(--abs-code-builtin);
+}
+
+.abs-preview pre code .tok-tag {
+  color: var(--abs-code-tag);
+}
+
+.abs-preview pre code .tok-attr {
+  color: var(--abs-code-attr);
 }
 
 .abs-preview blockquote {

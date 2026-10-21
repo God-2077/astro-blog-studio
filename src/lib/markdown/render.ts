@@ -1,6 +1,8 @@
 import DOMPurify from 'dompurify';
 import { Marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
+import { escapeHtml } from './escape';
+import { renderFencedCode } from './highlight';
 
 const marked = new Marked({
   gfm: true,
@@ -12,6 +14,13 @@ marked.use(
     nonStandard: true,
   }),
 );
+marked.use({
+  renderer: {
+    code({ text, lang, escaped }) {
+      return renderFencedCode(text, lang, escaped);
+    },
+  },
+});
 
 let hooksInstalled = false;
 
@@ -29,10 +38,6 @@ function installHooks(): void {
       node.setAttribute('referrerpolicy', 'no-referrer');
     }
   });
-}
-
-function escapeHtml(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 }
 
 function transformSegment(segment: string): string {

@@ -19,7 +19,7 @@
 ## 功能
 
 - **文件索引**：树形浏览、路径搜索、排除规则过滤与刷新；显示目录内 Markdown 数量和被排除数量。
-- **编辑**：CodeMirror 6 Markdown 编辑 + 实时预览；表单按 frontmatter 字段编辑，源文件模式直接编辑整份文件（含 frontmatter）并原样写回。GFM、表格、代码、KaTeX 数学、剧透 `!!x!!`、高亮 `==x==`、插入 `++x++`、ruby、`:::info` 容器、`<!-- more -->` 摘要分隔。[详细规则](architecture.md#内容与提交规则)
+- **编辑**：CodeMirror 6 Markdown 编辑 + 实时预览；表单按 frontmatter 字段编辑，源文件模式直接编辑整份文件（含 frontmatter）并原样写回。GFM、表格、代码块（预览内置语言高亮，未知语言纯文本）、KaTeX 数学、剧透 `!!x!!`、高亮 `==x==`、插入 `++x++`、ruby、`:::info` 容器、`<!-- more -->` 摘要分隔。[详细规则](architecture.md#内容与提交规则)
 - **未保存备份**：编辑时约 600ms 防抖把整份文件快照写入本机 IndexedDB（同一文件只留最新一份），底栏显示「本机已备份 HH:mm」；真实仓库加密、demo 明文。进入编辑器时提示恢复；保存/移动/删除后清除，设置可关闭或清除。[完整行为](backup.md)
 - **草稿箱**：编辑器「保存草稿」把当前完整编辑状态写入本机（真实仓库 AES-GCM 加密），工作台「草稿箱」按钮切换本机草稿列表；**未保存的自动备份也会作为草稿列出来**，同一路径显示较新的一份，可同时保留多篇、从草稿箱打开继续编辑或删除；新稿开始下一篇前会先把上一篇存入草稿箱。只写 IndexedDB，不产生 GitHub 请求。[完整行为](drafts.md)
 - **frontmatter**：字段可在设置中增删，支持 `string / date / number / boolean / list` 与必填；默认预置 hello-world 常用字段（title、date、updated、description、categories、tags、draft、sticky、password、cover、keywords）。必填为空阻止保存；未知字段原样保留；YAML 损坏时降级原文编辑。

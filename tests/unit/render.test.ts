@@ -39,5 +39,37 @@ describe('markdown preview', () => {
     const { html } = renderMarkdown('```\n!!not a spoiler!!\n```\n');
     expect(html).toContain('not a spoiler');
     expect(html).not.toContain('md-spoiler');
+    expect(html).not.toContain('tok-');
+  });
+
+  it('highlights fenced code without treating strings as comments', () => {
+    const { html } = renderMarkdown('```ts\nconst answer = "// not a comment";\nconst ok = true;\n```');
+    expect(html).toContain('class="language-ts"');
+    expect(html).toContain('tok-keyword');
+    expect(html).toContain('tok-string');
+    expect(html).toContain('tok-literal');
+    expect(html).not.toContain('tok-comment');
+  });
+
+  it('highlights shell comments and strings separately', () => {
+    const { html } = renderMarkdown('```sh\necho "# not a comment"\n# real comment\n```');
+    expect(html).toContain('tok-builtin');
+    expect(html).toContain('tok-string');
+    expect(html).toContain('tok-comment');
+  });
+
+  it('escapes markup inside fenced code before wrapping tokens', () => {
+    const { html } = renderMarkdown('```html\n<img src=x onerror=alert(1)>\n```');
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
+    expect(html).toContain('tok-tag');
+    expect(html).toContain('tok-attr');
+  });
+
+  it('falls back to plain text for unknown languages', () => {
+    const { html } = renderMarkdown('```mermaid\ngraph TD\n```');
+    expect(html).toContain('class="language-mermaid"');
+    expect(html).toContain('graph TD');
+    expect(html).not.toContain('tok-');
   });
 });
