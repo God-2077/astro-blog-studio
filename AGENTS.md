@@ -129,6 +129,7 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
    - 改视觉先看 `DESIGN.md` 和 `design/directions.html`，不要另起一套主题。
 8. **PWA 与缓存**
    - Service Worker 只预缓存同源构建产物（html/js/css/woff2/图标）；`api.github.com` 必须保持 `NetworkOnly`，**不得把 API 响应写进 CacheStorage**（私有内容与令牌语义）。
+   - 所有 `api.github.com` 请求（Octokit REST 与 GraphQL）必须在 fetch 层设置 `cache: 'no-store'`；GitHub 返回 `Cache-Control: max-age=60`，默认浏览器 HTTP 缓存会让保存后的 tree/blob 读到旧值。Service Worker 的 `NetworkOnly` 同时设置 `fetchOptions.cache = 'no-store'`，但仍然不得把 API 响应写进 CacheStorage。
    - 更新只能由用户点击「立即刷新」触发，禁止自动 reload、禁止把 `skipWaiting`/`clientsClaim` 打开来“自动升级”；「稍后」必须始终可用。
    - `pnpm dev` 不注册 SW；PWA 的任何行为只在 `pnpm build` + `pnpm preview` 或线上验证（e2e 的 `pwa` 组就是这么跑的）。
    - `public/icon-*.png` 是生成物：改图标要改 `scripts/generate-pwa-icons.mjs` 并重跑 `pnpm pwa:icons`，不要手改 PNG。

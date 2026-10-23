@@ -51,7 +51,13 @@ export default defineConfig({
         runtimeCaching: [
           // GitHub API 的响应（可能含私有内容）一律不写进 CacheStorage；
           // GraphQL POST 不走 Workbox 路由，本来就是直接联网。
-          { urlPattern: /^https:\/\/api\.github\.com\//, handler: 'NetworkOnly' },
+          // GitHub 的响应带 Cache-Control: max-age=60，NetworkOnly 也要显式
+          // no-store，否则 Service Worker 里的 fetch 仍可能命中浏览器 HTTP 缓存。
+          {
+            urlPattern: /^https:\/\/api\.github\.com\//,
+            handler: 'NetworkOnly',
+            options: { fetchOptions: { cache: 'no-store' } },
+          },
           {
             urlPattern: /\.(?:woff|ttf)$/,
             handler: 'CacheFirst',

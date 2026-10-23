@@ -19,6 +19,7 @@ Dashboard 的文章列表来自本机加密缓存：首次打开全量读取，�
 - 未变化的仓库 **0 次文章内容请求**。
 - 文件树被截断（truncated）时跳过删除，避免误删缓存。
 - 失败的批次可重试；强制全量会清除缓存后重新读取。
+- 所有 GitHub 请求在 fetch 层使用 `cache: 'no-store'`；GitHub API 的 `Cache-Control: max-age=60` 不会让「检查更新」或刷新读到旧 tree/blob。
 
 ## 加密与存储
 

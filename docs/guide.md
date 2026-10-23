@@ -41,7 +41,7 @@
 - **会话与锁定**：解锁后的 PAT 与数据密钥只在内存里；锁定会先把未保存草稿 flush 成加密备份，再清空会话密钥、备份内存与 React Query 缓存。
 - **真实仓库的未保存备份是密文**：整份草稿（正文 + frontmatter + 恢复状态）用保险库数据密钥经 HKDF 派生的 AES-GCM 子密钥加密后写入本机 IndexedDB（键含模式/仓库/分支/路径）；不包含 PAT，不上传，也不进入 Service Worker 缓存。仓库/分支/路径与保存时间仍作为索引元数据明文。demo 模式没有保险库，备份为明文。锁定后读不到备份；重置保险库会删除本机所有真实仓库备份；浏览器清站点数据也会一并清除。[完整行为](backup.md)
 - **真实仓库的草稿箱同样是密文**：草稿记录用独立的 HKDF 子密钥（`abs:draft:v1`）加密，AAD 绑定仓库/分支/路径、保存时间与大小；锁定即丢弃内存明文，重置保险库会清除真实仓库草稿。[完整行为](drafts.md)
-- **本机文章缓存也是密文**：索引 meta（tree sha + 路径/blob sha）和每篇文章（路径 + sha + 正文）分别用保险库数据密钥经 HKDF 派生的 AES-GCM 子密钥加密后写在本机 IndexedDB `abs-content`；AAD 绑定仓库/分支/路径/blob sha，换仓库或换 sha 都解不开。锁定会清空内存中的明文摘要，重置保险库会删除本机所有 `live:` 文章缓存；缓存不进 CacheStorage，也不含 PAT。demo 仓库只在内存里缓存，刷新回到 fixture。[完整行为](content-cache.md)
+- **本机文章缓存也是密文**：索引 meta（tree sha + 路径/blob sha）和每篇文章（路径 + sha + 正文）分别用保险库数据密钥经 HKDF 派生的 AES-GCM 子密钥加密后写在本机 IndexedDB `abs-content`；AAD 绑定仓库/分支/路径/blob sha，换仓库或换 sha 都解不开。锁定会清空内存中的明文摘要，重置保险库会删除本机所有 `live:` 文章缓存；缓存不进 CacheStorage，也不含 PAT。请求层还强制 `cache: 'no-store'`，不使用浏览器 HTTP 缓存，避免 GitHub 的 60 秒缓存把旧内容当成最新。demo 仓库只在内存里缓存，刷新回到 fixture。[完整行为](content-cache.md)
 - **渲染、运行时与配置**：预览用 DOMPurify 白名单净化；外链自动 `rel="noreferrer noopener"`；不加载第三方脚本、字体或 iframe。`HashRouter` + 纯静态托管；无后端、无 Cookie、无服务端日志。`.env.local` 只给 Node 测试用，已在 `.gitignore` 中；不要把真实 PAT 写进任何会被提交的文件。建议部署时加 CSP（至少限制 `script-src 'self'`、`connect-src 'self' https://api.github.com`、`img-src 'self' data: https:`、`worker-src 'self'`、`manifest-src 'self'`），并保持依赖更新。
 
 ## 已知限制

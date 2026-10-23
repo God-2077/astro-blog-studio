@@ -153,7 +153,7 @@ Markdown 源码语法色是一组**角色别名**，底层继续沿用上面的�
 - **frontmatter 字段可配置**：原型是固定字段；实现改为设置中的字段列表（名称/类型/必填），默认参考 hello-world 常用字段，超出字段作为未知字段保留。
 - **夜间模式按实验页落地**：暖墨夜纸、白色索引卡图标、danger 偏橙红与品牌粉分开；采用「跟随系统 + 手动昼夜」，没有做纯黑反转或第二套主题命名空间。实验页见 `design/night-mode.html`。
 - 设计台的「提交小票」在真实模式显示 GitHub 提交链接；demo 显示 `in-memory`。
-- **PWA 与更新提醒**：原型是纯静态页面；实现加了 manifest + Service Worker 预缓存（应用壳、字体、图标），二次打开与弱网/断网打开都读缓存。更新提醒是提醒不是自动升级：新 SW 进入 waiting 后弹窗，只有用户点「立即刷新」才 reload，「稍后」后顶栏留徽标。GitHub API 响应永不进 CacheStorage。
+- **PWA 与更新提醒**：原型是纯静态页面；实现加了 manifest + Service Worker 预缓存（应用壳、字体、图标），二次打开与弱网/断网打开都读缓存。更新提醒是提醒不是自动升级：新 SW 进入 waiting 后弹窗，只有用户点「立即刷新」才 reload，「稍后」后顶栏留徽标。GitHub API 响应永不进 CacheStorage，请求层也强制 `cache: 'no-store'`，不受 GitHub `max-age=60` 的浏览器 HTTP 缓存影响。
 
 ## 截图出处
 

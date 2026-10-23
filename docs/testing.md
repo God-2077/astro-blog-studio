@@ -15,7 +15,7 @@
 ```bash
 cp .env.example .env.local   # 填入测试 PAT / 仓库
 pnpm test:seed               # 测试仓库为空时也能创建首个提交
-pnpm test                    # 155 个单元测试（路径、frontmatter 字段、编码、vault 模式/双因子、备份加密、预览、批量读取、本机文章缓存与增量 diff/同步、更新轮询、未保存备份、排序/分页、检查中状态）
+pnpm test                    # 218 个单元测试（路径、frontmatter 字段、编码、vault 模式/双因子、备份加密、预览、批量读取、GitHub 请求 no-store 缓存策略、本机文章缓存与增量 diff/同步、更新轮询、未保存备份、排序/分页、检查中状态）
 pnpm test:live               # 8 个真实 GitHub 集成测试（会创建/移动/删除 src/_e2e/*，最后清理）
 pnpm test:e2e                # 21 个 Playwright 测试（1 setup + 13 demo + 4 live + 3 PWA；live 需 .env.local）
 pnpm test:e2e:pwa            # 只跑 PWA 组（会先 vite build 再 vite preview）
@@ -26,7 +26,7 @@ pnpm verify                  # typecheck + lint + unit + build
 
 ## 覆盖清单
 
-- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 三种解锁模式（双因子无设备包装、换设备失败、rewrap 复用数据密钥）、备份加密信封/篡改/换槽/锁定拒写/旧明文迁移、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、本机文章缓存（路径/sha diff、AAD 绑定、锁定拒读、IDB 密文、跨仓库前缀清理、首次全量/未变化零读取/只读变更/失败重试/截断不删/配置签名变化/forceFull/并发/写入降级）、更新检查的节流/并发/失败静默、未保存备份的校验/快照/恢复映射/IndexedDB 上限/防抖与卸载清理/锁定前 flush、`updated`/`date` 排序与分页、检查中 pending 状态。
+- 单元测试覆盖：排除规则、树模型、提交模板与 `{title}`、frontmatter 解析/回写/CRLF/注释保留、源文件模式整文件写回/EOL/BOM、字段定义/类型/必填/删除、源文件模式缺少必填提示、新稿初始文档、设置迁移、UTF-8 base64、vault 三种解锁模式（双因子无设备包装、换设备失败、rewrap 复用数据密钥）、备份加密信封/篡改/换槽/锁定拒写/旧明文迁移、预览 XSS 净化、shoka 语法、GraphQL 批量读取/回退、GitHub 请求 no-store 缓存策略（REST tree/Contents 与 GraphQL）、本机文章缓存（路径/sha diff、AAD 绑定、锁定拒读、IDB 密文、跨仓库前缀清理、首次全量/未变化零读取/只读变更/失败重试/截断不删/配置签名变化/forceFull/并发/写入降级）、更新检查的节流/并发/失败静默、未保存备份的校验/快照/恢复映射/IndexedDB 上限/防抖与卸载清理/锁定前 flush、`updated`/`date` 排序与分页、检查中 pending 状态。
 - Live 测试覆盖：真实仓库读、批量读取（含 CJK 路径）、CRLF 写入/读回、创建/更新/过期 sha 冲突、删除、单提交移动、过期移动冲突、错误映射；真实的「首次全量 → 同树 unchanged 0 读取 → 远端新增 1 篇后只读该 blob」增量同步。
 - E2E 覆盖：demo 工作台保存（含 toast X 关闭）、dashboard 全库 frontmatter 排序与 `updated`/`date` 切换、手机视口设置分区折叠、设置中增删字段并反映到编辑器、源文件模式改写整份文件后切回表单并保存、新稿本地起草后一次创建、`{title}` 提交模板、未保存备份的表单/源文件恢复、稍后恢复条、丢弃后不再提示、新稿刷新恢复；live 首访 1 次 tree + 1 次 GraphQL 批量、刷新后 0 次文章内容请求且 `abs-content` 中只有 AES-GCM 信封、新稿保存前 404 → 保存后 1 个 commit（parent 校验）、真实文件保存与回执、未保存草稿在 IDB 中是密文且锁定/解锁后可恢复；PWA 组验证 manifest/图标/SW 注册、断网从预缓存打开且 CacheStorage 里没有 `api.github.com`、新版本 waiting 时弹窗 → 「稍后」→ 顶栏徽标 → 「立即刷新」才 reload。
 

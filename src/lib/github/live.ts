@@ -30,6 +30,18 @@ const GRAPHQL_BATCH_SIZE = 20;
 /** Keep the Contents fallback from firing one burst per indexed batch. */
 const REST_FALLBACK_CONCURRENCY = 4;
 
+/**
+ * GitHub answers API requests with `Cache-Control: private, max-age=60`
+ * (`public` when unauthenticated), so a browser fetch with the default cache
+ * mode can return a tree or blob that is up to a minute old. Refetching right
+ * after a commit could then still observe the pre-commit tree, making the
+ * dashboard report "已是最新" and the editor reopen stale content. Octokit
+ * issues plain browser fetches, so force every request through the network.
+ */
+function withNoStore(baseFetch: typeof fetch): typeof fetch {
+  return (input, init) => baseFetch(input, { ...init, cache: 'no-store' });
+}
+
 interface GraphqlBlob {
   oid: string;
   byteSize: number;
@@ -60,11 +72,11 @@ export class LiveGateway implements GitHubGateway {
     this.token = options.token;
     // Browser `fetch` is a Window method: calling it with the gateway as `this`
     // throws "Illegal invocation", which would silently force the REST fallback.
-    this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
+    this.fetchImpl = withNoStore(options.fetchImpl ?? fetch.bind(globalThis));
     this.onRateLimit = options.onRateLimit;
     this.octokit = new Octokit({
       auth: options.token,
-      ...(options.fetchImpl ? { request: { fetch: options.fetchImpl } } : {}),
+      request: { fetch: this.fetchImpl },
       log: {
         debug: () => {},
         info: () => {},

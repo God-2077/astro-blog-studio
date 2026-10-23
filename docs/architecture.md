@@ -68,7 +68,7 @@ astro-blog-studio/
 
 - **可安装**：构建生成 `dist/manifest.webmanifest` 与 `dist/sw.js`；图标在 `public/`（`pnpm pwa:icons` 用零依赖脚本重画 `icon-192`、`icon-512`、`icon-maskable-512`、`apple-touch-icon`，生成结果要一起提交）。浏览器标签与 `apple-touch-icon` 统一使用 `/apple-touch-icon.png`。`pnpm dev` **不注册** Service Worker，PWA 只在 `pnpm build` + `pnpm preview` 或线上环境生效。
 - **预缓存**：Service Worker 在 `window.load` 之后才注册，避免和首屏资源抢带宽；预缓存入口 HTML、JS/CSS、`woff2` 字体与图标（当前 50 条、约 2.3 MiB，构建日志会打印确切值），`.woff`/`.ttf` 只在旧浏览器需要时按需缓存。首访是后台安装，二次打开、弱网与断网打开都直接读缓存。
-- **不缓存什么**：`api.github.com` 显式 `NetworkOnly`，私有内容与令牌语义都不会写进 CacheStorage。离线时界面能开，但文件树与正文仍然需要联网。
+- **不缓存什么**：`api.github.com` 显式 `NetworkOnly`，私有内容与令牌语义都不会写进 CacheStorage。GitHub 的 REST 响应带 `Cache-Control: private, max-age=60`（未认证为 `public`），所以所有 GitHub 请求（Octokit REST 与 GraphQL）在 fetch 层强制 `cache: 'no-store'`，Service Worker 的 `NetworkOnly` 也设置 `fetchOptions.cache = 'no-store'`，避免浏览器 HTTP 缓存把旧 tree/blob 当成最新。离线时界面能开，但文件树与正文仍然需要联网。
 - **更新提醒**：`sw.js` 内联了预缓存清单，任何构建产物变化都会让浏览器发现新版本；新 SW 进入 waiting 后弹出「网站有新版本」，点「立即刷新」才 reload，点「稍后」收起弹窗、顶栏保留带圆点的刷新按钮。检测时机是每 60s（仅页面可见且在线）+ 回到前台 / 窗口聚焦 / 网络恢复；弱网与离线时静默失败，不刷提示。
 - **不会自动刷新**：只有用户点击才会整页刷新；编辑器有未保存修改时，现有的 `beforeunload` 还会再拦一次。
 - **部署头**：`sw.js` 与 `index.html` 建议 `Cache-Control: no-cache`（浏览器对 SW 脚本本身会绕过 HTTP 缓存，但 CDN 边缘缓存仍可能拖慢更新）；`assets/*` 可以长缓存 + `immutable`。
