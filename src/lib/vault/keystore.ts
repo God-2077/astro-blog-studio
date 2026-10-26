@@ -12,7 +12,7 @@ import {
   passphraseForPassword,
   randomBytes,
 } from './crypto';
-import { getDeviceId, getDeviceIdForSource } from './fingerprint';
+import { type DeviceId, getAllDeviceIdCandidates, getDeviceId, getDeviceIdCandidates } from './fingerprint';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode, type VaultModeState } from './mode';
 
 export const VAULT_STORAGE_KEY = 'abs.vault.v1';
@@ -255,16 +255,70 @@ async function secretsFromDataKey(payload: VaultPayload, dataKey: Uint8Array): P
   return { token: await decryptToken(payload, dataKey), dataKey };
 }
 
+function fingerprintChangedMessage(payload: VaultPayload): string {
+  return payload.password
+    ? '设备指纹已变化，请用密码解锁或重新绑定。'
+    : '设备指纹已变化，无法自动解锁。请重置保险库并重新输入 PAT。';
+}
+
+/**
+ * 旧版保险库绑定的是「含窗口尺寸/渲染测量」的旧指纹；用旧指纹解锁成功后把包装重绑到
+ * 当前稳定指纹，这样下一次改变窗口或重新加载时不会再失败。迁移是 best-effort：
+ * 写 localStorage 失败也不能影响这次解锁。
+ */
+async function migrateWraps(payload: VaultPayload, dataKey: Uint8Array, target: DeviceId, password?: string): Promise<void> {
+  try {
+    const device = payload.device ? await wrapWithDevice(dataKey, target.id, target.source, payload.kdf.iterations) : undefined;
+    const passwordWrap =
+      payload.password && password
+        ? await wrapWithPassword(dataKey, password, payload.password.requireDevice, target.id, payload.kdf.iterations)
+        : undefined;
+    saveVault({ ...payload, ...(device ? { device } : {}), ...(passwordWrap ? { password: passwordWrap } : {}) });
+  } catch {
+    // Keep the vault usable even if localStorage is full or unavailable.
+  }
+}
+
+/** 找出这次解锁用到的旧指纹，并返回应迁移到的稳定指纹。 */
+async function migrationTarget(
+  payload: VaultPayload,
+  matched: DeviceId | undefined,
+  candidates: DeviceId[],
+): Promise<DeviceId | undefined> {
+  if (matched) {
+    const primary = candidates[0];
+    return primary && primary.id !== matched.id ? primary : undefined;
+  }
+  // 密码路径不消耗指纹（例如旧版「密码或指纹」保险库），但其中的设备包装仍可能绑着旧指纹。
+  return payload.device ? getDeviceId() : undefined;
+}
+
 export async function unlockWithPassword(payload: VaultPayload, password: string): Promise<VaultSecrets> {
   const wrap = payload.password;
   if (!wrap) throw new VaultError('NO_METHOD', '没有设置密码');
-  try {
-    const deviceId = wrap.requireDevice ? (await getDeviceId()).id : undefined;
-    const kek = await deriveKek(passphraseForPassword(password, deviceId), base64ToBytes(wrap.salt), payload.kdf.iterations);
-    const dataKey = await unwrapDataKey(wrap, kek, AAD_KEY_PASSWORD);
-    return await secretsFromDataKey(payload, dataKey);
-  } catch (error) {
-    if (error instanceof VaultError) throw error;
+  const candidates = wrap.requireDevice ? await getAllDeviceIdCandidates() : [];
+  if (wrap.requireDevice && candidates.length === 0) {
+    throw new VaultError('FINGERPRINT_CHANGED', '无法读取当前设备指纹，请重置保险库后重新输入 PAT。');
+  }
+  // 旧版双因子保险库的密码 KEK 混入的是旧指纹：逐个候选尝试，命中旧指纹后自动迁移。
+  const deviceIds: Array<DeviceId | undefined> = wrap.requireDevice ? candidates : [undefined];
+  let matched: DeviceId | undefined;
+  let dataKey: Uint8Array | undefined;
+  for (const deviceId of deviceIds) {
+    try {
+      const kek = await deriveKek(
+        passphraseForPassword(password, deviceId?.id),
+        base64ToBytes(wrap.salt),
+        payload.kdf.iterations,
+      );
+      dataKey = await unwrapDataKey(wrap, kek, AAD_KEY_PASSWORD);
+      matched = deviceId;
+      break;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  if (!dataKey) {
     throw new VaultError(
       'WRONG_PASSWORD',
       wrap.requireDevice
@@ -272,18 +326,45 @@ export async function unlockWithPassword(payload: VaultPayload, password: string
         : '密码错误，或者数据已损坏。',
     );
   }
+  let secrets: VaultSecrets;
+  try {
+    secrets = await secretsFromDataKey(payload, dataKey);
+  } catch {
+    throw new VaultError('WRONG_PASSWORD', '密码错误，或者数据已损坏。');
+  }
+  const target = await migrationTarget(payload, matched, candidates);
+  if (target) await migrateWraps(payload, dataKey, target, wrap.requireDevice ? password : undefined);
+  return secrets;
 }
 
 export async function unlockWithDevice(payload: VaultPayload): Promise<VaultSecrets> {
   const wrap = payload.device;
   if (!wrap) throw new VaultError('NO_METHOD', '没有绑定这台设备');
-  try {
-    const deviceId = await getDeviceIdForSource(wrap.source);
-    const kek = await deriveKek(passphraseForDevice(deviceId), base64ToBytes(wrap.salt), payload.kdf.iterations);
-    const dataKey = await unwrapDataKey(wrap, kek, AAD_KEY_DEVICE);
-    return await secretsFromDataKey(payload, dataKey);
-  } catch (error) {
-    if (error instanceof VaultError) throw error;
-    throw new VaultError('FINGERPRINT_CHANGED', '设备指纹已变化，请用密码解锁或重新绑定。');
+  const candidates = await getDeviceIdCandidates(wrap.source);
+  if (candidates.length === 0) {
+    throw new VaultError('FINGERPRINT_CHANGED', '无法读取当前设备指纹，请用密码解锁或重置保险库后重新输入 PAT。');
   }
+  // 候选顺序：当前稳定指纹 → 旧算法指纹（旧保险库兼容）。
+  let matched: DeviceId | undefined;
+  let dataKey: Uint8Array | undefined;
+  for (const candidate of candidates) {
+    try {
+      const kek = await deriveKek(passphraseForDevice(candidate.id), base64ToBytes(wrap.salt), payload.kdf.iterations);
+      dataKey = await unwrapDataKey(wrap, kek, AAD_KEY_DEVICE);
+      matched = candidate;
+      break;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  if (!dataKey) throw new VaultError('FINGERPRINT_CHANGED', fingerprintChangedMessage(payload));
+  let secrets: VaultSecrets;
+  try {
+    secrets = await secretsFromDataKey(payload, dataKey);
+  } catch {
+    throw new VaultError('CORRUPT', '保险库数据已损坏，请重置保险库后重新输入 PAT。');
+  }
+  const primary = candidates[0];
+  if (matched && primary && matched.id !== primary.id) await migrateWraps(payload, dataKey, primary);
+  return secrets;
 }

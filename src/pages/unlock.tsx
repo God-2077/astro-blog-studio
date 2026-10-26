@@ -1,5 +1,5 @@
 import { Fingerprint, KeyRound, RotateCcw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { confirmAction } from '@/components/confirm-toast';
 import { Spinner } from '@/components/ui';
@@ -26,11 +26,15 @@ export function UnlockPage() {
   const vault = useVault();
   const [password, setPassword] = useState('');
 
+  // 自动指纹解锁每次挂载只尝试一次：失败时把错误留在页面上，由用户决定重试或重置，
+  // 绝不能因为 busy 状态翻转而无限重试（那会占满主线程并让提示永远看不见）。
+  const autoUnlockAttempted = useRef(false);
   useEffect(() => {
-    if (vault.status === 'locked' && vault.mode === 'device' && !vault.busy) {
-      void vault.unlockDevice();
-    }
-  }, [vault.status, vault.mode, vault.busy, vault.unlockDevice]);
+    if (autoUnlockAttempted.current) return;
+    if (vault.status !== 'locked' || vault.mode !== 'device') return;
+    autoUnlockAttempted.current = true;
+    void vault.unlockDevice();
+  }, [vault.status, vault.mode, vault.unlockDevice]);
 
   if (vault.status === 'empty') return <Navigate to="/setup" replace />;
   if (vault.status === 'unlocked') return <Navigate to="/" replace />;

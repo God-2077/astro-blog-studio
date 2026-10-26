@@ -33,7 +33,7 @@ astro-blog-studio/
 │  │  ├─ pwa/              # 版本检测（节流/可见性/在线状态）
 │  │  ├─ tree/             # 文件树模型
 │  │  ├─ utils/            # 日期、编码、cn
-│  │  └─ vault/            # WebCrypto 加解密、HKDF 备份子密钥、设备指纹、会话、三种解锁模式的 keystore
+│  │  └─ vault/            # WebCrypto 加解密、HKDF 备份子密钥、设备指纹（稳定熵源 + 旧指纹迁移）、会话、三种解锁模式的 keystore
 │  ├─ pages/               # 工作台、编辑器、设置、Setup、Unlock
 │  ├─ stores/              # settings / vault / content / ui / rate-limit / editor guard / pending-post / pwa
 │  └─ styles/              # Tailwind v4 tokens + abs-* 组件样式

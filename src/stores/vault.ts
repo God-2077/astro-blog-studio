@@ -44,7 +44,7 @@ function unlockedSecrets(secrets: VaultSecrets): void {
   vaultSession.set(secrets.token, secrets.dataKey);
 }
 
-export const useVault = create<VaultState>()((set) => ({
+export const useVault = create<VaultState>()((set, get) => ({
   status: 'empty',
   mode: null,
   busy: false,
@@ -90,6 +90,7 @@ export const useVault = create<VaultState>()((set) => ({
   },
 
   unlockDevice: async () => {
+    if (get().busy) return;
     const payload = loadVault();
     if (!payload) {
       set({ status: 'empty', mode: null, error: '没有找到保险库，请重新配置。' });
