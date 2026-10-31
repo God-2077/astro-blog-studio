@@ -47,6 +47,31 @@ describe('index concurrency setting', () => {
   });
 });
 
+describe('repository settings migration', () => {
+  it('adds an empty inactive repository list to settings saved before multi-repo support', () => {
+    const legacy = structuredClone(defaultSettings) as Record<string, unknown>;
+    delete legacy.repos;
+
+    const parsed = settingsSchema.safeParse(legacy);
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.success ? parsed.data.repos : null).toEqual([]);
+    expect(parsed.success ? parsed.data.repo : 'missing').toBeNull();
+  });
+
+  it('drops a corrupt inactive profile list without resetting the active settings', () => {
+    const parsed = settingsSchema.safeParse({
+      ...defaultSettings,
+      repos: [{ owner: '', name: '', branch: '', content: {}, commit: {}, frontmatter: {} }],
+    });
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.repos).toEqual([]);
+    expect(parsed.data.content.rootDir).toBe(defaultSettings.content.rootDir);
+  });
+});
+
 describe('security settings migration', () => {
   it('drops the retired deviceBindingForPassword field instead of resetting the settings', () => {
     const parsed = settingsSchema.safeParse({

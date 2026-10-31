@@ -6,6 +6,7 @@ export const SUGGESTED_EXCLUDES = ['src/content/blog/en', 'src/content/blog/ja',
 export const defaultSettings: Settings = {
   version: 1,
   repo: null,
+  repos: [],
   content: {
     rootDir: 'src',
     extensions: ['.md', '.mdx'],

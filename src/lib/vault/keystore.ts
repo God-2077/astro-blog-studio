@@ -11,6 +11,7 @@ import {
   passphraseForDevice,
   passphraseForPassword,
   randomBytes,
+  repoTokenAad,
 } from './crypto';
 import { type DeviceId, getAllDeviceIdCandidates, getDeviceId, getDeviceIdCandidates } from './fingerprint';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode, type VaultModeState } from './mode';
@@ -21,6 +22,11 @@ export interface WrappedKey {
   salt: string;
   iv: string;
   wrappedKey: string;
+}
+
+export interface EncryptedToken {
+  iv: string;
+  ciphertext: string;
 }
 
 export interface DeviceWrap extends WrappedKey {
@@ -41,12 +47,20 @@ export interface VaultPayload {
   kdf: { name: 'PBKDF2-SHA256'; iterations: number };
   device?: DeviceWrap;
   password?: PasswordWrap;
-  token: { iv: string; ciphertext: string };
+  /** Legacy single-PAT envelope, migrated to `tokens` after the first unlock. */
+  token?: EncryptedToken;
+  /**
+   * Per-repository PATs keyed by `owner/name` (lowercase). Each envelope's AAD
+   * is bound to its key, so ciphertexts cannot be swapped between repositories.
+   */
+  tokens?: Record<string, EncryptedToken>;
   createdAt: string;
 }
 
 export interface VaultSecrets {
-  token: string;
+  /** Legacy single PAT; null once all repositories use the token map. */
+  token: string | null;
+  tokens: Record<string, string>;
   dataKey: Uint8Array;
 }
 
@@ -61,15 +75,29 @@ export class VaultError extends Error {
   }
 }
 
+function isEncryptedToken(value: unknown): value is EncryptedToken {
+  if (!value || typeof value !== 'object') return false;
+  const token = value as Partial<EncryptedToken>;
+  return typeof token.iv === 'string' && typeof token.ciphertext === 'string';
+}
+
+const RESERVED_TOKEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
+function isTokenMap(value: unknown): value is Record<string, EncryptedToken> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const entries = Object.entries(value);
+  return (
+    entries.length > 0 &&
+    entries.every(([key, token]) => key.length > 0 && !RESERVED_TOKEN_KEYS.has(key) && isEncryptedToken(token))
+  );
+}
+
 function isVaultPayload(value: unknown): value is VaultPayload {
   if (!value || typeof value !== 'object') return false;
   const payload = value as Partial<VaultPayload>;
-  return (
-    payload.v === 1 &&
-    payload.kdf?.name === 'PBKDF2-SHA256' &&
-    typeof payload.token?.iv === 'string' &&
-    typeof payload.token?.ciphertext === 'string'
-  );
+  if (payload.v !== 1 || payload.kdf?.name !== 'PBKDF2-SHA256') return false;
+  if (!isEncryptedToken(payload.token) && !isTokenMap(payload.tokens)) return false;
+  return typeof payload.createdAt === 'string';
 }
 
 export function loadVault(): VaultPayload | null {
@@ -144,12 +172,31 @@ async function wrapWithPassword(
   return { ...wrapped, salt: bytesToBase64(salt), requireDevice };
 }
 
+async function encryptToken(dataKey: Uint8Array, repoKey: string, token: string): Promise<EncryptedToken> {
+  const tokenKey = await importAesKey(dataKey);
+  const encrypted = await encryptBytes(tokenKey, encodeUtf8(token), repoTokenAad(repoKey));
+  return { iv: bytesToBase64(encrypted.iv), ciphertext: bytesToBase64(encrypted.ciphertext) };
+}
+
+async function encryptLegacyToken(dataKey: Uint8Array, token: string): Promise<EncryptedToken> {
+  const tokenKey = await importAesKey(dataKey);
+  const encrypted = await encryptBytes(tokenKey, encodeUtf8(token), AAD_TOKEN);
+  return { iv: bytesToBase64(encrypted.iv), ciphertext: bytesToBase64(encrypted.ciphertext) };
+}
+
 interface BuildPayloadInput {
-  token: string;
+  tokens: Record<string, string>;
+  legacyToken?: string;
   dataKey: Uint8Array;
   mode: VaultMode;
   password?: string;
   iterations: number;
+}
+
+function normalizeTokens(tokens: Record<string, string>): Array<[string, string]> {
+  return Object.entries(tokens)
+    .map(([key, token]) => [key.trim(), token.trim()] as const)
+    .filter((entry): entry is [string, string] => Boolean(entry[0] && entry[1]));
 }
 
 async function buildPayload(input: BuildPayloadInput): Promise<VaultPayload> {
@@ -159,8 +206,15 @@ async function buildPayload(input: BuildPayloadInput): Promise<VaultPayload> {
     }
   }
 
-  const tokenKey = await importAesKey(input.dataKey);
-  const encryptedToken = await encryptBytes(tokenKey, encodeUtf8(input.token), AAD_TOKEN);
+  const tokens: Record<string, EncryptedToken> = {};
+  for (const [repoKey, token] of normalizeTokens(input.tokens)) {
+    tokens[repoKey] = await encryptToken(input.dataKey, repoKey, token);
+  }
+  if (Object.keys(tokens).length === 0 && !input.legacyToken) {
+    throw new VaultError('INVALID_INPUT', '保险库至少需要一个仓库令牌');
+  }
+
+  const legacy = input.legacyToken ? await encryptLegacyToken(input.dataKey, input.legacyToken) : undefined;
 
   let device: DeviceWrap | undefined;
   let password: PasswordWrap | undefined;
@@ -182,15 +236,14 @@ async function buildPayload(input: BuildPayloadInput): Promise<VaultPayload> {
     kdf: { name: 'PBKDF2-SHA256', iterations: input.iterations },
     ...(device ? { device } : {}),
     ...(password ? { password } : {}),
-    token: {
-      iv: bytesToBase64(encryptedToken.iv),
-      ciphertext: bytesToBase64(encryptedToken.ciphertext),
-    },
+    ...(Object.keys(tokens).length > 0 ? { tokens } : {}),
+    ...(legacy ? { token: legacy } : {}),
     createdAt: new Date().toISOString(),
   };
 }
 
 export interface CreateVaultInput {
+  repoKey: string;
   token: string;
   mode: VaultMode;
   password?: string;
@@ -203,9 +256,12 @@ export interface CreatedVault {
 }
 
 export async function createVault(input: CreateVaultInput): Promise<CreatedVault> {
+  if (!input.repoKey.trim() || !input.token.trim()) {
+    throw new VaultError('INVALID_INPUT', '仓库与 PAT 都不能为空');
+  }
   const dataKey = randomBytes(32);
   const payload = await buildPayload({
-    token: input.token,
+    tokens: { [input.repoKey]: input.token },
     dataKey,
     mode: input.mode,
     ...(input.password ? { password: input.password } : {}),
@@ -216,7 +272,8 @@ export async function createVault(input: CreateVaultInput): Promise<CreatedVault
 }
 
 export interface RewrapInput {
-  token: string;
+  tokens: Record<string, string>;
+  legacyToken?: string | null;
   dataKey: Uint8Array;
   mode: VaultMode;
   password?: string;
@@ -226,11 +283,12 @@ export interface RewrapInput {
 /**
  * Change the unlock mode/password while already unlocked. The data key is
  * deliberately preserved: backups encrypted with the derived key must stay
- * readable after the change.
+ * readable after the change. Every repository PAT is re-encrypted in place.
  */
 export async function rewrapVault(input: RewrapInput): Promise<VaultPayload> {
   const payload = await buildPayload({
-    token: input.token,
+    tokens: input.tokens,
+    ...(input.legacyToken ? { legacyToken: input.legacyToken } : {}),
     dataKey: input.dataKey,
     mode: input.mode,
     ...(input.password ? { password: input.password } : {}),
@@ -240,19 +298,46 @@ export async function rewrapVault(input: RewrapInput): Promise<VaultPayload> {
   return payload;
 }
 
-async function decryptToken(payload: VaultPayload, dataKey: Uint8Array): Promise<string> {
+async function decryptSecrets(payload: VaultPayload, dataKey: Uint8Array): Promise<Omit<VaultSecrets, 'dataKey'>> {
   const tokenKey = await importAesKey(dataKey);
-  const tokenBytes = await decryptBytes(
-    tokenKey,
-    base64ToBytes(payload.token.iv),
-    base64ToBytes(payload.token.ciphertext),
-    AAD_TOKEN,
-  );
-  return decodeUtf8(tokenBytes);
+  const tokens: Record<string, string> = {};
+  for (const [repoKey, envelope] of Object.entries(payload.tokens ?? {})) {
+    try {
+      const plaintext = await decryptBytes(
+        tokenKey,
+        base64ToBytes(envelope.iv),
+        base64ToBytes(envelope.ciphertext),
+        repoTokenAad(repoKey),
+      );
+      tokens[repoKey] = decodeUtf8(plaintext);
+    } catch {
+      throw new VaultError('CORRUPT', '保险库中的仓库令牌已损坏，请重置保险库后重新输入 PAT。');
+    }
+  }
+
+  let legacyToken: string | null = null;
+  if (payload.token) {
+    try {
+      const plaintext = await decryptBytes(
+        tokenKey,
+        base64ToBytes(payload.token.iv),
+        base64ToBytes(payload.token.ciphertext),
+        AAD_TOKEN,
+      );
+      legacyToken = decodeUtf8(plaintext);
+    } catch {
+      throw new VaultError('CORRUPT', '保险库中的令牌已损坏，请重置保险库后重新输入 PAT。');
+    }
+  }
+
+  if (!legacyToken && Object.keys(tokens).length === 0) {
+    throw new VaultError('CORRUPT', '保险库中没有可用的仓库令牌，请重置保险库后重新输入 PAT。');
+  }
+  return { token: legacyToken, tokens };
 }
 
 async function secretsFromDataKey(payload: VaultPayload, dataKey: Uint8Array): Promise<VaultSecrets> {
-  return { token: await decryptToken(payload, dataKey), dataKey };
+  return { ...(await decryptSecrets(payload, dataKey)), dataKey };
 }
 
 function fingerprintChangedMessage(payload: VaultPayload): string {
@@ -326,12 +411,7 @@ export async function unlockWithPassword(payload: VaultPayload, password: string
         : '密码错误，或者数据已损坏。',
     );
   }
-  let secrets: VaultSecrets;
-  try {
-    secrets = await secretsFromDataKey(payload, dataKey);
-  } catch {
-    throw new VaultError('WRONG_PASSWORD', '密码错误，或者数据已损坏。');
-  }
+  const secrets = await secretsFromDataKey(payload, dataKey);
   const target = await migrationTarget(payload, matched, candidates);
   if (target) await migrateWraps(payload, dataKey, target, wrap.requireDevice ? password : undefined);
   return secrets;
@@ -358,13 +438,61 @@ export async function unlockWithDevice(payload: VaultPayload): Promise<VaultSecr
     }
   }
   if (!dataKey) throw new VaultError('FINGERPRINT_CHANGED', fingerprintChangedMessage(payload));
-  let secrets: VaultSecrets;
-  try {
-    secrets = await secretsFromDataKey(payload, dataKey);
-  } catch {
-    throw new VaultError('CORRUPT', '保险库数据已损坏，请重置保险库后重新输入 PAT。');
-  }
+  const secrets = await secretsFromDataKey(payload, dataKey);
   const primary = candidates[0];
   if (matched && primary && matched.id !== primary.id) await migrateWraps(payload, dataKey, primary);
   return secrets;
+}
+
+/** Add or replace one repository's PAT without touching the other envelopes. */
+export async function addRepoTokenToVault(
+  payload: VaultPayload,
+  dataKey: Uint8Array,
+  repoKey: string,
+  token: string,
+): Promise<VaultPayload> {
+  const key = repoKey.trim();
+  const value = token.trim();
+  if (!key || !value) throw new VaultError('INVALID_INPUT', '仓库与 PAT 都不能为空');
+  const next: VaultPayload = {
+    ...payload,
+    tokens: { ...(payload.tokens ?? {}), [key]: await encryptToken(dataKey, key, value) },
+  };
+  saveVault(next);
+  return next;
+}
+
+/** Remove one repository's PAT; the active repository's token is never removed. */
+export function removeRepoTokenFromVault(payload: VaultPayload, repoKey: string): VaultPayload {
+  const tokens = { ...(payload.tokens ?? {}) };
+  delete tokens[repoKey];
+  if (Object.keys(tokens).length === 0 && !payload.token) {
+    throw new VaultError('INVALID_INPUT', '不能移除最后一个仓库令牌');
+  }
+  const next: VaultPayload = { ...payload };
+  if (Object.keys(tokens).length > 0) next.tokens = tokens;
+  else delete next.tokens;
+  saveVault(next);
+  return next;
+}
+
+/**
+ * Migrate the old single-PAT envelope to the currently active repository. The
+ * token is re-encrypted with a repository-bound AAD and the legacy field is
+ * removed in the same atomic localStorage write.
+ */
+export async function migrateLegacyTokenToRepo(
+  payload: VaultPayload,
+  dataKey: Uint8Array,
+  legacyToken: string,
+  repoKey: string,
+): Promise<VaultPayload> {
+  const key = repoKey.trim();
+  if (!key || !legacyToken) throw new VaultError('INVALID_INPUT', '没有可迁移的仓库令牌');
+  const tokens = { ...(payload.tokens ?? {}) };
+  if (!tokens[key]) tokens[key] = await encryptToken(dataKey, key, legacyToken);
+  const next: VaultPayload = { ...payload, tokens };
+  delete next.token;
+  saveVault(next);
+  return next;
 }

@@ -132,3 +132,8 @@ export function passphraseForPassword(password: string, deviceId?: string): stri
 export const AAD_TOKEN = 'abs:token:v1';
 export const AAD_KEY_DEVICE = 'abs:key:device:v1';
 export const AAD_KEY_PASSWORD = 'abs:key:password:v1';
+
+/** Per-repository PAT envelopes are bound to their slug, not just the vault. */
+export function repoTokenAad(repoTokenKey: string): string {
+  return `abs:token:repo:v1|${repoTokenKey}`;
+}

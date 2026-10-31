@@ -58,9 +58,9 @@ export function UnlockPage() {
 
   const handleReset = async (): Promise<void> => {
     const confirmed = await confirmAction(
-      '重置保险库会删除本机保存的令牌，以及本机所有真实仓库的未保存备份（演示备份保留），需要重新输入 PAT。继续吗？',
+      '重置保险库会删除本机所有仓库的 PAT 与仓库列表，并清除本机所有真实仓库的未保存备份、草稿和文章缓存；当前内容/字段/提交模板会保留为下次配置的默认值。需要重新输入 PAT。继续吗？',
       {
-        description: 'GitHub 上的文章不受影响；未提交到仓库的本机备份无法找回。',
+        description: 'GitHub 上的文章不受影响；未提交到仓库的本机内容无法找回。',
         confirmLabel: '重置保险库',
         danger: true,
       },

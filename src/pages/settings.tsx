@@ -1,18 +1,21 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, KeyRound, LockKeyhole, RefreshCw, RotateCcw } from 'lucide-react';
+import { ArrowLeft, KeyRound, LockKeyhole, Plus, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { AddRepoDialog } from '@/components/add-repo-dialog';
 import { Collapse } from '@/components/collapse';
 import { confirmAction } from '@/components/confirm-toast';
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
+import { RepoTokenDialog } from '@/components/repo-token-dialog';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Field, Spinner } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
 import { useContentActions } from '@/hooks/use-content-sync';
+import { useRepoManager } from '@/hooks/use-repo-manager';
 import { backupKeyPrefix } from '@/lib/backup/model';
 import { clearBackupsByPrefix } from '@/lib/backup/store';
-import { clampIndexConcurrency, INDEX_CONCURRENCY_MAX, INDEX_CONCURRENCY_MIN } from '@/lib/config/schema';
+import { clampIndexConcurrency, INDEX_CONCURRENCY_MAX, INDEX_CONCURRENCY_MIN, type RepoProfile } from '@/lib/config/schema';
 import {
   cloneFrontmatterFields,
   DEFAULT_FRONTMATTER_FIELDS,
@@ -21,15 +24,49 @@ import {
 } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
+import { repoProfileKey, repoTokenKey } from '@/lib/repos/identity';
+import { allRepoProfiles } from '@/lib/repos/profile';
 import { THEME_OPTIONS, type ThemePreference } from '@/lib/theme/theme';
 import { cn } from '@/lib/utils/cn';
 import { formatInTimeZone } from '@/lib/utils/date';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode, vaultModeLabel } from '@/lib/vault/mode';
+import { vaultSession } from '@/lib/vault/session';
 import { useContent } from '@/stores/content';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
 
+function parseExtensionsInput(value: string): string[] {
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => (part.startsWith('.') ? part : `.${part}`));
+}
+
+function parseExcludesInput(value: string): string[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/** JSON with object keys sorted so dirty checks ignore serialization order. */
+function stableSnapshot(value: unknown): string {
+  return JSON.stringify(value, (_key, item: unknown) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+    return Object.fromEntries(Object.entries(item).sort(([left], [right]) => left.localeCompare(right)));
+  });
+}
+
+/** Remount the whole form when the active repository changes. */
 export function SettingsPage() {
+  const mode = useGateway().mode;
+  const activeRepo = useSettings((state) => state.repo);
+  const sessionKey = `${mode}:${activeRepo ? repoProfileKey(activeRepo) : 'none'}`;
+  return <SettingsSession key={sessionKey} />;
+}
+
+function SettingsSession() {
   const { mode, repo, config } = useGateway();
   const settings = useSettings();
   const vault = useVault();
@@ -65,12 +102,65 @@ export function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [clearingBackups, setClearingBackups] = useState(false);
+  const [repoBusy, setRepoBusy] = useState(false);
+  const [addRepoOpen, setAddRepoOpen] = useState(false);
+  const [tokenEditing, setTokenEditing] = useState<RepoProfile | null>(null);
+  const { switchRepo, addRepo, updateToken, removeRepo } = useRepoManager();
 
   const isDemo = mode === 'demo';
+  const repoProfiles = isDemo ? [] : allRepoProfiles(settings);
+  const activeRepoKey = settings.repo ? repoProfileKey(settings.repo) : null;
   const resolvedTheme = useResolvedTheme();
   const samplePath = `${rootDir || 'src'}/content/blog/note/便笺-备忘单.md`;
   const sampleTitle = '便笺：备忘单';
   const today = new Date().toISOString().slice(0, 10);
+
+  const storedSnapshot = stableSnapshot({
+    rootDir: settings.content.rootDir.trim() || 'src',
+    extensions: settings.content.extensions
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => (part.startsWith('.') ? part : `.${part}`)),
+    excludes: settings.content.excludes.map((line) => line.trim()).filter(Boolean),
+    timezone: settings.content.timezone.trim() || 'Asia/Shanghai',
+    indexConcurrency: settings.content.indexConcurrency,
+    commit: settings.commit,
+    editor: {
+      updateUpdatedAt: settings.editor.updateUpdatedAt,
+      fontSize: settings.editor.fontSize,
+      showLineNumbers: settings.editor.showLineNumbers,
+      backupUnsaved: settings.editor.backupUnsaved,
+    },
+    autoLockMinutes: settings.security.autoLockMinutes,
+    fields: normalizeFrontmatterFields(settings.frontmatter.fields),
+  });
+  const localSnapshot = stableSnapshot({
+    rootDir: rootDir.trim() || 'src',
+    extensions: parseExtensionsInput(extensions),
+    excludes: parseExcludesInput(excludes),
+    timezone: timezone.trim() || 'Asia/Shanghai',
+    indexConcurrency: clampIndexConcurrency(Number(indexConcurrency)),
+    commit: { create: createTemplate, update: updateTemplate, delete: deleteTemplate, move: moveTemplate, confirmBeforeCommit },
+    editor: {
+      updateUpdatedAt,
+      fontSize: Math.min(20, Math.max(12, Number(fontSize) || 15)),
+      showLineNumbers,
+      backupUnsaved,
+    },
+    autoLockMinutes: Math.min(240, Math.max(0, Number(autoLockMinutes) || 0)),
+    fields: normalizeFrontmatterFields(fields),
+  });
+  const settingsDirty = storedSnapshot !== localSnapshot;
+
+  const confirmDiscardSettings = async (message: string): Promise<boolean> => {
+    if (!settingsDirty) return true;
+    return confirmAction(message, {
+      description: '切换/添加仓库不会自动保存当前设置页的改动；选「继续」会丢弃这些未保存改动。',
+      confirmLabel: '继续',
+      cancelLabel: '继续编辑',
+      danger: true,
+    });
+  };
 
   const setThemePreference = (theme: ThemePreference): void => {
     settings.patch({ appearance: { ...settings.appearance, theme } });
@@ -92,15 +182,8 @@ export function SettingsPage() {
         content: {
           ...settings.content,
           rootDir: rootDir.trim() || 'src',
-          extensions: extensions
-            .split(',')
-            .map((part) => part.trim())
-            .filter(Boolean)
-            .map((part) => (part.startsWith('.') ? part : `.${part}`)),
-          excludes: excludes
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean),
+          extensions: parseExtensionsInput(extensions),
+          excludes: parseExcludesInput(excludes),
           timezone: timezone.trim() || 'Asia/Shanghai',
           indexConcurrency: clampIndexConcurrency(Number(indexConcurrency)),
         },
@@ -207,26 +290,67 @@ export function SettingsPage() {
     await checkNow({ forceFull: true, notify: true });
   };
 
+  const openAddRepo = async (): Promise<void> => {
+    if (repoBusy) return;
+    if (!(await confirmDiscardSettings('添加并切换仓库前，当前未保存的设置改动会被丢弃。'))) return;
+    setAddRepoOpen(true);
+  };
+
+  const handleSwitchRepo = async (profile: RepoProfile): Promise<void> => {
+    if (repoBusy) return;
+    if (!(await confirmDiscardSettings(`切换到 ${profile.owner}/${profile.name} 前，当前未保存的设置改动会被丢弃。`))) {
+      return;
+    }
+    setRepoBusy(true);
+    try {
+      await switchRepo(repoProfileKey(profile));
+      toast.success(`已切换到 ${profile.owner}/${profile.name}`);
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setRepoBusy(false);
+    }
+  };
+
+  const handleAddRepo = async (input: Parameters<typeof addRepo>[0]): Promise<void> => {
+    await addRepo(input);
+    toast.success('已添加并切换仓库');
+  };
+
+  const handleUpdateToken = async (profile: RepoProfile, token: string): Promise<void> => {
+    await updateToken(profile, token);
+    toast.success(`已更新 ${profile.owner}/${profile.name} 的令牌`);
+  };
+
+  const handleRemoveRepo = async (profile: RepoProfile): Promise<void> => {
+    if (repoBusy) return;
+    const confirmed = await confirmAction(`从本机移除仓库「${profile.owner}/${profile.name}@${profile.branch}」？`, {
+      description:
+        '会删除这个仓库在保险库中的 PAT（同仓库其他分支仍在使用时保留），并移除它的仓库级配置。本机加密文章缓存、草稿与备份不会立即删除；重置保险库时会统一清除。',
+      confirmLabel: '移除仓库',
+      danger: true,
+    });
+    if (!confirmed) return;
+    setRepoBusy(true);
+    try {
+      await removeRepo(profile);
+      toast.success('已移除仓库');
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setRepoBusy(false);
+    }
+  };
+
   const resetVault = async (): Promise<void> => {
     const confirmed = await confirmAction(
-      '重置保险库会删除本机令牌，以及本机所有真实仓库的未保存加密备份（演示备份保留），需要重新输入 PAT。继续吗？',
+      '重置保险库会删除本机所有仓库的 PAT 与仓库列表，并清除本机所有真实仓库的未保存备份、草稿和文章缓存；当前内容/字段/提交模板会保留为下次配置的默认值。需要重新输入 PAT。继续吗？',
       {
-        description: 'GitHub 上的文章不受影响；未提交到仓库的本机备份无法找回。',
+        description: 'GitHub 上的文章不受影响；未提交到仓库的本机内容无法找回。',
         confirmLabel: '重置保险库',
         danger: true,
       },
     );
-    if (!confirmed) return;
-    await vault.reset();
-    settings.setRepo(null);
-    navigate('/setup');
-  };
-
-  const reconfigure = async (): Promise<void> => {
-    const confirmed = await confirmAction('重新配置会删除本机保险库与真实仓库的未保存备份，然后回到首次配置。继续吗？', {
-      confirmLabel: '重新配置',
-      danger: true,
-    });
     if (!confirmed) return;
     await vault.reset();
     navigate('/setup');
@@ -263,6 +387,84 @@ export function SettingsPage() {
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_290px]">
         <div className="space-y-3">
+          {!isDemo ? (
+            <Collapse title="仓库" tape="blush" meta={`${repoProfiles.length} 个 · 独立 PAT`}>
+              <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
+                <p className="min-w-0 flex-1 text-[10.5px] leading-relaxed text-muted">
+                  所有仓库共用同一个保险库与解锁方式；切换不需要重新输密码。每个仓库有自己的 PAT，内容与排除、Frontmatter
+                  字段与提交消息也按仓库保存。切换只清内存视图，不删除本机加密缓存或草稿。
+                </p>
+                <button
+                  type="button"
+                  className="abs-btn abs-btn-ghost h-7 shrink-0 px-2.5 text-[10px]"
+                  onClick={() => void openAddRepo()}
+                  disabled={repoBusy}
+                >
+                  <Plus aria-hidden className="size-3" />
+                  添加仓库
+                </button>
+              </div>
+
+              <ul className="mt-2 space-y-2">
+                {repoProfiles.map((profile) => {
+                  const key = repoProfileKey(profile);
+                  const isActive = key === activeRepoKey;
+                  const tokenKey = repoTokenKey(profile);
+                  const tokenReady = isActive
+                    ? vaultSession.hasTokenForRepo(tokenKey)
+                    : vaultSession.hasStoredTokenForRepo(tokenKey);
+                  return (
+                    <li key={key} className="rounded-xl border border-line bg-paper-2 px-3 py-2.5">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="break-all font-mono text-[11px] text-ink">
+                            {profile.owner}/{profile.name}
+                          </p>
+                          <p className="mt-0.5 break-all font-mono text-[9px] text-muted">
+                            {profile.branch} · {profile.content.rootDir}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          {isActive ? <span className="abs-badge abs-badge-blush">当前</span> : null}
+                          {!tokenReady ? <span className="font-mono text-[9px] text-danger">缺少 PAT</span> : null}
+                          {!isActive ? (
+                            <button
+                              type="button"
+                              className="abs-btn abs-btn-ghost h-7 px-2.5 text-[10px]"
+                              onClick={() => void handleSwitchRepo(profile)}
+                              disabled={repoBusy || !tokenReady}
+                              title={tokenReady ? undefined : '先更新这个仓库的令牌'}
+                            >
+                              切换
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="abs-btn abs-btn-ghost h-7 px-2.5 text-[10px]"
+                            onClick={() => setTokenEditing(profile)}
+                            disabled={repoBusy}
+                          >
+                            更新令牌
+                          </button>
+                          {!isActive ? (
+                            <button
+                              type="button"
+                              className="abs-btn abs-btn-ghost h-7 border-danger/40 px-2.5 text-[10px] text-danger"
+                              onClick={() => void handleRemoveRepo(profile)}
+                              disabled={repoBusy}
+                            >
+                              移除
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Collapse>
+          ) : null}
+
           <Collapse title="内容与排除" tape="blush">
             {isDemo ? (
               <p className="mt-1 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2 text-[10.5px] leading-relaxed text-muted">
@@ -558,7 +760,9 @@ export function SettingsPage() {
             }
             meta={isDemo ? '演示模式' : '已加密保存'}
           >
-            <p className="mt-1 break-all font-mono text-[9px] text-muted">令牌：{isDemo ? '演示模式无令牌' : '已加密保存'}</p>
+            <p className="mt-1 break-all font-mono text-[9px] text-muted">
+              令牌：{isDemo ? '演示模式无令牌' : '所有仓库分别加密保存'}
+            </p>
             {!isDemo ? (
               <p className="mt-1 text-[10px] leading-relaxed text-muted">
                 当前解锁方式：<strong className="text-ink">{vaultModeLabel(vault.mode)}</strong>
@@ -617,12 +821,6 @@ export function SettingsPage() {
                 </button>
               ) : null}
               {!isDemo ? (
-                <button type="button" className="abs-btn abs-btn-ghost text-[10.5px]" onClick={() => void reconfigure()}>
-                  <RotateCcw aria-hidden className="size-3" />
-                  重新配置仓库
-                </button>
-              ) : null}
-              {!isDemo ? (
                 <button
                   type="button"
                   className="abs-btn abs-btn-ghost border-danger/40 text-[10.5px] text-danger"
@@ -656,6 +854,21 @@ export function SettingsPage() {
           </Collapse>
         </aside>
       </div>
+
+      {addRepoOpen ? (
+        <AddRepoDialog
+          defaults={{ rootDir: settings.content.rootDir, excludes: settings.content.excludes.join('\n') }}
+          onClose={() => setAddRepoOpen(false)}
+          onSubmit={handleAddRepo}
+        />
+      ) : null}
+      {tokenEditing ? (
+        <RepoTokenDialog
+          profile={tokenEditing}
+          onClose={() => setTokenEditing(null)}
+          onSubmit={(token) => handleUpdateToken(tokenEditing, token)}
+        />
+      ) : null}
     </div>
   );
 }

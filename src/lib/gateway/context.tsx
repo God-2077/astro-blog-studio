@@ -42,7 +42,7 @@ export function GatewayProvider({
       gateway,
       repo,
       config,
-      key: `${mode}:${repo.owner}/${repo.name}@${config.rootDir}`,
+      key: `${mode}:${repo.owner}/${repo.name}@${repo.defaultBranch}:${config.rootDir}`,
     }),
     [mode, gateway, repo, config],
   );

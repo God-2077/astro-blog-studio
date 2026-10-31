@@ -166,13 +166,10 @@ async function unwrapPasswordWrapWith(payload: VaultPayload, password: string, d
     crypto.AAD_KEY_PASSWORD,
   );
   const tokenKey = await crypto.importAesKey(dataKey);
+  const legacy = payload.token;
+  if (!legacy) throw new Error('payload has no legacy token');
   return decodeUtf8(
-    await crypto.decryptBytes(
-      tokenKey,
-      base64ToBytes(payload.token.iv),
-      base64ToBytes(payload.token.ciphertext),
-      crypto.AAD_TOKEN,
-    ),
+    await crypto.decryptBytes(tokenKey, base64ToBytes(legacy.iv), base64ToBytes(legacy.ciphertext), crypto.AAD_TOKEN),
   );
 }
 

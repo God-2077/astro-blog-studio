@@ -38,6 +38,9 @@ src/
     protected-layout.tsx    vault 状态 + live/demo GatewayProvider
     tree-panel.tsx          文件树、搜索、排除计数、离开未保存确认
     new-post-dialog.tsx     新建文章 → 本地草稿（不写 API）
+    add-repo-dialog.tsx     设置页「添加仓库」Dialog（仓库/分支/PAT/根目录/排除）
+    repo-token-dialog.tsx   设置页「更新令牌」Dialog（校验 PAT 后写入保险库）
+    missing-repo-token.tsx  活动仓库缺少 PAT 时的恢复页
     backup-dialog.tsx       「发现未保存的备份」AlertDialog（稍后 / 丢弃 / 恢复）
     confirm-toast.tsx       sonner 确认条：confirmAction → Promise<boolean>（取代 window.confirm）
     unlock-mode-picker.tsx  设备指纹 / 密码 / 密码 + 设备双因子（严格 AND）
@@ -47,7 +50,7 @@ src/
     pwa-update-dialog.tsx   「网站有新版本」AlertDialog（只提醒，不自动刷新）
     ui.tsx                  Badge / Field / Spinner / ErrorNote / EmptyState / Skeleton
   pages/                    dashboard / editor / settings / setup / unlock
-  hooks/                    use-data / use-content-sync / use-auto-lock / use-editor-backup / use-pending-draft
+  hooks/                    use-data / use-content-sync / use-auto-lock / use-editor-backup / use-pending-draft / use-repo-manager
   lib/
     backup/model.ts         备份记录校验、整文件快照、恢复映射
     backup/envelope.ts      AES-GCM 备份信封（整份记录 + AAD 绑定槽位/元数据）
@@ -74,8 +77,10 @@ src/
     paths/commit-message.ts 提交模板（含 {title}）/ title 回退
     paths/                  normalize / exclusion matcher
     pwa/update-polling.ts   SW 更新检测：节流 + single-flight + 可见/在线判断
+    repos/identity.ts       owner/name 规范化、仓库 profile key 与 PAT token key
+    repos/profile.ts        活动配置快照、仓库档案克隆、Setup/新增仓库配置模板
     tree/model.ts           文件树模型（相对根目录显示，路径保留全路径；按 tree 引用 memo）
-    vault/                  crypto(HKDF 备份/草稿/文章子密钥) / fingerprint / keystore(三种解锁模式) / session / mode
+    vault/                  crypto(HKDF 备份/草稿/文章子密钥) / fingerprint / keystore(三种解锁模式 + 多仓库 PAT 映射) / session / mode
     demo/fixtures.ts         演示仓库与 12 篇示例
   stores/                   zustand：settings(persist)、vault、content、drafts、ui、rate-limit、last-commit、editor guard、pending-post、pwa
   styles/app.css            Tailwind v4 tokens + .abs-* 设计系统
@@ -90,7 +95,9 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
 
 1. **PAT 安全**
    - 不允许明文 PAT 进 localStorage / 日志 / DOM / URL / 构建产物 / 测试快照。
-   - `vaultSession` 只在内存保存 PAT、数据密钥与派生的备份/草稿/文章缓存密钥；锁定必须先 flush 加密草稿，再清空 session、备份/草稿内存、文章缓存明文摘要和 React Query 缓存。
+   - 每个仓库的 PAT 分开加密在 vault payload 的 `tokens` 映射里（key 为小写 `owner/name`，AAD 绑定该 key）；同一仓库不同分支共用一个 PAT；旧版单 `token` 首次解锁后迁移到活动仓库。
+   - `vaultSession` 只在内存保存所有仓库 PAT、数据密钥与派生的备份/草稿/文章缓存密钥；切换仓库不得重新解锁；锁定必须先 flush 加密草稿，再清空 session、备份/草稿内存、文章缓存明文摘要和 React Query 缓存。
+   - 添加/更新仓库 PAT 必须先用该 PAT 调 `getRepo()` 校验访问权限，再写入保险库；失败不得覆盖旧令牌。
    - `.env.local` 只给 Node 测试；不要提交；测试结束后轮换 token。
    - 不引入第三方统计、脚本、字体 CDN、iframe、外链图片上传。
    - 解锁方式只有三种：`device` / `password` / `two-factor`。双因子是严格 AND：密码 KEK 混入本机指纹，payload 里**不得**同时存在独立的 `device` 包装；也不要恢复「设备指纹自动解锁」按钮。
@@ -110,7 +117,7 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
    - 提交消息用设置里的模板；未知占位符保留原文。
    - 错误必须走 `mapError` 翻译成用户可执行的中文提示。
 5. **Frontmatter 字段**
-   - 字段配置是 `Settings.frontmatter.fields`；编辑器表单、新稿初始 frontmatter、必填校验都从它派生。
+   - 字段配置是当前仓库的 `Settings.frontmatter.fields`（活动仓库在顶层，非活动仓库在 `Settings.repos` 档案里）；编辑器表单、新稿初始 frontmatter、必填校验都从它派生。
    - 字段名必须通过 `validateFrontmatterFields`；不要硬编码某个字段（title/date 也只是默认 required）。
    - 删除配置字段不等于删除文件里的键；未知字段保留；空可选字段回写时用 `null` 删除键块。
    - 不把字段配置写进 `astro-blog` schema；它是应用层表单配置。
@@ -118,7 +125,7 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
    - 首页文章列表与草稿/加密计数只能来自 `stores/content`（本机加密缓存），不要恢复到逐文件 `useQueries` 或每次打开全量 `readFiles`。
    - 首次打开（本机无 meta / 配置签名变化 / 强制全量）才全量读取：`planIndex` 取前 `MAX_INDEX_FILES = 1000` 篇，20 篇 / 批走 `gateway.readFiles`（一次 GraphQL，失败回退 Contents REST）。之后每次打开只拉 HEAD tree（`useTree`），用 map 的 tree sha 快速判断不变，否则按路径 + blob sha diff，只读 added + modified，删除 deleted 的本地记录。
    - meta 记录 `treeSha` + 签名 + 文件 blob sha 清单；写入必须用**实际读到的 blob sha**。失败的批次不得让 meta 误报完整：failed `modified` 保留旧 sha 以便重试，failed `added` 不写入 meta；`truncated` 时跳过删除。写入失败（配额）只降级为内存会话并提示，不得阻塞浏览。
-   - 并发数来自设置 `content.indexConcurrency`（1–10，默认 3，`clampIndexConcurrency` 兜底）；改 schema 字段必须给旧持久化数据留默认值（zod `.catch`）。
+   - 并发数来自当前仓库设置 `content.indexConcurrency`（1–10，默认 3，`clampIndexConcurrency` 兜底）；改 schema 字段必须给旧持久化数据留默认值（zod `.catch`）。
    - 不要再把批量结果回填 `['file']`：编辑器按需读取远端文件（同一文件 60s 内复用 RQ 缓存），避免缓存文本覆盖编辑器刚保存/刚读取的内容。
    - 改动 gateway 批量逻辑或同步逻辑时，必须同时验证 CORS/权限、CJK 路径、超大/缺失文件、REST 回退、截断与写入降级。
 7. **设计**
@@ -155,13 +162,20 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
     - 编辑器「保存草稿」只写本机，**不调用任何写 API**；记录必须带完整的 `state`（表单/源文件模式、原始 YAML、正文、`sourceText`）与已有文件的 `baseSha`。从草稿箱打开走 `restoreToEditorState`，保存仍按 `baseSha` 走 409 冲突。
     - 新建文章仍先在 `usePendingPost` 起草；开始下一篇前必须先把上一篇经 `capturePendingDraft`（优先最新编辑器备份 → 已有草稿 → 初始文本）写入草稿箱，写入成功后才能清内存草稿；失败要中止并提示，不得覆盖丢失。
     - 从草稿箱打开时跳过自动备份弹窗；若同路径自动备份比草稿新，必须用备份内容恢复（不丢离开前的最新编辑）。提交成功（新建稿或本次会话来自草稿）后清除该路径草稿；移动/删除同步清理。普通打开文章时不要自动删除草稿箱里的旧草稿。
+12. **多仓库与仓库级配置**
+    - 活动仓库的 config 在 `Settings.repo + content/commit/frontmatter` 顶层；非活动仓库在 `Settings.repos` 档案里，不得把活动仓库重复放进 `repos`。切换用 `useRepoManager`：先 park 内存新稿，再 `settings.activateRepo`，最后只清 `useContent`/`useDrafts`/`useLastCommit`/`useRateLimit` 内存与 React Query；**禁止**调用 `storage.clear()` / `clearContentByPrefix` / `clearBackupsByPrefix` / `clearDraftsByPrefix`。
+    - 仓库级配置范围只有 `content`、`commit`、`frontmatter`；编辑器、外观、安全为全局。`editor.defaultDir` 与 `filenameTemplate` 仍是全局。
+    - PAT key 用 `repoTokenKey`（小写 `owner/name`），profile key 用 `repoProfileKey`（小写 owner/name + 原样 branch）；同一仓库不同分支共享 PAT，但缓存/草稿/备份继续按 branch 隔离。
+    - 新增仓库必须先校验该仓库自己的 PAT，再写 vault token，再添加并激活档案；更新令牌失败不得覆盖旧令牌；移除非活动仓库时，只有同一 slug 不再被任何档案使用时才删除 PAT。
+    - 旧版单 `token` 解锁后 best-effort 迁移到活动仓库；迁移失败时本次会话仍把旧 PAT 绑定到活动 slug，下次解锁重试。
+    - 切回原仓库必须复用 IndexedDB 缓存：tree sha + 配置签名未变时只拉 HEAD tree，0 次文章正文读取；这条必须有单元/端到端回归。
 
 ## 测试协议
 
 1. `pnpm test:seed`（测试仓库为空或需要恢复种子）。
 2. `pnpm test` / `pnpm test:live`；live 会创建 `src/_e2e/<runId>/*` 并自动清理。
-3. `pnpm test:e2e`：setup 用「密码」模式建本地加密保险库（`tests/e2e/.auth/`，已 gitignore；不要用双因子，避免指纹来源波动导致 flaky），demo 验证 fixture/字段配置/源文件模式/新稿草稿/`{title}`/未保存备份恢复与丢弃，live 创建/清理 `src/_e2e/*`，并断言首访 1 次 tree + 1 次 GraphQL 批量、刷新后 0 次文章内容请求且 `abs-content` 中只有 `v: 1` 密文、新稿保存前 404、保存后单提交、真实草稿在 IndexedDB 中是 `v: 2` 密文且锁定/解锁后可恢复。`pwa` 组会先用 `vite build` 构建再 `vite preview`：断言 manifest/图标/SW、断网从预缓存打开、以及 waiting 新版本 → 弹窗 → 「稍后」→ 徽标 → 「立即刷新」才 reload（会临时 append `dist/sw.js` 并在 afterAll 还原）。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。只想验 PWA 用 `pnpm test:e2e:pwa`。
-4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；源文件模式改整份文件并切回表单；未保存备份：改标题/源文件/新稿 → 刷新 → 稍后 → 恢复 → 保存后不再提示，以及丢弃后不再提示；双因子 Setup → 刷新必须输密码且不自动解锁、换指纹后失败并提示重置；真实仓库改标题后 IndexedDB 只有密文、锁定 → 解锁 → 恢复；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；本机文章缓存：首访全量 → 刷新只检查 tree → 远端改/删/加后只读变更 → 设置强制全量 → 锁定/解锁仍可读 → 重置保险库清空 `live:` 缓存；移动/删除/冲突；390px；`pnpm build` 后 `pnpm preview` 断网重载与更新弹窗。
+3. `pnpm test:e2e`：setup 用「密码」模式建本地加密保险库（`tests/e2e/.auth/`，已 gitignore；不要用双因子，避免指纹来源波动导致 flaky），demo 验证 fixture/字段配置/源文件模式/新稿草稿/`{title}`/未保存备份恢复与丢弃；`repos.mock.spec.ts` 用 Playwright route 模拟两个 GitHub 仓库，验证添加第二仓库/独立 PAT/切换/仓库级配置/锁定后一次解锁再切换，并断言 A → B → A 切回后没有第二次 GraphQL 正文读取；live 创建/清理 `src/_e2e/*`，并断言首访 1 次 tree + 1 次 GraphQL 批量、刷新后 0 次文章内容请求且 `abs-content` 中只有 `v: 1` 密文、新稿保存前 404、保存后单提交、真实草稿在 IndexedDB 中是 `v: 2` 密文且锁定/解锁后可恢复。`pwa` 组会先用 `vite build` 构建再 `vite preview`：断言 manifest/图标/SW、断网从预缓存打开、以及 waiting 新版本 → 弹窗 → 「稍后」→ 徽标 → 「立即刷新」才 reload（会临时 append `dist/sw.js` 并在 afterAll 还原）。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。只想验 PWA 用 `pnpm test:e2e:pwa`。
+4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；源文件模式改整份文件并切回表单；未保存备份：改标题/源文件/新稿 → 刷新 → 稍后 → 恢复 → 保存后不再提示，以及丢弃后不再提示；双因子 Setup → 刷新必须输密码且不自动解锁、换指纹后失败并提示重置；真实仓库改标题后 IndexedDB 只有密文、锁定 → 解锁 → 恢复；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；两个真实仓库分别用不同 PAT 添加、切换、切回（Network 里只有 tree、无正文重读）、更新令牌、移除非活动仓库；本机文章缓存：首访全量 → 刷新只检查 tree → 远端改/删/加后只读变更 → 设置强制全量 → 锁定/解锁仍可读 → 重置保险库清空 `live:` 缓存；移动/删除/冲突；390px；`pnpm build` 后 `pnpm preview` 断网重载与更新弹窗。
 5. `pnpm verify`；`pnpm test:clean`；轮换测试 token。
 
 ## 代码风格

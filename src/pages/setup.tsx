@@ -8,6 +8,8 @@ import { SUGGESTED_EXCLUDES } from '@/lib/config/defaults';
 import { mapError } from '@/lib/github/errors';
 import { LiveGateway } from '@/lib/github/live';
 import { parseRepoInput } from '@/lib/github/repo-input';
+import { repoTokenKey } from '@/lib/repos/identity';
+import { profileFromSettings } from '@/lib/repos/profile';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode } from '@/lib/vault/mode';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
@@ -20,7 +22,9 @@ export function SetupPage() {
   const [repoInput, setRepoInput] = useState('');
   const [branch, setBranch] = useState('');
   const [rootDir, setRootDir] = useState(settings.content.rootDir || 'src');
-  const [excludes, setExcludes] = useState(SUGGESTED_EXCLUDES.join('\n'));
+  const [excludes, setExcludes] = useState(
+    settings.content.excludes.length > 0 ? settings.content.excludes.join('\n') : SUGGESTED_EXCLUDES.join('\n'),
+  );
   const [password, setPassword] = useState('');
   const [unlockMode, setUnlockMode] = useState<VaultMode>('device');
   const [busy, setBusy] = useState(false);
@@ -52,23 +56,22 @@ export function SetupPage() {
       });
       const info = await gateway.getRepo();
       const finalBranch = branch.trim() || info.defaultBranch;
+      const repo = { ...parsed, branch: finalBranch };
+      const content = {
+        rootDir: rootDir.trim() || 'src',
+        excludes: excludes
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean),
+      };
 
-      settings.setRepo({ ...parsed, branch: finalBranch });
-      settings.patch({
-        content: {
-          ...settings.content,
-          rootDir: rootDir.trim() || 'src',
-          excludes: excludes
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean),
-        },
-      });
       await vault.setup({
+        repoKey: repoTokenKey(repo),
         token: token.trim(),
         mode: unlockMode,
         ...(modeNeedsPassword(unlockMode) ? { password } : {}),
       });
+      settings.startWorkspace(profileFromSettings(useSettings.getState(), repo, content));
       navigate('/', { replace: true });
     } catch (caught) {
       setError(mapError(caught).detail ?? mapError(caught).message);
@@ -87,7 +90,8 @@ export function SetupPage() {
               <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-sakura">first run</p>
               <h1 className="mt-1 font-display text-[30px] font-bold leading-tight">把仓库接进来</h1>
               <p className="mt-1 text-[11.5px] leading-relaxed text-muted">
-                令牌只会在这台设备上加密保存。配置成功后，这个工作台会直接读写仓库里的 Markdown。
+                令牌只会在这台设备上加密保存。配置成功后，这个工作台会直接读写仓库里的
+                Markdown；之后可在设置里添加更多仓库，每个仓库用自己的 PAT，共用同一套解锁方式。
               </p>
             </div>
             <span className="abs-badge abs-badge-blush">01 樱糖手帐</span>
@@ -207,8 +211,9 @@ export function SetupPage() {
               令牌怎么存
             </p>
             <p className="mt-1.5 text-muted">
-              用设备指纹或密码经 PBKDF2 派生的密钥包装；双因子时密码与指纹会一起参与派生，两者缺一不可。令牌只以 AES-GCM
-              密文存在 localStorage，解锁前不会进入网络请求。
+              每个仓库的 PAT 分别用 AES-GCM 封装，共用同一个数据密钥；数据密钥再由设备指纹或密码经 PBKDF2
+              派生的密钥包装。双因子时密码与指纹会一起参与派生，两者缺一不可。令牌只以密文存在
+              localStorage，解锁前不会进入网络请求。
             </p>
             <p className="mt-2 text-[10px] text-muted">
               设备指纹不是秘密；密码才是真正的安全边界。换设备或指纹变化后，双因子只能重置保险库。

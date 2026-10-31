@@ -29,25 +29,42 @@ export const frontmatterSettingsSchema = z
   })
   .default({ fields: DEFAULT_FRONTMATTER_FIELDS });
 
+export const contentSettingsSchema = z.object({
+  rootDir: z.string(),
+  extensions: z.array(z.string()),
+  excludes: z.array(z.string()),
+  timezone: z.string().min(1),
+  // `.catch` keeps settings saved by older versions (and junk values) usable
+  // instead of resetting the whole persisted object in the store merge.
+  indexConcurrency: z.number().int().min(INDEX_CONCURRENCY_MIN).max(INDEX_CONCURRENCY_MAX).catch(INDEX_CONCURRENCY_DEFAULT),
+});
+
+export const commitSettingsSchema = z.object({
+  create: z.string(),
+  update: z.string(),
+  delete: z.string(),
+  move: z.string(),
+  confirmBeforeCommit: z.boolean(),
+});
+
+export const repoProfileSchema = z.object({
+  owner: z.string().min(1),
+  name: z.string().min(1),
+  branch: z.string().min(1),
+  content: contentSettingsSchema,
+  commit: commitSettingsSchema,
+  frontmatter: frontmatterSettingsSchema,
+});
+
 export const settingsSchema = z.object({
   version: z.literal(1),
   repo: repoSchema.nullable(),
-  content: z.object({
-    rootDir: z.string(),
-    extensions: z.array(z.string()),
-    excludes: z.array(z.string()),
-    timezone: z.string().min(1),
-    // `.catch` keeps settings saved by older versions (and junk values) usable
-    // instead of resetting the whole persisted object in the store merge.
-    indexConcurrency: z.number().int().min(INDEX_CONCURRENCY_MIN).max(INDEX_CONCURRENCY_MAX).catch(INDEX_CONCURRENCY_DEFAULT),
-  }),
-  commit: z.object({
-    create: z.string(),
-    update: z.string(),
-    delete: z.string(),
-    move: z.string(),
-    confirmBeforeCommit: z.boolean(),
-  }),
+  // Inactive repositories only. The active repository is materialized into the
+  // top-level repo/content/commit/frontmatter fields so existing consumers keep
+  // reading one active configuration.
+  repos: z.array(repoProfileSchema).catch([]).default([]),
+  content: contentSettingsSchema,
+  commit: commitSettingsSchema,
   editor: z.object({
     defaultDir: z.string(),
     filenameTemplate: z.string(),
@@ -78,4 +95,7 @@ export const settingsSchema = z.object({
 
 export type Settings = z.infer<typeof settingsSchema>;
 export type RepoConfig = z.infer<typeof repoSchema>;
+export type RepoProfile = z.infer<typeof repoProfileSchema>;
+export type ContentSettings = z.infer<typeof contentSettingsSchema>;
+export type CommitSettings = z.infer<typeof commitSettingsSchema>;
 export type FrontmatterSettings = z.infer<typeof frontmatterSettingsSchema>;

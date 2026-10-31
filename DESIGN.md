@@ -96,20 +96,22 @@ Markdown 源码语法色是一组**角色别名**，底层继续沿用上面的�
 
 ### 设置（`/settings`）
 
-- 左侧六张纸（内容与排除、本机文章缓存、Frontmatter 字段、提交消息、编辑与预览、外观），右侧安全卡 + 当前配置卡。
-- **折叠面板**：每个分区都是 `Collapse`（原生 button + `aria-expanded`/`aria-controls`，body 用 `hidden` 隐藏）。默认状态只在挂载时按视口决定：<768px 手机竖屏全部折叠，≥768px 平板/桌面全部展开；之后跟随用户操作，旋转屏幕不强制重置。折叠时标题行仍显示摘要（缓存篇数/演示模式、字段数及校验错误、当前主题、令牌状态），顶部「保存设置」始终可见。
+- 真实仓库左侧七张纸（仓库、内容与排除、本机文章缓存、Frontmatter 字段、提交消息、编辑与预览、外观），demo 隐藏仓库纸，仍是六张；右侧安全卡 + 当前配置卡。
+- **仓库卡**：活动仓库在前、非活动仓库在后；每行显示 slug、分支、根目录，活动行带「当前」徽章，非活动行提供「切换」「移除」，所有行提供「更新令牌」；顶部「添加仓库」ghost 按钮打开 Radix Dialog（仓库、分支、PAT、根目录、排除规则）。切换/添加前若有未保存设置改动，用 `confirmAction` 提示丢弃；切换后设置表单整体重挂载。切换只清内存与查询缓存，不删文章缓存/草稿/备份。demo 不显示此卡。
+- **折叠面板**：每个分区都是 `Collapse`（原生 button + `aria-expanded`/`aria-controls`，body 用 `hidden` 隐藏）。默认状态只在挂载时按视口决定：<768px 手机竖屏全部折叠，≥768px 平板/桌面全部展开；之后跟随用户操作，旋转屏幕不强制重置。折叠时标题行仍显示摘要（仓库数/独立 PAT、缓存篇数/演示模式、字段数及校验错误、当前主题、令牌状态），顶部「保存设置」始终可见。
 - **安全卡**：显示「当前解锁方式」，下方是三张 radio 卡片（设备指纹 / 密码 / 密码 + 设备双因子）与「更新解锁方式」按钮；模式与密码单独保存、立即生效，不参与顶部「保存设置」。选中双因子时就地给出 danger 边说明「两者必须同时匹配，任一丢失只能重置保险库」，旧版并存保险库额外显示升级提示。demo 模式下隐藏解锁方式、锁定与重置入口。
 - **本机文章缓存**：内容与排除纸下方一张纸，显示「演示模式 · 仅内存」或「N 篇 · AES-GCM」、已缓存篇数 / 上次同步时间 / 树 sha 短值；ghost 按钮「检查更新」「强制全量更新」（强制先弹 sonner 确认条），同步中按钮禁用、图标旋转并显示阶段文案 + `done / total` 与薄荷进度条；「检查更新」进行中按钮文案改为「检查中…」；demo 禁用并说明不写本机。文案解释首次全量、之后按路径 + blob sha 只读新增/修改、删除已删除文章，以及真实仓库用保险库子密钥加密、锁定后不可读。
 - **索引并发**：内容与排除纸底部可调 1–10（默认 3），决定首次全量读取与增量同步同时进行几个 20 篇批次；调高更快，过高可能触发 GitHub 限流。保存写入设置，下一次同步生效。
 - **外观**：主题可选「跟随系统 / 昼 / 夜」，即时生效并随设置持久化；默认跟随系统。夜间与昼间共用同一套 token，切换不改变布局与字号。
 - **Frontmatter 字段**：可增删字段行（名称 / 类型 / 必填）；「恢复常用字段」回到 hello-world 参考集；字段定义非法（空名、重复、保留名、非法字符）时阻止保存并就地说明。删除字段不会删除已有文件里的键，编辑器会把它作为未知字段保留。
 - 演示模式下连接字段禁用并说明；Frontmatter 字段、提交模板、字号、自动锁定、外观等仍可调。
-- 危险操作（重新配置、重置保险库）使用红色描边而非实心红，避免误触。
+- **仓库级配置**：内容与排除、Frontmatter 字段、提交消息随活动仓库切换；编辑器、外观、安全为全局。添加仓库对话框的提交按钮用普通 `.abs-btn`，不用实心樱粉（实心樱粉仍只给「新建文章」）。
+- 危险操作（移除仓库、重置保险库）使用红色描边而非实心红，避免误触；重置保险库会清除所有仓库 PAT、仓库配置与本机真实仓库缓存。
 
 ### Setup / Unlock
 
 - 居中纸片 + 右侧说明/提醒贴纸；Setup 是「把仓库接进来」，Unlock 是「欢迎回来」。
-- Setup 的解锁方式是一组 radio 卡片（设备指纹 / 密码 / 密码 + 设备双因子），选中需要密码的模式才显示密码输入；双因子卡片下方固定一条 danger 说明，不弹额外确认框。
+- Setup 的解锁方式是一组 radio 卡片（设备指纹 / 密码 / 密码 + 设备双因子），选中需要密码的模式才显示密码输入；双因子卡片下方固定一条 danger 说明，不弹额外确认框。连接首个仓库时写入该仓库的 PAT；更多仓库在设置里添加。
 - Unlock 按模式渲染：设备指纹模式自动尝试并用主按钮；密码/双因子只显示密码表单（双因子额外一条「需要同一台设备的指纹」提示，不提供设备捷径）；旧版并存保险库保留密码 + 设备两个入口并提示去设置升级。设备指纹的自动尝试每次打开只发生一次：失败后错误常驻页面、不自动重试，用户可以点主按钮手动重试或重置保险库；不要把 `busy` 状态放进自动解锁的触发条件。
 - 印章、纸胶带、便签只在手壳/侧栏/空状态/Setup/Unlock 出现。
 - 密码框使用等宽字体 + 字距；错误就地显示，不弹通用 alert。
@@ -118,7 +120,7 @@ Markdown 源码语法色是一组**角色别名**，底层继续沿用上面的�
 
 - `.abs-paper` / `.abs-sheet` / `.abs-sticky` / `.abs-receipt` / `.abs-stamp` / `.abs-tape` / `.abs-seal` / `.abs-badge-*` / `.abs-tree-row` / `.abs-input` / `.abs-btn*` / `.abs-seg` / `.abs-progress` 是设计系统组件，集中定义在 `src/styles/app.css`，Tailwind 原子类只做布局与间距。
 - **主题**：`ThemeProvider` 把 `settings.appearance.theme`（`system / day / night`）解析为 `<html data-theme>`；`index.html` 内联脚本在首帧前应用，避免白闪；需要布尔值的组件（CodeMirror 的 dark 主题）用 `useResolvedTheme()`。不新增主题命名空间，也不允许组件里写夜间分支。
-- 状态：Zustand `settings`（persist）、`vault`（不持久化）、`content`（本机文章缓存状态：status/progress/summaries/错误，不持久化，锁定即清空）、`drafts`（草稿箱列表：显式草稿 + 自动备份合并后的 items/status，锁定即清空）、`ui`、`rate-limit`、`last-commit`、`editor guard`、`pending-post`、`pwa`；未保存备份走 `useEditorBackup` + `lib/backup`（IndexedDB），草稿箱走 `lib/drafts`（IndexedDB `abs-drafts`，AES-GCM 子密钥），本机文章缓存走 `lib/content`（IndexedDB `abs-content`，AES-GCM），三者都不放进 service worker 缓存；服务端状态全部在 TanStack Query，key 含 `repo@rootDir`，切换仓库/根目录自动失效。
+- 状态：Zustand `settings`（persist，活动仓库顶层配置 + 非活动仓库档案）、`vault`（不持久化，内存保存全部仓库 PAT）、`content`（本机文章缓存状态：status/progress/summaries/错误，不持久化，切换/锁定即清空内存但保留 IndexedDB）、`drafts`（草稿箱列表：显式草稿 + 自动备份合并后的 items/status，切换/锁定即清空内存）、`ui`、`rate-limit`、`last-commit`、`editor guard`、`pending-post`、`pwa`；未保存备份走 `useEditorBackup` + `lib/backup`（IndexedDB），草稿箱走 `lib/drafts`（IndexedDB `abs-drafts`，AES-GCM 子密钥），本机文章缓存走 `lib/content`（IndexedDB `abs-content`，AES-GCM），三者都不放进 service worker 缓存；服务端状态全部在 TanStack Query，key 含 `mode:owner/name@branch:rootDir`，切换仓库/分支/根目录自动失效。
 - 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。toast 右侧常驻 `.abs-toast-close` X（纸底、1.5px 线边框的 24px 方块，hover 转 ink），点击立即关闭；自动消失与滑动关闭保留。
 - **确认统一走 `confirmAction`（`components/confirm-toast.tsx`）**：不再用 `window.confirm`。自定义 sonner toast 呈现「说明 + 取消 / 确认」，返回 `Promise<boolean>`，确认按钮用 `.abs-btn`（破坏性操作用 `.abs-btn-danger` 红色描边，实心樱粉仍只给「新建文章」）；不自动消失，默认焦点在「取消」，Esc 等价取消，滑动关闭/被新确认顶掉都按取消收口，调用方的 `await` 不会悬挂。确认后的异步动作由调用方继续 `await`，并对慢操作给按钮忙碌态与结果 toast。
 - **PWA 更新提示**：`PwaUpdate` 挂在 App 根部（`virtual:pwa-register/react`）。新版本进入 waiting 时用 Radix `AlertDialog` 弹「网站有新版本」，按钮「稍后」（`.abs-btn-ghost`）/「立即刷新」（默认 `.abs-btn`，**不用**实心樱粉——实心樱粉仍只属于「新建文章」）。点过「稍后」后顶栏出现带樱粉圆点的 `.abs-icon-btn`，可再次唤起弹窗；编辑器脏状态时弹窗内多一行 danger 提示，刷新时沿用现有 `beforeunload` 兜底。只有用户点「立即刷新」才整页 reload，**不自动刷新**。`pnpm dev` 不注册 Service Worker，PWA 只在构建产物里可见。浏览器标签图标与 `apple-touch-icon` 统一使用 `public/apple-touch-icon.png`。
@@ -175,3 +177,5 @@ Markdown 源码语法色是一组**角色别名**，底层继续沿用上面的�
 **未保存备份（2026-10）**：编辑后约 600ms 底栏出现「本机已备份」，进入编辑器检查备份并弹窗；「稍后」保留 butter 恢复条，「恢复」支持表单/源文件/新稿，「丢弃」后不再提示；保存/移动/删除成功即清除；恢复旧草稿保留 base sha，保存仍走 409。真实仓库的备份是 AES-GCM 密文（保险库数据密钥经 HKDF 派生的子密钥），demo 备份明文；锁定前先 flush 再清密钥，重置保险库会一并清除真实仓库备份；设置可关闭与清除。
 
 **1.0.0（2026-10）**：设置页每个分区可折叠（手机 <768px 默认折叠、宽屏默认展开，标题行保留摘要）；「检查更新」进行中即时显示按钮/状态条/toast 反馈；「最近动过」支持 `updated` / `date` 排序与每次 20 篇的「加载更多」；浏览器标签与 `apple-touch-icon` 统一使用 `/apple-touch-icon.png`；README 改为分层结构，备份/缓存/测试/架构细节下沉到 `docs/`。
+
+**多仓库（2026-10）**：设置页新增仓库纸，支持添加 / 切换 / 更新令牌 / 移除；每个仓库独立 PAT、共用保险库解锁方式，内容与排除、Frontmatter 字段、提交消息按仓库保存。切换仅清内存与查询缓存，IndexedDB 中的文章缓存/草稿/备份保留；切回时只拉 HEAD tree，未变化时 0 次正文读取。旧版单令牌保险库首次解锁自动迁移。

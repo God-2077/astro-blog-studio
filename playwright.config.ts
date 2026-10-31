@@ -30,7 +30,7 @@ export default defineConfig({
     },
     {
       name: 'demo',
-      testMatch: /demo\.spec\.ts/,
+      testMatch: /(demo|repos\.mock)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], channel: 'msedge', storageState: { cookies: [], origins: [] } },
     },
     {
