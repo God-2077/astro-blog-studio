@@ -3,18 +3,44 @@ import { expect, type Page, type Route, test } from '@playwright/test';
 const password = process.env.E2E_PASSWORD ?? 'studio-e2e-password';
 const repoA = 'mock-owner/repo-a';
 const repoB = 'mock-owner/repo-b';
+const repoRoot = 'mock-owner/repo-root';
 
-const files: Record<string, { path: string; sha: string; text: string }> = {
-  [repoA]: {
-    path: 'src/content/blog/a.md',
-    sha: 'blob-a',
-    text: "---\ntitle: 'A 文章'\ndate: '2026-01-01'\n---\n仓库 A 的正文\n",
-  },
-  [repoB]: {
-    path: 'content-b/blog/b.md',
-    sha: 'blob-b',
-    text: "---\ntitle: 'B 文章'\ndate: '2026-01-02'\n---\n仓库 B 的正文\n",
-  },
+type MockFile = { path: string; sha: string; text: string };
+
+const files: Record<string, MockFile[]> = {
+  [repoA]: [
+    {
+      path: 'src/content/blog/a.md',
+      sha: 'blob-a',
+      text: "---\ntitle: 'A 文章'\ndate: '2026-01-01'\n---\n仓库 A 的正文\n",
+    },
+  ],
+  [repoB]: [
+    {
+      path: 'content-b/blog/b.md',
+      sha: 'blob-b',
+      text: "---\ntitle: 'B 文章'\ndate: '2026-01-02'\n---\n仓库 B 的正文\n",
+    },
+  ],
+  // Root-level article plus folders: with rootDir '/' the tree must keep the
+  // blog post that sits directly in the repository root.
+  [repoRoot]: [
+    {
+      path: 'abc.md',
+      sha: 'blob-root',
+      text: "---\ntitle: '根目录笔记'\ndate: '2026-01-03'\n---\n根目录正文\n",
+    },
+    {
+      path: 'notes/deep/x.md',
+      sha: 'blob-note',
+      text: "---\ntitle: '深层笔记'\ndate: '2026-01-04'\n---\n深层正文\n",
+    },
+    {
+      path: 'src/legacy/y.md',
+      sha: 'blob-legacy',
+      text: "---\ntitle: '旧稿'\ndate: '2026-01-05'\n---\n旧稿正文\n",
+    },
+  ],
 };
 
 interface RepoMockState {
@@ -67,14 +93,19 @@ function installGitHubMock(state: RepoMockState) {
       const slug = `${variables.owner ?? ''}/${variables.name ?? ''}`;
       noteAuth(state, slug, request.headers().authorization ?? '');
       state.graphqlCalls.set(slug, (state.graphqlCalls.get(slug) ?? 0) + 1);
-      const file = files[slug];
-      const expression = variables.e0 ?? '';
-      const path = expression.slice(expression.indexOf(':') + 1);
-      const blob = file?.path === path ? { oid: file.sha, byteSize: file.text.length, text: file.text } : null;
+      const repoFiles = files[slug] ?? [];
+      const repository: Record<string, { oid: string; byteSize: number; text: string } | null> = {};
+      for (const [key, expression] of Object.entries(variables)) {
+        const alias = /^e(\d+)$/.exec(key);
+        if (!alias) continue;
+        const path = expression.slice(expression.indexOf(':') + 1);
+        const file = repoFiles.find((entry) => entry.path === path);
+        repository[`f${alias[1]}`] = file ? { oid: file.sha, byteSize: file.text.length, text: file.text } : null;
+      }
       await route.fulfill({
         status: 200,
         headers: apiHeaders(),
-        body: JSON.stringify({ data: { repository: { f0: blob } } }),
+        body: JSON.stringify({ data: { repository } }),
       });
       return;
     }
@@ -102,14 +133,36 @@ function installGitHubMock(state: RepoMockState) {
       return;
     }
     if (rest.startsWith('/git/trees/')) {
-      const file = files[slug];
+      const repoFiles = files[slug] ?? [];
       await route.fulfill({
         status: 200,
         headers: apiHeaders(),
         body: JSON.stringify({
           sha: `tree-${name}`,
-          tree: file ? [{ path: file.path, type: 'blob', sha: file.sha, size: file.text.length }] : [],
+          tree: repoFiles.map((file) => ({ path: file.path, type: 'blob', sha: file.sha, size: file.text.length })),
           truncated: false,
+        }),
+      });
+      return;
+    }
+    if (rest.startsWith('/contents/')) {
+      const path = decodeURIComponent(rest.slice('/contents/'.length));
+      const file = (files[slug] ?? []).find((entry) => entry.path === path);
+      if (!file) {
+        await route.fulfill({ status: 404, headers: apiHeaders(), body: JSON.stringify({ message: 'Not Found' }) });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          type: 'file',
+          encoding: 'base64',
+          size: file.text.length,
+          name: file.path.split('/').pop() ?? file.path,
+          path: file.path,
+          sha: file.sha,
+          content: Buffer.from(file.text, 'utf8').toString('base64'),
         }),
       });
       return;
@@ -227,5 +280,42 @@ test.describe('multiple repositories (mocked GitHub)', () => {
     await answerConfirm(page, '移除仓库');
     await expect(page.getByText('已移除仓库')).toBeVisible();
     await expect(rowA).toHaveCount(0);
+  });
+});
+
+test.describe('content root at the repository root (mocked GitHub)', () => {
+  test('keeps a root-level article in the index card when the content root is /', async ({ page }) => {
+    const state: RepoMockState = {
+      patA: 'pat-root',
+      patB: '',
+      authSeen: new Map(),
+      graphqlCalls: new Map(),
+    };
+    await page.route('https://api.github.com/**', installGitHubMock(state));
+
+    await page.goto('/');
+    await expect(page).toHaveURL(/#\/setup/, { timeout: 30_000 });
+
+    await page.locator('input[placeholder="github_pat_…"]').fill(state.patA);
+    await page.locator('input[placeholder*="God-2077"]').fill(repoRoot);
+    await page.locator('label.abs-field').filter({ hasText: '文章根目录' }).locator('input').fill('/');
+    await page.getByRole('radio', { name: '密码', exact: true }).check();
+    await page.locator('input[placeholder="设置一个密码"]').fill(password);
+    await page.getByRole('button', { name: /连接仓库/ }).click();
+    await expect(page.getByText('今天写点什么？')).toBeVisible({ timeout: 30_000 });
+
+    // The index card lists the root-level post next to its folders.
+    const tree = page.locator('aside');
+    await expect(tree.getByText('3 篇')).toBeVisible({ timeout: 30_000 });
+    await expect(tree.getByRole('button', { name: 'abc.md', exact: true })).toBeVisible();
+    await expect(tree.getByRole('button', { name: /^notes/ })).toBeVisible();
+    await expect(tree.getByRole('button', { name: /^src/ })).toBeVisible();
+    await expect(page.locator('main').getByText('根目录笔记')).toBeVisible({ timeout: 30_000 });
+
+    // The post opens in the editor with its own content.
+    await tree.getByRole('button', { name: 'abc.md', exact: true }).click();
+    await expect(page).toHaveURL(/#\/edit\?path=abc\.md/, { timeout: 30_000 });
+    await expect(page.locator('.abs-field').filter({ hasText: 'title' }).locator('input')).toHaveValue('根目录笔记');
+    await expect(page.locator('.abs-preview')).toContainText('根目录正文');
   });
 });

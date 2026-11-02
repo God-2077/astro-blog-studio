@@ -50,6 +50,41 @@ describe('paths and exclusions', () => {
   });
 });
 
+describe('tree model root files', () => {
+  const extensions = ['.md'];
+  const build = (paths: string[], rootDir: string) =>
+    buildTreeModel(
+      paths.map((path) => ({ path, sha: path })),
+      { rootDir, extensions, excludes: [] },
+    );
+
+  it('keeps articles that sit directly in the content root', () => {
+    const atRoot = build(['abc.md', 'notes/deep/x.md'], '/');
+    expect(atRoot.files.map((file) => file.path)).toEqual(['abc.md', 'notes/deep/x.md']);
+    expect(atRoot.totalMarkdown).toBe(2);
+    expect(atRoot.nodes.map((node) => node.name)).toEqual(['notes', 'abc.md']);
+    expect(atRoot.nodes[1]).toMatchObject({ type: 'file', path: 'abc.md', name: 'abc.md' });
+
+    const emptyRoot = build(['abc.md', 'notes/x.md'], '');
+    expect(emptyRoot.nodes.map((node) => node.name)).toEqual(['notes', 'abc.md']);
+
+    const leadingSlash = build(['/abc.md', 'notes/x.md'], '/');
+    expect(leadingSlash.nodes.map((node) => node.name)).toEqual(['notes', 'abc.md']);
+  });
+
+  it('keeps root files visible for relative roots and trailing slashes', () => {
+    const underSrc = build(['src/abc.md', 'src/content/blog/b.md'], 'src');
+    expect(underSrc.nodes.map((node) => node.name)).toEqual(['content', 'abc.md']);
+    expect(underSrc.nodes[1]).toMatchObject({ type: 'file', path: 'src/abc.md' });
+
+    const trailing = build(['src/abc.md', 'src/content/blog/b.md'], 'src/');
+    expect(trailing.nodes.map((node) => node.name)).toEqual(['content', 'abc.md']);
+
+    const dotted = build(['src/abc.md', 'src/content/blog/b.md'], './src');
+    expect(dotted.nodes.map((node) => node.name)).toEqual(['content', 'abc.md']);
+  });
+});
+
 describe('commit messages', () => {
   it('renders placeholders', () => {
     expect(

@@ -1,5 +1,5 @@
 import type { TreeEntry } from '@/lib/github/types';
-import { createExclusionMatcher, isMarkdownFile, isUnderRoot } from '@/lib/paths/paths';
+import { createExclusionMatcher, isMarkdownFile, isUnderRoot, normalizeRepoPath } from '@/lib/paths/paths';
 
 export interface FileNode {
   type: 'file';
@@ -39,7 +39,7 @@ function configCacheKey(config: TreeConfig): string {
 }
 
 function stripRoot(path: string, rootDir: string): string {
-  const root = rootDir.replace(/^\/+|\/+$/g, '');
+  const root = normalizeRepoPath(rootDir);
   if (!root) return path;
   return path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
 }
@@ -77,7 +77,7 @@ export function buildTreeModel(entries: TreeEntry[], config: TreeConfig): TreeMo
   const files: FileNode[] = [];
   for (const entry of visible) {
     const relative = stripRoot(entry.path, config.rootDir);
-    const parts = relative.split('/');
+    const parts = relative.split('/').filter(Boolean);
     const fileName = parts.pop() ?? relative;
     const folderPath = parts.join('/');
     const parent = folderPath ? ensureFolder(folderPath) : null;
@@ -90,6 +90,7 @@ export function buildTreeModel(entries: TreeEntry[], config: TreeConfig): TreeMo
     };
     files.push(file);
     if (parent) parent.children.push(file);
+    else rootNodes.push(file);
   }
 
   const sortNodes = (nodes: TreeNode[]): void => {
