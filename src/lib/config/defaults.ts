@@ -1,7 +1,7 @@
 import { cloneFrontmatterFields, DEFAULT_FRONTMATTER_FIELDS } from '@/lib/frontmatter/fields';
 import { INDEX_CONCURRENCY_DEFAULT, type Settings } from './schema';
 
-export const SUGGESTED_EXCLUDES = ['src/content/blog/en', 'src/content/blog/ja', 'src/pages/en', 'src/pages/ja'];
+export const SUGGESTED_EXCLUDES = [];
 
 export const defaultSettings: Settings = {
   version: 1,
@@ -22,7 +22,7 @@ export const defaultSettings: Settings = {
     confirmBeforeCommit: true,
   },
   editor: {
-    defaultDir: 'src/content/blog',
+    defaultDir: 'src',
     filenameTemplate: '{title}',
     updateUpdatedAt: true,
     layout: 'split',

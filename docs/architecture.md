@@ -45,7 +45,6 @@ astro-blog-studio/
 ├─ AGENTS.md               # 本子项目的 agent 约束
 ├─ DESIGN.md               # 视觉/交互实现规范
 ├─ PRODUCT.md              # 产品事实与目标
-└─ plan.md                 # 原始需求
 ```
 
 ## 内容与提交规则

@@ -68,7 +68,6 @@ GNU Affero General Public License v3.0（`AGPL-3.0-only`），见 [LICENSE](LICE
 - [DESIGN.md](DESIGN.md)：视觉/交互实现规范。
 - [PRODUCT.md](PRODUCT.md)：产品事实与目标。
 - [AGENTS.md](AGENTS.md)：本子项目的 agent 约束。
-- [plan.md](plan.md)：原始需求。
 - [design/directions.html](design/directions.html)：4 个方向 × 5 个视图 + 对比板。
 - [design/DECISION.md](design/DECISION.md)：01 樱糖手帐，六段契约。
 - [docs/screenshots/](docs/screenshots/)：成品截图（生产构建 + `?demo=1` 固定数据，2026-10-18）。

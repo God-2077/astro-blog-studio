@@ -24,10 +24,6 @@ describe('frontmatter field definitions', () => {
       'categories',
       'tags',
       'draft',
-      'sticky',
-      'password',
-      'cover',
-      'keywords',
     ]);
     expect(DEFAULT_FRONTMATTER_FIELDS.filter((field) => field.required).map((field) => field.name)).toEqual(['title', 'date']);
     expect(cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS)).not.toBe(DEFAULT_FRONTMATTER_FIELDS);
@@ -80,7 +76,6 @@ describe('frontmatter form mapping', () => {
     expect(values.categories).toBe('笔记 > 备忘, 文章');
     expect(values.tags).toBe('a, b');
     expect(values.draft).toBe(true);
-    expect(values.sticky).toBe(false);
     expect(valueToDisplay({ name: 'categories', type: 'list', required: false }, [['a', 'b']])).toBe('a > b');
   });
 

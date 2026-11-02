@@ -107,13 +107,13 @@ test.describe('live new-post flow', () => {
     const rows = sheet.locator('ul button');
     await expect(rows.first()).toBeVisible({ timeout: 30_000 });
 
-    // The whole visible tree is cached; the header stops saying "12 篇 sample".
-    const label = sheet.locator('span[title="按 frontmatter 的 updated / date 排序"]');
+    // The header reports the whole visible index instead of a 12-file sample.
+    const label = sheet.getByText(/^全库 \d+ 篇$/);
     await expect(label).toContainText(/全库 \d+ 篇/, { timeout: 30_000 });
     const total = Number(/全库 (\d+) 篇/.exec(await label.innerText())?.[1] ?? 0);
     expect(total).toBeGreaterThan(0);
-    // At most twelve rows, and every readable post when the repo is smaller.
-    await expect(rows).toHaveCount(Math.min(total, 12));
+    // At most one page (RECENT_PAGE_SIZE = 20) of rows; every post when the repo is smaller.
+    await expect(rows).toHaveCount(Math.min(total, 20));
 
     // A first visit reads HEAD plus one GraphQL batch (the seed repo has fewer
     // than 20 visible files); no per-file Contents reads are needed.

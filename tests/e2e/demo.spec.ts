@@ -94,7 +94,7 @@ test.describe('demo mode', () => {
     const rows = sheet.locator('ul button');
     await expect(rows.first()).toBeVisible();
 
-    // 12 demo files, 3 hidden by the default exclusions.
+    // 12 demo files, 3 hidden by the demo fixture's own exclusions.
     await expect(rows).toHaveCount(9);
     // 便笺-Markdown-备忘单 carries updated 2026-10-17, newer than every other seed.
     // A path-sliced 12-file sample would have skipped this ranking entirely.
@@ -146,7 +146,7 @@ test.describe('demo mode', () => {
     await page.goto('/?demo=1#/settings');
     const fieldsSection = page.locator('section.abs-paper').filter({ hasText: 'Frontmatter 字段' });
     await expect(fieldsSection).toBeVisible();
-    await fieldsSection.locator('button[aria-label="删除字段 sticky"]').click();
+    await fieldsSection.locator('button[aria-label="删除字段 draft"]').click();
     await fieldsSection.getByRole('button', { name: /添加字段/ }).click();
     await fieldsSection.locator('input.abs-input').last().fill('subtitle');
     await page.getByRole('button', { name: '保存设置' }).click();
@@ -232,7 +232,7 @@ test.describe('demo mode', () => {
     await expect(page).not.toHaveURL(/new=1/);
 
     await page.locator('.abs-brand').click();
-    await expect(page.locator('.abs-receipt')).toContainText('create: src/content/blog/E2E-新建稿.md');
+    await expect(page.locator('.abs-receipt')).toContainText('create: src/E2E-新建稿.md');
     await expect(page.locator('.abs-tree-row').filter({ hasText: 'E2E-新建稿.md' })).toBeVisible();
   });
 
@@ -358,7 +358,7 @@ test.describe('demo mode', () => {
     await expect(page.getByText('已创建并提交 · 1 个提交')).toBeVisible();
 
     await page.locator('.abs-brand').click();
-    await expect(page.locator('.abs-receipt')).toContainText('create: E2E 标题占位符 @ src/content/blog/E2E-标题占位符.md');
+    await expect(page.locator('.abs-receipt')).toContainText('create: E2E 标题占位符 @ src/E2E-标题占位符.md');
   });
 
   test('switches appearance between system, day and night, and persists the choice', async ({ page }) => {

@@ -25,7 +25,7 @@ export const FIELD_TYPE_LABELS: Record<FrontmatterFieldType, string> = {
   list: 'list',
 };
 
-/** Fields actively used by hello-world.md / the astro-blog content schema. */
+/** Commonly used frontmatter fields. */
 export const DEFAULT_FRONTMATTER_FIELDS: FrontmatterField[] = [
   { name: 'title', type: 'string', required: true },
   { name: 'date', type: 'date', required: true },
@@ -34,10 +34,6 @@ export const DEFAULT_FRONTMATTER_FIELDS: FrontmatterField[] = [
   { name: 'categories', type: 'list', required: false },
   { name: 'tags', type: 'list', required: false },
   { name: 'draft', type: 'boolean', required: false },
-  { name: 'sticky', type: 'boolean', required: false },
-  { name: 'password', type: 'string', required: false },
-  { name: 'cover', type: 'string', required: false },
-  { name: 'keywords', type: 'list', required: false },
 ];
 
 /** All frontmatter keys supported by astro-blog/src/content/config.ts. */

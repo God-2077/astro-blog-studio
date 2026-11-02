@@ -306,7 +306,9 @@ test.describe('content root at the repository root (mocked GitHub)', () => {
 
     // The index card lists the root-level post next to its folders.
     const tree = page.locator('aside');
-    await expect(tree.getByText('3 篇')).toBeVisible({ timeout: 30_000 });
+    // The cache card in the same aside also reports "3 篇"; scope the count to the index card header.
+    const indexCard = tree.locator('.abs-paper').filter({ hasText: '索引卡' });
+    await expect(indexCard.getByText('3 篇')).toBeVisible({ timeout: 30_000 });
     await expect(tree.getByRole('button', { name: 'abc.md', exact: true })).toBeVisible();
     await expect(tree.getByRole('button', { name: /^notes/ })).toBeVisible();
     await expect(tree.getByRole('button', { name: /^src/ })).toBeVisible();
