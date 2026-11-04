@@ -4,6 +4,8 @@
 
 源码：<https://github.com/God-2077/astro-blog-studio>
 
+网站：<https://sakura.ksable.top/>
+
 ![工作台](docs/screenshots/dashboard.png)
 ![编辑器](docs/screenshots/editor.png)
 ![夜间工作台](docs/screenshots/night-dashboard.png)
