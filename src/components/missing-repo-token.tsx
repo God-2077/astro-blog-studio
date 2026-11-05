@@ -5,6 +5,7 @@ import { Field, Spinner } from '@/components/ui';
 import type { RepoConfig } from '@/lib/config/schema';
 import { mapError } from '@/lib/github/errors';
 import { LiveGateway } from '@/lib/github/live';
+import { useT } from '@/lib/i18n/react';
 import { repoTokenKey } from '@/lib/repos/identity';
 import { useVault } from '@/stores/vault';
 
@@ -14,6 +15,7 @@ import { useVault } from '@/stores/vault';
  * always write the token before activating a repository.
  */
 export function MissingRepoToken({ repo }: { repo: RepoConfig }) {
+  const t = useT();
   const navigate = useNavigate();
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
@@ -22,7 +24,7 @@ export function MissingRepoToken({ repo }: { repo: RepoConfig }) {
   const submit = async (): Promise<void> => {
     const value = token.trim();
     if (!value) {
-      setError('请先输入这个仓库的 PAT。');
+      setError(t('errors.repo.tokenRequired'));
       return;
     }
     setBusy(true);
@@ -57,16 +59,20 @@ export function MissingRepoToken({ repo }: { repo: RepoConfig }) {
           <ShieldAlert aria-hidden className="size-3.5" />
           missing token
         </p>
-        <h1 className="mt-1 font-display text-[26px] font-bold leading-tight">这个仓库还没有可用令牌</h1>
+        <h1 className="mt-1 font-display text-[26px] font-bold leading-tight">{t('dialogs.missingToken.title')}</h1>
         <p className="mt-1 text-[11.5px] leading-relaxed text-muted">
-          当前仓库{' '}
+          {t('dialogs.missingToken.descriptionBefore')}{' '}
           <span className="font-mono">
             {repo.owner}/{repo.name}@{repo.branch}
           </span>{' '}
-          的 PAT 不在保险库里。重新输入后它会被同一个保险库加密保存，不会影响其他仓库。
+          {t('dialogs.missingToken.descriptionAfter')}
         </p>
 
-        <Field label="GitHub PAT" hint={<span className="font-mono">只保存在本机保险库</span>} className="mt-4">
+        <Field
+          label={t('dialogs.missingToken.label')}
+          hint={<span className="font-mono">{t('dialogs.missingToken.hint')}</span>}
+          className="mt-4"
+        >
           <input
             className="abs-input font-mono text-[11px]"
             type="password"
@@ -89,17 +95,17 @@ export function MissingRepoToken({ repo }: { repo: RepoConfig }) {
 
         <button type="button" className="abs-btn mt-4" onClick={() => void submit()} disabled={busy}>
           {busy ? (
-            <Spinner label="校验并保存…" />
+            <Spinner label={t('dialogs.missingToken.busy')} />
           ) : (
             <>
               <KeyRound aria-hidden className="size-3.5" />
-              保存这个仓库的令牌
+              {t('dialogs.missingToken.submit')}
             </>
           )}
         </button>
         <button type="button" className="abs-btn abs-btn-ghost mt-2 text-[10.5px]" onClick={() => void lock()}>
           <LockKeyhole aria-hidden className="size-3" />
-          锁定后从解锁页重置保险库
+          {t('dialogs.missingToken.lock')}
         </button>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n';
 import { base64ToBytes, bytesToBase64, decodeUtf8, encodeUtf8 } from '@/lib/utils/encoding';
 import {
   AAD_KEY_DEVICE,
@@ -202,7 +203,7 @@ function normalizeTokens(tokens: Record<string, string>): Array<[string, string]
 async function buildPayload(input: BuildPayloadInput): Promise<VaultPayload> {
   if (modeNeedsPassword(input.mode)) {
     if (!input.password || input.password.length < MIN_VAULT_PASSWORD_LENGTH) {
-      throw new VaultError('INVALID_INPUT', `密码至少 ${MIN_VAULT_PASSWORD_LENGTH} 位`);
+      throw new VaultError('INVALID_INPUT', t('errors.vault.passwordTooShort', { count: MIN_VAULT_PASSWORD_LENGTH }));
     }
   }
 
@@ -211,7 +212,7 @@ async function buildPayload(input: BuildPayloadInput): Promise<VaultPayload> {
     tokens[repoKey] = await encryptToken(input.dataKey, repoKey, token);
   }
   if (Object.keys(tokens).length === 0 && !input.legacyToken) {
-    throw new VaultError('INVALID_INPUT', '保险库至少需要一个仓库令牌');
+    throw new VaultError('INVALID_INPUT', t('errors.vault.needsToken'));
   }
 
   const legacy = input.legacyToken ? await encryptLegacyToken(input.dataKey, input.legacyToken) : undefined;
@@ -257,7 +258,7 @@ export interface CreatedVault {
 
 export async function createVault(input: CreateVaultInput): Promise<CreatedVault> {
   if (!input.repoKey.trim() || !input.token.trim()) {
-    throw new VaultError('INVALID_INPUT', '仓库与 PAT 都不能为空');
+    throw new VaultError('INVALID_INPUT', t('errors.vault.repoTokenEmpty'));
   }
   const dataKey = randomBytes(32);
   const payload = await buildPayload({
@@ -311,7 +312,7 @@ async function decryptSecrets(payload: VaultPayload, dataKey: Uint8Array): Promi
       );
       tokens[repoKey] = decodeUtf8(plaintext);
     } catch {
-      throw new VaultError('CORRUPT', '保险库中的仓库令牌已损坏，请重置保险库后重新输入 PAT。');
+      throw new VaultError('CORRUPT', t('errors.vault.repoTokenCorrupt'));
     }
   }
 
@@ -326,12 +327,12 @@ async function decryptSecrets(payload: VaultPayload, dataKey: Uint8Array): Promi
       );
       legacyToken = decodeUtf8(plaintext);
     } catch {
-      throw new VaultError('CORRUPT', '保险库中的令牌已损坏，请重置保险库后重新输入 PAT。');
+      throw new VaultError('CORRUPT', t('errors.vault.tokenCorrupt'));
     }
   }
 
   if (!legacyToken && Object.keys(tokens).length === 0) {
-    throw new VaultError('CORRUPT', '保险库中没有可用的仓库令牌，请重置保险库后重新输入 PAT。');
+    throw new VaultError('CORRUPT', t('errors.vault.noUsableToken'));
   }
   return { token: legacyToken, tokens };
 }
@@ -341,9 +342,7 @@ async function secretsFromDataKey(payload: VaultPayload, dataKey: Uint8Array): P
 }
 
 function fingerprintChangedMessage(payload: VaultPayload): string {
-  return payload.password
-    ? '设备指纹已变化，请用密码解锁或重新绑定。'
-    : '设备指纹已变化，无法自动解锁。请重置保险库并重新输入 PAT。';
+  return payload.password ? t('errors.vault.fingerprintChanged') : t('errors.vault.fingerprintChangedNoPassword');
 }
 
 /**
@@ -380,10 +379,10 @@ async function migrationTarget(
 
 export async function unlockWithPassword(payload: VaultPayload, password: string): Promise<VaultSecrets> {
   const wrap = payload.password;
-  if (!wrap) throw new VaultError('NO_METHOD', '没有设置密码');
+  if (!wrap) throw new VaultError('NO_METHOD', t('errors.vault.noPassword'));
   const candidates = wrap.requireDevice ? await getAllDeviceIdCandidates() : [];
   if (wrap.requireDevice && candidates.length === 0) {
-    throw new VaultError('FINGERPRINT_CHANGED', '无法读取当前设备指纹，请重置保险库后重新输入 PAT。');
+    throw new VaultError('FINGERPRINT_CHANGED', t('errors.vault.fingerprintUnreadableReset'));
   }
   // 旧版双因子保险库的密码 KEK 混入的是旧指纹：逐个候选尝试，命中旧指纹后自动迁移。
   const deviceIds: Array<DeviceId | undefined> = wrap.requireDevice ? candidates : [undefined];
@@ -406,9 +405,7 @@ export async function unlockWithPassword(payload: VaultPayload, password: string
   if (!dataKey) {
     throw new VaultError(
       'WRONG_PASSWORD',
-      wrap.requireDevice
-        ? '密码不正确，或本机指纹与设置时不一致。双因子要求同一台设备；仍无法解锁时只能重置保险库并重新输入 PAT。'
-        : '密码错误，或者数据已损坏。',
+      t(wrap.requireDevice ? 'errors.vault.wrongPasswordTwoFactor' : 'errors.vault.wrongPassword'),
     );
   }
   const secrets = await secretsFromDataKey(payload, dataKey);
@@ -419,10 +416,10 @@ export async function unlockWithPassword(payload: VaultPayload, password: string
 
 export async function unlockWithDevice(payload: VaultPayload): Promise<VaultSecrets> {
   const wrap = payload.device;
-  if (!wrap) throw new VaultError('NO_METHOD', '没有绑定这台设备');
+  if (!wrap) throw new VaultError('NO_METHOD', t('errors.vault.noDevice'));
   const candidates = await getDeviceIdCandidates(wrap.source);
   if (candidates.length === 0) {
-    throw new VaultError('FINGERPRINT_CHANGED', '无法读取当前设备指纹，请用密码解锁或重置保险库后重新输入 PAT。');
+    throw new VaultError('FINGERPRINT_CHANGED', t('errors.vault.fingerprintUnreadableUnlock'));
   }
   // 候选顺序：当前稳定指纹 → 旧算法指纹（旧保险库兼容）。
   let matched: DeviceId | undefined;
@@ -453,7 +450,7 @@ export async function addRepoTokenToVault(
 ): Promise<VaultPayload> {
   const key = repoKey.trim();
   const value = token.trim();
-  if (!key || !value) throw new VaultError('INVALID_INPUT', '仓库与 PAT 都不能为空');
+  if (!key || !value) throw new VaultError('INVALID_INPUT', t('errors.vault.repoTokenEmpty'));
   const next: VaultPayload = {
     ...payload,
     tokens: { ...(payload.tokens ?? {}), [key]: await encryptToken(dataKey, key, value) },
@@ -467,7 +464,7 @@ export function removeRepoTokenFromVault(payload: VaultPayload, repoKey: string)
   const tokens = { ...(payload.tokens ?? {}) };
   delete tokens[repoKey];
   if (Object.keys(tokens).length === 0 && !payload.token) {
-    throw new VaultError('INVALID_INPUT', '不能移除最后一个仓库令牌');
+    throw new VaultError('INVALID_INPUT', t('errors.vault.lastToken'));
   }
   const next: VaultPayload = { ...payload };
   if (Object.keys(tokens).length > 0) next.tokens = tokens;
@@ -488,7 +485,7 @@ export async function migrateLegacyTokenToRepo(
   repoKey: string,
 ): Promise<VaultPayload> {
   const key = repoKey.trim();
-  if (!key || !legacyToken) throw new VaultError('INVALID_INPUT', '没有可迁移的仓库令牌');
+  if (!key || !legacyToken) throw new VaultError('INVALID_INPUT', t('errors.vault.noLegacyToken'));
   const tokens = { ...(payload.tokens ?? {}) };
   if (!tokens[key]) tokens[key] = await encryptToken(dataKey, key, legacyToken);
   const next: VaultPayload = { ...payload, tokens };

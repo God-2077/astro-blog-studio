@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
 import { toast } from 'sonner';
+import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils/cn';
 
 export interface ConfirmOptions {
@@ -112,8 +113,8 @@ export function confirmAction(message: string, options: ConfirmOptions = {}): Pr
         <ConfirmCard
           message={message}
           description={options.description}
-          confirmLabel={options.confirmLabel ?? '确认'}
-          cancelLabel={options.cancelLabel ?? '取消'}
+          confirmLabel={options.confirmLabel ?? t('common.confirm')}
+          cancelLabel={options.cancelLabel ?? t('common.cancel')}
           danger={options.danger ?? false}
           onChoose={settle}
         />

@@ -7,6 +7,7 @@ import { Field } from '@/components/ui';
 import { useParkPendingDraft } from '@/hooks/use-pending-draft';
 import { buildNewPostDocument } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
+import { useT } from '@/lib/i18n/react';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
 import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
 import { collectFolders, type TreeModel } from '@/lib/tree/model';
@@ -38,6 +39,7 @@ export function NewPostDialog({
   onOpenChange: (open: boolean) => void;
   model: TreeModel | null;
 }) {
+  const t = useT();
   const { config } = useGateway();
   const settings = useSettings();
   const navigate = useNavigate();
@@ -85,24 +87,24 @@ export function NewPostDialog({
   const handleCreate = async (): Promise<void> => {
     if (parking || confirming) return;
     if (!title.trim()) {
-      setError('标题不能为空');
+      setError(t('shell.newPost.errors.titleRequired'));
       return;
     }
     if (!finalFile) {
-      setError('文件名不能为空');
+      setError(t('shell.newPost.errors.filenameRequired'));
       return;
     }
     if (collision) {
-      setError('这个路径已经有文件了');
+      setError(t('shell.newPost.errors.pathTaken'));
       return;
     }
     const existing = usePendingPost.getState().draft;
     if (existing) {
       setConfirming(true);
-      const confirmed = await confirmAction('已经有一篇未提交的新文章草稿。', {
-        description: '继续会先把上一篇存入本机草稿箱，再从空白开始；之后可以在草稿箱里重新打开。',
-        confirmLabel: '存入草稿箱并继续',
-        cancelLabel: '先不新建',
+      const confirmed = await confirmAction(t('shell.newPost.existingDraft.title'), {
+        description: t('shell.newPost.existingDraft.description'),
+        confirmLabel: t('shell.newPost.existingDraft.confirm'),
+        cancelLabel: t('shell.newPost.existingDraft.cancel'),
       });
       setConfirming(false);
       if (!confirmed) return;
@@ -110,7 +112,7 @@ export function NewPostDialog({
       const result = await parkPendingDraft();
       setParking(false);
       if (result === 'failed') {
-        setError('上一篇新稿没能存入草稿箱。先清理本机存储，或回到那篇新稿处理后再试。');
+        setError(t('shell.newPost.errors.parkFailed'));
         return;
       }
     }
@@ -144,27 +146,29 @@ export function NewPostDialog({
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">new draft</p>
-              <Dialog.Title className="font-display text-[22px] font-bold leading-tight">新建文章</Dialog.Title>
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">{t('shell.newPost.eyebrow')}</p>
+              <Dialog.Title className="font-display text-[22px] font-bold leading-tight">
+                {t('shell.newPost.title')}
+              </Dialog.Title>
               <Dialog.Description className="mt-1 text-[11px] leading-relaxed text-muted">
-                先在本地起草；盖章时只提交一次，打开编辑器时不会写仓库。
+                {t('shell.newPost.description')}
               </Dialog.Description>
             </div>
-            <Dialog.Close className="abs-icon-btn" aria-label="关闭">
+            <Dialog.Close className="abs-icon-btn" aria-label={t('common.close')}>
               <X aria-hidden className="size-3.5" />
             </Dialog.Close>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <Field label="标题" className="sm:col-span-2">
+            <Field label={t('shell.newPost.titleLabel')} className="sm:col-span-2">
               <input
                 className="abs-input"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="例如：便笺：今天的语法备忘"
+                placeholder={t('shell.newPost.titlePlaceholder')}
               />
             </Field>
-            <Field label="目录" hint={<span className="font-mono">在博客根目录内选择或输入</span>}>
+            <Field label={t('shell.newPost.dirLabel')} hint={<span className="font-mono">{t('shell.newPost.dirHint')}</span>}>
               <input
                 className="abs-input font-mono text-[11px]"
                 value={dir}
@@ -177,7 +181,10 @@ export function NewPostDialog({
                 ))}
               </datalist>
             </Field>
-            <Field label="文件名" hint={<span className="font-mono">留空时用标题</span>}>
+            <Field
+              label={t('shell.newPost.filenameLabel')}
+              hint={<span className="font-mono">{t('shell.newPost.filenameHint')}</span>}
+            >
               <input
                 className="abs-input font-mono text-[11px]"
                 value={filename}
@@ -188,10 +195,10 @@ export function NewPostDialog({
           </div>
 
           <div className="mt-4 rounded-xl border border-dashed border-line bg-paper-2 px-3 py-2.5">
-            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">将创建 · 保存时提交</p>
+            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">{t('shell.newPost.preview')}</p>
             <p className="mt-1 break-all font-mono text-[11px] text-ink">{path || '…'}</p>
             <p className="mt-2 text-[10px] text-muted">
-              提交消息：
+              {t('shell.newPost.commitMessage')}
               <code className="font-mono text-[10px] text-sakura">{message}</code>
             </p>
           </div>
@@ -206,7 +213,7 @@ export function NewPostDialog({
           ) : null}
 
           <div className="mt-5 flex items-center justify-end gap-2">
-            <Dialog.Close className="abs-btn abs-btn-ghost h-8 text-[11px]">取消</Dialog.Close>
+            <Dialog.Close className="abs-btn abs-btn-ghost h-8 text-[11px]">{t('common.cancel')}</Dialog.Close>
             <button
               type="button"
               className="abs-btn abs-btn-primary h-8 text-[11px]"
@@ -214,7 +221,7 @@ export function NewPostDialog({
               disabled={parking || confirming}
             >
               <FilePlus2 aria-hidden className="size-3.5" />
-              {parking ? '存入草稿箱…' : '开始起草'}
+              {parking ? t('shell.newPost.parking') : t('shell.newPost.start')}
             </button>
           </div>
         </Dialog.Content>

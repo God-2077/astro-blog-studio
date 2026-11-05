@@ -12,6 +12,7 @@ import type {
   TreeEntry,
   TreeResult,
 } from '@/lib/github/types';
+import { t } from '@/lib/i18n';
 import { base64ToBytes, bytesToBase64, decodeUtf8, encodeUtf8 } from '@/lib/utils/encoding';
 
 interface LiveGatewayOptions {
@@ -158,7 +159,7 @@ export class LiveGateway implements GitHubGateway {
         throw new AppError('NOT_FOUND', { detail: path });
       }
       if (data.size > MAX_FILE_BYTES) {
-        throw new AppError('UNSUPPORTED', { message: `文件超过 ${MAX_FILE_BYTES} 字节，请用本地 Git 编辑。` });
+        throw new AppError('UNSUPPORTED', { message: t('errors.live.fileTooLarge', { count: MAX_FILE_BYTES }) });
       }
       let bytes: Uint8Array;
       if (data.content && data.encoding === 'base64') {
@@ -300,7 +301,7 @@ export class LiveGateway implements GitHubGateway {
     return this.call(async () => {
       const current = await this.readFile(input.from);
       if (current.sha !== input.sha) {
-        throw new AppError('CONFLICT', { detail: '远端文件已更新，先刷新再移动。' });
+        throw new AppError('CONFLICT', { detail: t('errors.live.remoteChangedMove') });
       }
 
       const ref = await this.octokit.request('GET /repos/{owner}/{repo}/git/ref/heads/{branch}', {

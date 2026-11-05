@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { confirmAction } from '@/components/confirm-toast';
+import { useT } from '@/lib/i18n/react';
 import { useEditorGuard } from '@/stores/editor';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
@@ -9,6 +10,7 @@ import { useVault } from '@/stores/vault';
 export function useAutoLock(enabled: boolean): void {
   const minutes = useSettings((state) => state.security.autoLockMinutes);
   const navigate = useNavigate();
+  const t = useT();
 
   useEffect(() => {
     if (!enabled || minutes <= 0) return;
@@ -19,10 +21,10 @@ export function useAutoLock(enabled: boolean): void {
       timer = window.setTimeout(() => {
         void (async () => {
           if (useEditorGuard.getState().dirty) {
-            const lockAnyway = await confirmAction('有未保存的修改；锁定前会先写入本机加密备份。继续锁定吗？', {
-              description: '选「继续编辑」会重新计时，当前修改不会丢。',
-              confirmLabel: '继续锁定',
-              cancelLabel: '继续编辑',
+            const lockAnyway = await confirmAction(t('errors.hooks.autoLockMessage'), {
+              description: t('errors.hooks.autoLockDescription'),
+              confirmLabel: t('errors.hooks.autoLockConfirm'),
+              cancelLabel: t('errors.hooks.autoLockCancel'),
             });
             if (!lockAnyway) {
               arm();
@@ -43,5 +45,5 @@ export function useAutoLock(enabled: boolean): void {
       window.clearTimeout(timer);
       for (const event of events) window.removeEventListener(event, onActivity);
     };
-  }, [enabled, minutes, navigate]);
+  }, [enabled, minutes, navigate, t]);
 }

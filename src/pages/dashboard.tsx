@@ -13,6 +13,7 @@ import { backupRepoKey } from '@/lib/backup/model';
 import type { DraftBoxItem } from '@/lib/drafts/box';
 import { draftCharCount } from '@/lib/drafts/model';
 import { useGateway } from '@/lib/gateway/context';
+import { useActiveLocale, useT } from '@/lib/i18n/react';
 import { normalizeRepoPath } from '@/lib/paths/paths';
 import { type PostSortKey, postSortValue, RECENT_PAGE_SIZE, sortPosts } from '@/lib/posts/summary';
 import { cn } from '@/lib/utils/cn';
@@ -24,6 +25,8 @@ import { usePendingPost } from '@/stores/pending-post';
 import { useRateLimit } from '@/stores/rate-limit';
 
 export function DashboardPage() {
+  const t = useT();
+  const locale = useActiveLocale();
   const { mode, config, repo } = useGateway();
   const { tree, model } = useTreeModel();
   const content = useContent();
@@ -59,13 +62,18 @@ export function DashboardPage() {
   const isLoadingFirst = content.summaries.length === 0 && content.status !== 'ready' && content.status !== 'error';
   const statsLoading = content.summaries.length === 0 && isSyncing;
   const summaryLabel = isSyncing
-    ? `同步中 ${content.progress.done} / ${content.progress.total || content.indexed}`
+    ? t('dashboard.summary.syncing', { done: content.progress.done, total: content.progress.total || content.indexed })
     : content.indexed > 0
-      ? `全库 ${content.indexed} 篇`
-      : '读取 frontmatter';
-  const syncLabel = content.status === 'loading' || content.status === 'updating' ? '同步中…' : busy ? '检查中…' : '检查更新';
+      ? t('dashboard.summary.all', { count: content.indexed })
+      : t('dashboard.summary.frontmatter');
+  const syncLabel =
+    content.status === 'loading' || content.status === 'updating'
+      ? t('dashboard.actions.sync.syncing')
+      : busy
+        ? t('dashboard.actions.sync.checking')
+        : t('dashboard.actions.sync.idle');
   const effectiveStatus = pending && !isSyncing ? 'checking' : content.status;
-  const today = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full', timeZone: config.timezone }).format(new Date());
+  const today = new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeZone: config.timezone }).format(new Date());
 
   const changeSort = (next: PostSortKey): void => {
     if (next === sortKey) return;
@@ -93,8 +101,8 @@ export function DashboardPage() {
     if (usePendingPost.getState().draft) {
       const result = await parkPendingDraft();
       if (result === 'failed') {
-        toast.error('上一篇新稿没能存入草稿箱', {
-          description: '本机存储可能已满或已锁定；先处理那篇新稿，或清理本机存储后再打开这篇。',
+        toast.error(t('dashboard.drafts.parkFailedTitle'), {
+          description: t('dashboard.drafts.parkFailedDescription'),
         });
         return;
       }
@@ -108,17 +116,17 @@ export function DashboardPage() {
   };
 
   const removeDraftItem = async (draft: DraftBoxItem): Promise<void> => {
-    const confirmed = await confirmAction(`从草稿箱删除「${draft.title}」？`, {
-      description: '本机这份草稿（含自动备份）会被清除，无法恢复。',
-      confirmLabel: '删除草稿',
+    const confirmed = await confirmAction(t('dashboard.drafts.removeTitle', { title: draft.title }), {
+      description: t('dashboard.drafts.removeDescription'),
+      confirmLabel: t('dashboard.drafts.removeConfirm'),
       danger: true,
     });
     if (!confirmed) return;
     try {
       await useDrafts.getState().remove(repoKey, draft.path);
     } catch (caught) {
-      toast.error('没能删除这份草稿', {
-        description: caught instanceof Error ? caught.message : '本机存储不可用，稍后再试。',
+      toast.error(t('dashboard.drafts.removeFailedTitle'), {
+        description: caught instanceof Error ? caught.message : t('dashboard.drafts.removeFailedDescription'),
       });
       return;
     }
@@ -127,7 +135,7 @@ export function DashboardPage() {
     if (pendingPost && normalizeRepoPath(pendingPost.path) === normalizeRepoPath(draft.path)) {
       usePendingPost.getState().clearDraft();
     }
-    toast.success('已从草稿箱删除');
+    toast.success(t('dashboard.drafts.removed'));
   };
 
   return (
@@ -136,9 +144,9 @@ export function DashboardPage() {
         <section className="flex flex-wrap items-end justify-between gap-3 px-1">
           <div>
             <p className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-sakura">
-              {mode === 'demo' ? 'demo workspace' : 'workspace'}
+              {mode === 'demo' ? t('dashboard.eyebrow.demo') : t('dashboard.eyebrow.live')}
             </p>
-            <h1 className="mt-1 font-display text-[clamp(26px,3vw,36px)] font-bold leading-tight">今天写点什么？</h1>
+            <h1 className="mt-1 font-display text-[clamp(26px,3vw,36px)] font-bold leading-tight">{t('dashboard.title')}</h1>
             <p className="mt-1 text-[11px] text-muted">
               {today} · {repo.owner}/{repo.name} · {config.rootDir}
             </p>
@@ -159,10 +167,10 @@ export function DashboardPage() {
               className={cn('abs-btn h-8', listMode === 'drafts' ? 'bg-blush-2' : 'abs-btn-ghost')}
               onClick={toggleListMode}
               aria-pressed={listMode === 'drafts'}
-              title={listMode === 'drafts' ? '回到文章列表' : '查看本机草稿箱'}
+              title={listMode === 'drafts' ? t('dashboard.actions.drafts.close') : t('dashboard.actions.drafts.open')}
             >
               <Archive aria-hidden className="size-3.5" />
-              草稿箱
+              {t('dashboard.actions.drafts.label')}
               {draftBox.items.length > 0 ? (
                 <span className="rounded-full border border-edge/30 bg-butter px-1.5 font-mono text-[9px] leading-4 text-ink-soft">
                   {draftBox.items.length}
@@ -171,14 +179,14 @@ export function DashboardPage() {
             </button>
             <button type="button" className="abs-btn abs-btn-primary" onClick={() => setDialog(true)}>
               <Plus aria-hidden className="size-3.5" />
-              新建文章
+              {t('dashboard.actions.newPost')}
             </button>
           </div>
         </section>
 
         {tree.error ? <ErrorNote error={tree.error} onRetry={() => void tree.refetch()} className="mt-4" /> : null}
         {tree.data?.truncated ? (
-          <p className="mt-2 px-1 font-mono text-[9.5px] text-muted">文件树被 GitHub 截断，索引可能不完整。</p>
+          <p className="mt-2 px-1 font-mono text-[9.5px] text-muted">{t('dashboard.treeTruncated')}</p>
         ) : null}
 
         <ContentSyncStatus
@@ -191,28 +199,36 @@ export function DashboardPage() {
           onRetry={() => void checkNow({ notify: true })}
         />
 
-        <section className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5" aria-label="统计">
+        <section className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5" aria-label={t('dashboard.stats.label')}>
           <div className="abs-sticky bg-mint-2 rotate-[-0.7deg]">
-            <span className="abs-sticky-label">全部文章</span>
+            <span className="abs-sticky-label">{t('dashboard.stats.posts')}</span>
             <strong className="abs-sticky-value">{model ? model.totalMarkdown : '—'}</strong>
-            <span className="abs-sticky-hint">{model ? `${model.excludedCount} 个被排除` : '读取文件树中'}</span>
+            <span className="abs-sticky-hint">
+              {model ? t('dashboard.stats.excluded', { count: model.excludedCount }) : t('dashboard.stats.reading')}
+            </span>
           </div>
           <div className="abs-sticky bg-butter rotate-[0.5deg]">
-            <span className="abs-sticky-label">草稿</span>
+            <span className="abs-sticky-label">{t('dashboard.stats.drafts')}</span>
             <strong className="abs-sticky-value">{statsLoading ? '—' : drafts}</strong>
             <span className="abs-sticky-hint">
               {isSyncing
-                ? `同步中 ${content.progress.done} / ${content.progress.total || content.indexed}`
-                : `基于全库 ${content.indexed} 篇`}
+                ? t('dashboard.summary.syncing', {
+                    done: content.progress.done,
+                    total: content.progress.total || content.indexed,
+                  })
+                : t('dashboard.stats.basedOn', { count: content.indexed })}
             </span>
           </div>
           <div className="abs-sticky bg-blush rotate-[-0.3deg]">
-            <span className="abs-sticky-label">加密</span>
+            <span className="abs-sticky-label">{t('dashboard.stats.encrypted')}</span>
             <strong className="abs-sticky-value">{statsLoading ? '—' : encrypted}</strong>
             <span className="abs-sticky-hint">
               {isSyncing
-                ? `同步中 ${content.progress.done} / ${content.progress.total || content.indexed}`
-                : `基于全库 ${content.indexed} 篇`}
+                ? t('dashboard.summary.syncing', {
+                    done: content.progress.done,
+                    total: content.progress.total || content.indexed,
+                  })
+                : t('dashboard.stats.basedOn', { count: content.indexed })}
             </span>
           </div>
         </section>
@@ -221,20 +237,24 @@ export function DashboardPage() {
           <span className="abs-tape" aria-hidden />
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-dashed border-line pb-2">
             <div className="flex flex-wrap items-baseline gap-2">
-              <h2 className="font-display text-[16px] font-bold">{listMode === 'posts' ? '最近动过' : '草稿箱'}</h2>
+              <h2 className="font-display text-[16px] font-bold">
+                {listMode === 'posts' ? t('dashboard.list.recent') : t('dashboard.list.drafts')}
+              </h2>
               {listMode === 'drafts' ? (
                 <span className="font-mono text-[9.5px] text-muted">
-                  {draftBox.status === 'loading' ? '读取中…' : `${draftBox.items.length} 篇 · 含自动备份 · 仅本机`}
+                  {draftBox.status === 'loading'
+                    ? t('dashboard.list.loading')
+                    : t('dashboard.list.draftsMeta', { count: draftBox.items.length })}
                 </span>
               ) : null}
             </div>
             {listMode === 'posts' ? (
               <div className="flex flex-wrap items-center gap-2">
-                <fieldset className="abs-seg" aria-label="最近文章排序">
-                  <legend className="sr-only">最近文章排序</legend>
+                <fieldset className="abs-seg" aria-label={t('dashboard.list.sortLabel')}>
+                  <legend className="sr-only">{t('dashboard.list.sortLabel')}</legend>
                   <button
                     type="button"
-                    title="按 frontmatter 的 updated 降序"
+                    title={t('dashboard.list.sortUpdated')}
                     aria-pressed={sortKey === 'updated'}
                     onClick={() => changeSort('updated')}
                   >
@@ -242,7 +262,7 @@ export function DashboardPage() {
                   </button>
                   <button
                     type="button"
-                    title="按 frontmatter 的 date 降序"
+                    title={t('dashboard.list.sortDate')}
                     aria-pressed={sortKey === 'date'}
                     onClick={() => changeSort('date')}
                   >
@@ -252,7 +272,9 @@ export function DashboardPage() {
                 <span className="font-mono text-[9.5px] text-muted">{summaryLabel}</span>
               </div>
             ) : (
-              <span className="font-mono text-[9.5px] text-muted">{mode === 'demo' ? '演示模式 · 明文' : 'AES-GCM 加密'}</span>
+              <span className="font-mono text-[9.5px] text-muted">
+                {mode === 'demo' ? t('dashboard.list.demoPlain') : t('dashboard.list.encrypted')}
+              </span>
             )}
           </div>
 
@@ -271,12 +293,12 @@ export function DashboardPage() {
             <>
               {content.visibleTotal > content.indexed ? (
                 <p className="mt-2 text-[10px] leading-relaxed text-muted">
-                  内容仓库共 {content.visibleTotal} 篇，仅索引前 {content.indexed} 篇，避免一次性读完整库。
+                  {t('dashboard.list.truncated', { total: content.visibleTotal, indexed: content.indexed })}
                 </p>
               ) : null}
               {!isSyncing && content.skipped > 0 ? (
                 <p className="mt-1 text-[10px] leading-relaxed text-muted">
-                  {content.skipped} 篇未读取（超大、二进制或权限不足）。
+                  {t('dashboard.list.skipped', { count: content.skipped })}
                 </p>
               ) : null}
 
@@ -301,10 +323,10 @@ export function DashboardPage() {
                           <span className="block truncate font-mono text-[9px] text-muted">{post.path}</span>
                         </span>
                         <span className="col-span-2 flex flex-wrap justify-start gap-1 pl-[72px] sm:col-span-1 sm:pl-0">
-                          {post.draft ? <Badge tone="butter">草稿</Badge> : null}
-                          {post.sticky ? <Badge tone="mint">置顶</Badge> : null}
-                          {post.encrypted ? <Badge tone="blush">加密</Badge> : null}
-                          {post.frontmatterError ? <Badge tone="ghost">YAML 异常</Badge> : null}
+                          {post.draft ? <Badge tone="butter">{t('dashboard.list.badges.draft')}</Badge> : null}
+                          {post.sticky ? <Badge tone="mint">{t('dashboard.list.badges.sticky')}</Badge> : null}
+                          {post.encrypted ? <Badge tone="blush">{t('dashboard.list.badges.encrypted')}</Badge> : null}
+                          {post.frontmatterError ? <Badge tone="ghost">{t('dashboard.list.badges.yaml')}</Badge> : null}
                           {post.categories[0] ? <Badge tone="ghost">{post.categories[0]}</Badge> : null}
                         </span>
                       </button>
@@ -314,19 +336,19 @@ export function DashboardPage() {
               ) : !model || model.files.length === 0 ? (
                 <div className="py-6">
                   <EmptyState
-                    title="还没有 Markdown 文件"
+                    title={t('dashboard.list.emptyTitle')}
                     action={
                       <Link to="/settings" className="abs-btn abs-btn-ghost h-8 text-[11px]">
-                        检查根目录与排除规则
+                        {t('dashboard.list.emptyAction')}
                       </Link>
                     }
                   >
-                    当前根目录 {config.rootDir} 下没有可见的 .md / .mdx。也可能是排除规则把内容全部隐藏了。
+                    {t('dashboard.list.emptyBody', { rootDir: config.rootDir })}
                   </EmptyState>
                 </div>
               ) : (
                 <p className="py-8 text-center text-[11.5px] text-muted">
-                  文件树里有 {model.totalMarkdown} 个文件，但还没读到 frontmatter。
+                  {t('dashboard.list.pending', { count: model.totalMarkdown })}
                 </p>
               )}
 
@@ -334,15 +356,15 @@ export function DashboardPage() {
                 <div className="flex flex-col items-center gap-1.5 py-3">
                   <button type="button" className="abs-btn abs-btn-ghost h-8 text-[11px]" onClick={loadMore}>
                     <ChevronDown aria-hidden className="size-3.5" />
-                    加载更多
+                    {t('dashboard.list.loadMore')}
                   </button>
                   <span aria-live="polite" className="font-mono text-[9px] text-muted">
-                    已显示 {recent.length} / {sorted.length} 篇 · 每次 {RECENT_PAGE_SIZE} 篇
+                    {t('dashboard.list.shown', { shown: recent.length, total: sorted.length, page: RECENT_PAGE_SIZE })}
                   </span>
                 </div>
               ) : sorted.length > RECENT_PAGE_SIZE ? (
                 <p aria-live="polite" className="py-2 text-center font-mono text-[9px] text-muted">
-                  已全部显示 {sorted.length} 篇
+                  {t('dashboard.list.allShown', { count: sorted.length })}
                 </p>
               ) : null}
             </>
@@ -353,9 +375,9 @@ export function DashboardPage() {
       <aside className="flex min-w-0 flex-col gap-3">
         <div className="abs-receipt">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-body text-[11.5px] font-bold">提交小票</span>
+            <span className="font-body text-[11.5px] font-bold">{t('dashboard.receipt.title')}</span>
             <span className="rotate-[-4deg] rounded border border-sakura px-1.5 py-0.5 font-mono text-[8px] text-sakura">
-              {lastCommit ? '已归档' : '等待'}
+              {lastCommit ? t('dashboard.receipt.archived') : t('dashboard.receipt.waiting')}
             </span>
           </div>
           {lastCommit ? (
@@ -373,7 +395,7 @@ export function DashboardPage() {
                 <code className="text-ink">{lastCommit.sha.slice(0, 10)}</code>
               </div>
               <div className="mt-2 flex items-center justify-between text-muted">
-                <span>{new Date(lastCommit.at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>{new Date(lastCommit.at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}</span>
                 {lastCommit.htmlUrl ? (
                   <a
                     href={lastCommit.htmlUrl}
@@ -381,7 +403,7 @@ export function DashboardPage() {
                     rel="noreferrer noopener"
                     className="text-sakura underline decoration-dashed underline-offset-2"
                   >
-                    查看提交 ↗
+                    {t('dashboard.receipt.view')}
                   </a>
                 ) : (
                   <span>in-memory</span>
@@ -389,31 +411,31 @@ export function DashboardPage() {
               </div>
             </>
           ) : (
-            <p className="mt-2 text-[10px] leading-relaxed text-muted">保存第一篇文章后，这里会出现一条提交小票。</p>
+            <p className="mt-2 text-[10px] leading-relaxed text-muted">{t('dashboard.receipt.empty')}</p>
           )}
         </div>
 
         <div className="relative rotate-[0.6deg] rounded-[14px] border-[1.5px] border-edge bg-butter px-3.5 pb-3.5 pt-4 shadow-sticker">
           <span className="abs-tape abs-tape-mint" aria-hidden />
-          <h2 className="font-display text-[15px] font-bold">今日小目标</h2>
+          <h2 className="font-display text-[15px] font-bold">{t('dashboard.goals.title')}</h2>
           <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed">
             <li className="flex items-start gap-2">
               <Check
                 aria-hidden
                 className="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-edge bg-mint p-0.5 text-accent-edge"
               />
-              补完 Markdown 备忘单的表格一节
+              {t('dashboard.goals.item1')}
             </li>
             <li className="flex items-start gap-2">
               <Check
                 aria-hidden
                 className="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-edge bg-mint p-0.5 text-accent-edge"
               />
-              把读书笔记草稿改成发布
+              {t('dashboard.goals.item2')}
             </li>
             <li className="flex items-start gap-2">
               <span className="mt-0.5 size-3.5 shrink-0 rounded-[3px] border border-edge bg-paper" />
-              给旧便笺补 updated
+              {t('dashboard.goals.item3')}
             </li>
           </ul>
         </div>
@@ -422,7 +444,7 @@ export function DashboardPage() {
           <div className="flex items-center justify-between gap-2 py-0.5">
             <span>GitHub API</span>
             <strong className="font-medium">
-              {rate.remaining.toLocaleString('en-US')} / {rate.limit.toLocaleString('en-US')}
+              {rate.remaining.toLocaleString(locale)} / {rate.limit.toLocaleString(locale)}
             </strong>
           </div>
           <div className="my-1.5 h-1.5 overflow-hidden rounded-full border border-edge/20 bg-blush-2">
@@ -432,28 +454,30 @@ export function DashboardPage() {
             />
           </div>
           <div className="flex items-center justify-between gap-2 py-0.5">
-            <span>本机缓存</span>
-            <strong className="font-medium">{mode === 'demo' ? '仅内存' : `${content.cachedCount} 篇`}</strong>
+            <span>{t('dashboard.cache.local')}</span>
+            <strong className="font-medium">
+              {mode === 'demo' ? t('dashboard.cache.memory') : t('dashboard.cache.entries', { count: content.cachedCount })}
+            </strong>
           </div>
           <div className="flex items-center justify-between gap-2 py-0.5">
-            <span>分支</span>
+            <span>{t('dashboard.cache.branch')}</span>
             <strong className="font-medium">{repo.defaultBranch}</strong>
           </div>
           <div className="flex items-center justify-between gap-2 py-0.5">
-            <span>模式</span>
-            <strong className="font-medium">{mode === 'demo' ? '内存演示' : '真实仓库'}</strong>
+            <span>{t('dashboard.cache.mode')}</span>
+            <strong className="font-medium">{mode === 'demo' ? t('dashboard.cache.demo') : t('dashboard.cache.live')}</strong>
           </div>
         </div>
 
         <div className="flex items-center gap-2 px-1 text-[10px] text-muted">
           <Clock3 aria-hidden className="size-3" />
-          从打开页面到保存一次修改，目标 &lt; 30 秒。
+          {t('dashboard.speedHint')}
         </div>
         <Link
           to="/settings"
           className="flex items-center gap-1 px-1 text-[10px] text-sakura underline decoration-dashed underline-offset-2"
         >
-          连接与提交设置
+          {t('dashboard.settingsLink')}
           <ArrowUpRight aria-hidden className="size-3" />
         </Link>
       </aside>
@@ -482,6 +506,8 @@ function DraftsList({
   onNew: () => void;
   onRetry: () => void;
 }) {
+  const t = useT();
+  const locale = useActiveLocale();
   if (status === 'loading' && items.length === 0) {
     return (
       <div className="py-4">
@@ -495,7 +521,7 @@ function DraftsList({
       <div className="py-6 text-center">
         <p className="text-[11.5px] text-danger">{error}</p>
         <button type="button" className="abs-btn abs-btn-ghost mt-2 h-7 px-2.5 text-[10px]" onClick={onRetry}>
-          重试
+          {t('common.retry')}
         </button>
       </div>
     );
@@ -505,15 +531,15 @@ function DraftsList({
     return (
       <div className="py-6">
         <EmptyState
-          title="草稿箱是空的"
+          title={t('dashboard.drafts.emptyTitle')}
           action={
             <button type="button" className="abs-btn abs-btn-ghost h-8 text-[11px]" onClick={onNew}>
               <Plus aria-hidden className="size-3.5" />
-              新建文章
+              {t('dashboard.actions.newPost')}
             </button>
           }
         >
-          在编辑器里点「保存草稿」，或让未保存的编辑自动备份；只要还没盖章，它们都会出现在这里。真实仓库的副本使用保险库密钥加密。
+          {t('dashboard.drafts.emptyBody')}
         </EmptyState>
       </div>
     );
@@ -539,17 +565,23 @@ function DraftsList({
               <span className="block truncate font-mono text-[9px] text-muted">{draft.path}</span>
             </span>
             <span className="col-span-2 flex flex-wrap items-center gap-1 pl-[72px] sm:col-span-1 sm:pl-0">
-              {draft.isNew ? <Badge tone="butter">新稿</Badge> : <Badge tone="ghost">已有文章</Badge>}
-              {draft.origin === 'backup' ? <Badge tone="ghost">自动备份</Badge> : null}
-              {draft.mode === 'source' ? <Badge tone="ghost">源文件</Badge> : null}
-              <span className="font-mono text-[9px] text-muted">{draftCharCount(draft.text).toLocaleString('en-US')} 字</span>
+              {draft.isNew ? (
+                <Badge tone="butter">{t('dashboard.drafts.badges.new')}</Badge>
+              ) : (
+                <Badge tone="ghost">{t('dashboard.drafts.badges.existing')}</Badge>
+              )}
+              {draft.origin === 'backup' ? <Badge tone="ghost">{t('dashboard.drafts.badges.backup')}</Badge> : null}
+              {draft.mode === 'source' ? <Badge tone="ghost">{t('dashboard.drafts.badges.source')}</Badge> : null}
+              <span className="font-mono text-[9px] text-muted">
+                {t('common.units.words', { count: draftCharCount(draft.text).toLocaleString(locale) })}
+              </span>
             </span>
           </button>
           <button
             type="button"
             className="abs-icon-btn my-auto mr-1 size-7 shrink-0 border-transparent bg-transparent text-muted hover:border-danger/40 hover:bg-transparent hover:text-danger"
-            aria-label={`从草稿箱删除：${draft.title}`}
-            title="从草稿箱删除"
+            aria-label={t('dashboard.drafts.removeAria', { title: draft.title })}
+            title={t('dashboard.drafts.removeAction')}
             onClick={() => onRemove(draft)}
           >
             <Trash2 aria-hidden className="size-3" />

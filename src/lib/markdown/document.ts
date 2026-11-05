@@ -1,4 +1,5 @@
 import yaml from 'js-yaml';
+import { t } from '@/lib/i18n';
 
 export type Eol = '\n' | '\r\n';
 
@@ -48,7 +49,7 @@ function parseFrontmatter(raw: string): { data: Record<string, unknown>; error?:
     const loaded = yaml.load(raw, { schema: yaml.JSON_SCHEMA });
     if (loaded === null || loaded === undefined) return { data: {} };
     if (typeof loaded !== 'object' || Array.isArray(loaded)) {
-      return { data: {}, error: 'frontmatter 不是一个对象' };
+      return { data: {}, error: t('errors.markdown.frontmatterNotObject') };
     }
     return { data: loaded as Record<string, unknown> };
   } catch (error) {
@@ -215,7 +216,7 @@ export function updateFrontmatterRaw(raw: string, patch: Record<string, unknown>
   try {
     yaml.load(next, { schema: yaml.JSON_SCHEMA });
   } catch (error) {
-    throw new Error(`frontmatter 序列化失败：${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(t('errors.markdown.serializeFailed', { message: error instanceof Error ? error.message : String(error) }));
   }
   return next;
 }

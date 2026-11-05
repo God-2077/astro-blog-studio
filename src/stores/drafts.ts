@@ -3,6 +3,7 @@ import { listBackups, removeBackup } from '@/lib/backup/store';
 import { type DraftBoxItem, mergeDraftBox } from '@/lib/drafts/box';
 import type { DraftRecord } from '@/lib/drafts/model';
 import { listDrafts, removeDraft } from '@/lib/drafts/store';
+import { t } from '@/lib/i18n';
 import { normalizeRepoPath } from '@/lib/paths/paths';
 
 export type DraftsStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -45,7 +46,7 @@ export const useDrafts = create<DraftsState>()((set) => ({
       set({ items: mergeDraftBox(repoKey, drafts, backups), status: 'ready' });
     } catch {
       if (epoch !== run) return;
-      set({ status: 'error', error: '读取本机草稿箱失败。' });
+      set({ status: 'error', error: t('errors.drafts.loadFailed') });
     }
   },
 

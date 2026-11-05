@@ -2,6 +2,7 @@ import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { FileWarning, History } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { BackupRecord } from '@/lib/backup/model';
+import { useActiveLocale, useT } from '@/lib/i18n/react';
 
 interface BackupDialogProps {
   backup: BackupRecord;
@@ -33,6 +34,8 @@ export function BackupDialog({
   onDiscard,
   onDefer,
 }: BackupDialogProps) {
+  const t = useT();
+  const locale = useActiveLocale();
   const actedRef = useRef(false);
 
   useEffect(() => {
@@ -60,37 +63,39 @@ export function BackupDialog({
         >
           <p className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">
             <History aria-hidden className="size-3" />
-            local backup
+            {t('editor.backup.dialog.eyebrow')}
           </p>
-          <AlertDialog.Title className="mt-1 font-display text-[20px] font-bold">发现未保存的备份</AlertDialog.Title>
+          <AlertDialog.Title className="mt-1 font-display text-[20px] font-bold">
+            {t('editor.backup.dialog.title')}
+          </AlertDialog.Title>
           <AlertDialog.Description className="mt-1 text-[11px] leading-relaxed text-muted">
-            {backup.isNew
-              ? '上次新建这篇文章后还没有盖章，仓库里仍然没有这个文件。恢复后会回到本地起草状态。'
-              : '上次离开这个文件时还有未保存的修改。恢复后仍是未保存状态，需要重新盖章才会提交。'}
+            {backup.isNew ? t('editor.backup.dialog.newDescription') : t('editor.backup.dialog.editDescription')}
           </AlertDialog.Description>
 
           <dl className="mt-3 grid grid-cols-[64px_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-xl border border-dashed border-line bg-paper-2 px-3 py-2 font-mono text-[10px]">
-            <dt className="text-muted">保存于</dt>
+            <dt className="text-muted">{t('editor.backup.dialog.savedAt')}</dt>
             <dd>{savedAtLabel}</dd>
-            <dt className="text-muted">字数</dt>
-            <dd>{charCount.toLocaleString('en-US')}</dd>
-            <dt className="text-muted">路径</dt>
+            <dt className="text-muted">{t('editor.backup.dialog.charCount')}</dt>
+            <dd>{charCount.toLocaleString(locale)}</dd>
+            <dt className="text-muted">{t('editor.backup.dialog.path')}</dt>
             <dd className="break-all">{backup.path}</dd>
           </dl>
 
           {remoteChanged ? (
             <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[10.5px] leading-relaxed text-danger">
               <FileWarning aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-              远端在这之后已经变化；恢复后保存会先提示冲突，不会静默覆盖。
+              {t('editor.backup.dialog.remoteChanged')}
             </p>
           ) : null}
 
-          <p className="mt-3 text-[10px] leading-relaxed text-muted">
-            备份只保存在这台设备的浏览器里；真实仓库的备份已用保险库密钥加密，只能在解锁后读取。
-          </p>
+          <p className="mt-3 text-[10px] leading-relaxed text-muted">{t('editor.backup.dialog.privacy')}</p>
 
           <div className="mt-4 flex flex-wrap justify-end gap-2">
-            {allowDefer ? <AlertDialog.Cancel className="abs-btn abs-btn-ghost text-[11px]">稍后</AlertDialog.Cancel> : null}
+            {allowDefer ? (
+              <AlertDialog.Cancel className="abs-btn abs-btn-ghost text-[11px]">
+                {t('editor.backup.dialog.later')}
+              </AlertDialog.Cancel>
+            ) : null}
             <button
               type="button"
               className="abs-btn abs-btn-ghost border-danger/40 text-[11px] text-danger"
@@ -99,7 +104,7 @@ export function BackupDialog({
                 onDiscard();
               }}
             >
-              丢弃备份
+              {t('editor.backup.dialog.discard')}
             </button>
             <AlertDialog.Action
               className="abs-btn text-[11px]"
@@ -108,7 +113,7 @@ export function BackupDialog({
                 onRestore();
               }}
             >
-              恢复备份
+              {t('editor.backup.dialog.restore')}
             </AlertDialog.Action>
           </div>
         </AlertDialog.Content>

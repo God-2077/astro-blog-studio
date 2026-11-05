@@ -1,5 +1,11 @@
 import { Field } from '@/components/ui';
-import type { FrontmatterField, FrontmatterFormValue, FrontmatterFormValues } from '@/lib/frontmatter/fields';
+import {
+  type FrontmatterField,
+  type FrontmatterFormValue,
+  type FrontmatterFormValues,
+  knownFieldHint,
+} from '@/lib/frontmatter/fields';
+import { useT } from '@/lib/i18n/react';
 import { cn } from '@/lib/utils/cn';
 
 interface FrontmatterFormProps {
@@ -10,10 +16,11 @@ interface FrontmatterFormProps {
 }
 
 export function FrontmatterForm({ fields, values, errors, onChange }: FrontmatterFormProps) {
+  const t = useT();
   if (fields.length === 0) {
     return (
       <p className="mt-2 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2 text-[10.5px] leading-relaxed text-muted">
-        当前没有配置 frontmatter 字段。可以在设置里添加字段；已有文件里的字段会作为未知字段原样保留。
+        {t('editor.form.empty')}
       </p>
     );
   }
@@ -49,13 +56,14 @@ export function FrontmatterForm({ fields, values, errors, onChange }: Frontmatte
           );
         }
 
+        const categoryHint = field.name === 'categories' ? knownFieldHint('categories') : undefined;
         const hint =
           field.type === 'date'
             ? undefined
             : field.type === 'list'
-              ? field.name === 'categories'
-                ? '逗号分隔；用 > 表示层级'
-                : '逗号分隔'
+              ? categoryHint
+                ? `${t('editor.form.listHint')}；${categoryHint}`
+                : t('editor.form.listHint')
               : undefined;
 
         return (
@@ -81,7 +89,9 @@ export function FrontmatterForm({ fields, values, errors, onChange }: Frontmatte
                 className="abs-input font-mono text-[11px]"
                 value={typeof value === 'string' ? value : ''}
                 onChange={(event) => onChange(field.name, event.target.value)}
-                placeholder={field.name === 'categories' ? '笔记 > 备忘, 文章' : 'a, b, c'}
+                placeholder={
+                  field.name === 'categories' ? t('editor.form.categoriesPlaceholder') : t('editor.form.listPlaceholder')
+                }
                 spellCheck={false}
               />
             ) : (

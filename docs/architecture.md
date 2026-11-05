@@ -18,7 +18,7 @@ astro-blog-studio/
 ├─ public/                 # robots.txt + PWA 图标（pnpm pwa:icons 生成）
 ├─ scripts/                # 设计台构建、静态预览、PWA 图标生成、测试仓库 seed/clean
 ├─ src/
-│  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、备份恢复弹窗、PWA 更新弹窗、UI 原子
+│  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、备份恢复弹窗、PWA 更新弹窗、LocaleSync、UI 原子
 │  ├─ hooks/               # 数据查询、本机文章缓存同步、自动锁定、未保存备份
 │  ├─ lib/
 │  │  ├─ backup/           # 备份记录校验、整文件快照、AES-GCM 信封、IndexedDB 存放/清理/迁移
@@ -27,6 +27,7 @@ astro-blog-studio/
 │  │  ├─ demo/             # 演示数据
 │  │  ├─ frontmatter/      # 字段定义/默认集/校验/新稿初始文档
 │  │  ├─ gateway/          # GatewayProvider（live/demo）
+│  │  ├─ i18n/             # 四语词典（zh-CN/zh-TW/ja/en）、语言检测、t()/useT()
 │  │  ├─ github/           # LiveGateway（Octokit）、fixture、错误映射
 │  │  ├─ markdown/         # frontmatter 文档模型、marked + DOMPurify 渲染
 │  │  ├─ paths/            # 路径归一化、排除匹配、提交模板
@@ -66,7 +67,7 @@ astro-blog-studio/
 - **内容与排除（按仓库）**：根目录、扩展名、排除规则、时区、索引并发（1–10）、本机文章缓存（检查更新 / 强制全量更新）。
 - **Frontmatter 字段（按仓库）**：字段列表、类型、必填；编辑器、新稿初始 frontmatter 与保存校验从当前仓库配置派生。
 - **提交消息（按仓库）**：create/update/delete/move 模板与提交前确认。
-- **全局**：字号/行号、保存时更新 `updated`、未保存备份开关与清除、自动锁定、解锁方式（模式 + 密码）、重置保险库、外观（跟随系统 / 昼 / 夜）。
+- **全局**：字号/行号、保存时更新 `updated`、未保存备份开关与清除、自动锁定、解锁方式（模式 + 密码）、重置保险库、外观（跟随系统 / 昼 / 夜）与界面语言（简体中文 / 繁體中文 / 日本語 / English；默认跟随浏览器，非四语回退英语）。
 - 切换仓库只重置内存视图与 React Query 缓存，不删除 IndexedDB 中的文章缓存、草稿或备份；切回时只拉 HEAD tree，文件树与配置未变则 0 次文章正文读取。
 - 每个分区是可折叠面板：手机竖屏（<768px）首次进入全部折叠，平板/桌面（≥768px）首次进入全部展开；折叠时标题行仍显示摘要（仓库数、缓存篇数、字段数与校验错误、当前主题、令牌状态）。展开状态只在会话内，刷新后重新按视口决定。
 

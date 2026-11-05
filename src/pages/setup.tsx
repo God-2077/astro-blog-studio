@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Field, Spinner } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
-import { APP_DESCRIPTION, APP_NAME, APP_URL, APP_URL_LABEL } from '@/lib/config/app-meta';
+import { APP_NAME, APP_URL, APP_URL_LABEL } from '@/lib/config/app-meta';
 import { SUGGESTED_EXCLUDES } from '@/lib/config/defaults';
 import { mapError } from '@/lib/github/errors';
 import { LiveGateway } from '@/lib/github/live';
 import { parseRepoInput } from '@/lib/github/repo-input';
+import { LOCALE_LABELS, LOCALES, normalizeLocale } from '@/lib/i18n';
+import { useActiveLocale, useT } from '@/lib/i18n/react';
 import { repoTokenKey } from '@/lib/repos/identity';
 import { profileFromSettings } from '@/lib/repos/profile';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode } from '@/lib/vault/mode';
@@ -18,6 +20,8 @@ export function SetupPage() {
   const navigate = useNavigate();
   const settings = useSettings();
   const vault = useVault();
+  const t = useT();
+  const activeLocale = useActiveLocale();
   const [token, setToken] = useState('');
   const [repoInput, setRepoInput] = useState('');
   const [branch, setBranch] = useState('');
@@ -40,10 +44,10 @@ export function SetupPage() {
   const handleSubmit = async (): Promise<void> => {
     setError(null);
     const parsed = parseRepoInput(repoInput);
-    if (!token.trim()) return setError('请先粘贴 GitHub PAT。');
-    if (!parsed) return setError('仓库格式应为 owner/repository，或完整的 GitHub URL。');
+    if (!token.trim()) return setError(t('setup.error.tokenRequired'));
+    if (!parsed) return setError(t('setup.error.repoInvalid'));
     if (modeNeedsPassword(unlockMode) && password.length < MIN_VAULT_PASSWORD_LENGTH) {
-      return setError(`密码至少 ${MIN_VAULT_PASSWORD_LENGTH} 位。`);
+      return setError(t('setup.error.passwordTooShort', { count: MIN_VAULT_PASSWORD_LENGTH }));
     }
     setBusy(true);
     try {
@@ -87,20 +91,37 @@ export function SetupPage() {
           <span className="abs-tape" aria-hidden />
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-sakura">first run</p>
-              <h1 className="mt-1 font-display text-[30px] font-bold leading-tight">把仓库接进来</h1>
-              <p className="mt-1 text-[11.5px] leading-relaxed text-muted">
-                令牌只会在这台设备上加密保存。配置成功后，这个工作台会直接读写仓库里的
-                Markdown；之后可在设置里添加更多仓库，每个仓库用自己的 PAT，共用同一套解锁方式。
-              </p>
+              <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-sakura">{t('setup.eyebrow')}</p>
+              <h1 className="mt-1 font-display text-[30px] font-bold leading-tight">{t('setup.title')}</h1>
+              <p className="mt-1 text-[11.5px] leading-relaxed text-muted">{t('setup.intro')}</p>
             </div>
-            <span className="abs-badge abs-badge-blush">01 樱糖手帐</span>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <select
+                className="abs-input w-auto"
+                aria-label={t('common.language')}
+                value={activeLocale}
+                onChange={(event) => {
+                  const next = normalizeLocale(event.target.value);
+                  if (!next) return;
+                  useSettings.getState().patch({
+                    appearance: { ...useSettings.getState().appearance, locale: next },
+                  });
+                }}
+              >
+                {LOCALES.map((locale) => (
+                  <option key={locale} value={locale}>
+                    {LOCALE_LABELS[locale]}
+                  </option>
+                ))}
+              </select>
+              <span className="abs-badge abs-badge-blush">{t('setup.badge')}</span>
+            </div>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <Field
-              label="GitHub PAT"
-              hint={<span className="font-mono">Fine-grained: Contents 读写 + Metadata 读</span>}
+              label={t('setup.pat.label')}
+              hint={<span className="font-mono">{t('setup.pat.hint')}</span>}
               className="sm:col-span-2"
             >
               <input
@@ -113,7 +134,7 @@ export function SetupPage() {
                 spellCheck={false}
               />
             </Field>
-            <Field label="仓库" hint={<span className="font-mono">owner/repository 或 GitHub URL</span>}>
+            <Field label={t('setup.repo.label')} hint={<span className="font-mono">{t('setup.repo.hint')}</span>}>
               <input
                 className="abs-input font-mono text-[11px]"
                 value={repoInput}
@@ -122,7 +143,7 @@ export function SetupPage() {
                 spellCheck={false}
               />
             </Field>
-            <Field label="分支" hint={<span className="font-mono">留空使用仓库默认分支</span>}>
+            <Field label={t('setup.branch.label')} hint={<span className="font-mono">{t('setup.branch.hint')}</span>}>
               <input
                 className="abs-input font-mono text-[11px]"
                 value={branch}
@@ -130,7 +151,7 @@ export function SetupPage() {
                 placeholder="main"
               />
             </Field>
-            <Field label="文章根目录">
+            <Field label={t('setup.rootDir.label')}>
               <input
                 className="abs-input font-mono text-[11px]"
                 value={rootDir}
@@ -138,7 +159,7 @@ export function SetupPage() {
                 placeholder="src"
               />
             </Field>
-            <Field label="排除规则" hint={<span className="font-mono">一行一条；前缀或 glob</span>}>
+            <Field label={t('setup.excludes.label')} hint={<span className="font-mono">{t('setup.excludes.hint')}</span>}>
               <textarea
                 className="abs-textarea min-h-[86px] font-mono text-[10.5px]"
                 value={excludes}
@@ -150,19 +171,23 @@ export function SetupPage() {
           <div className="mt-4 rounded-xl border border-dashed border-line bg-paper-2 px-3.5 py-3">
             <p className="flex items-center gap-1.5 font-display text-[13px] font-bold">
               <ShieldCheck aria-hidden className="size-4 text-sakura" />
-              解锁方式
+              {t('setup.unlockMode.title')}
             </p>
             <div className="mt-2">
               <UnlockModePicker value={unlockMode} onChange={setUnlockMode} hideLegend />
             </div>
             {modeNeedsPassword(unlockMode) ? (
-              <Field label="密码" hint={`至少 ${MIN_VAULT_PASSWORD_LENGTH} 位；忘记只能重置保险库并重输 PAT`} className="mt-2">
+              <Field
+                label={t('setup.unlockMode.password.label')}
+                hint={t('setup.unlockMode.password.hint', { count: MIN_VAULT_PASSWORD_LENGTH })}
+                className="mt-2"
+              >
                 <input
                   className="abs-input"
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="设置一个密码"
+                  placeholder={t('setup.unlockMode.password.placeholder')}
                   autoComplete="new-password"
                 />
               </Field>
@@ -181,17 +206,17 @@ export function SetupPage() {
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <button type="button" className="abs-btn abs-btn-primary" onClick={() => void handleSubmit()} disabled={busy}>
               {busy ? (
-                <Spinner label="校验并加密…" />
+                <Spinner label={t('setup.submit.busy')} />
               ) : (
                 <>
-                  连接仓库
+                  {t('setup.submit.idle')}
                   <ArrowRight aria-hidden className="size-3.5" />
                 </>
               )}
             </button>
             <Link to="/?demo=1" className="abs-btn abs-btn-ghost">
               <Sparkles aria-hidden className="size-3.5" />
-              先看演示
+              {t('setup.demo')}
             </Link>
             <a
               className="ml-auto font-mono text-[9px] text-muted underline decoration-line underline-offset-2 hover:text-sakura"
@@ -199,7 +224,7 @@ export function SetupPage() {
               target="_blank"
               rel="noreferrer noopener"
             >
-              创建 fine-grained token ↗
+              {t('setup.createToken')}
             </a>
           </div>
         </div>
@@ -208,16 +233,10 @@ export function SetupPage() {
           <div className="rounded-xl border border-line bg-paper px-4 py-3.5 text-[11px] leading-relaxed">
             <p className="flex items-center gap-1.5 font-display text-[13px] font-bold">
               <KeyRound aria-hidden className="size-3.5 text-sakura" />
-              令牌怎么存
+              {t('setup.storage.title')}
             </p>
-            <p className="mt-1.5 text-muted">
-              每个仓库的 PAT 分别用 AES-GCM 封装，共用同一个数据密钥；数据密钥再由设备指纹或密码经 PBKDF2
-              派生的密钥包装。双因子时密码与指纹会一起参与派生，两者缺一不可。令牌只以密文存在
-              localStorage，解锁前不会进入网络请求。
-            </p>
-            <p className="mt-2 text-[10px] text-muted">
-              设备指纹不是秘密；密码才是真正的安全边界。换设备或指纹变化后，双因子只能重置保险库。
-            </p>
+            <p className="mt-1.5 text-muted">{t('setup.storage.body')}</p>
+            <p className="mt-2 text-[10px] text-muted">{t('setup.storage.note')}</p>
           </div>
           <div className="relative rotate-[0.6deg] rounded-[14px] border-[1.5px] border-edge bg-butter px-4 py-3.5 text-[10.5px] leading-relaxed shadow-sticker">
             <span className="abs-tape abs-tape-mint" aria-hidden />
@@ -225,7 +244,7 @@ export function SetupPage() {
               <Github aria-hidden className="size-3.5" />
               {APP_NAME}
             </p>
-            <p className="mt-1.5">{APP_DESCRIPTION}</p>
+            <p className="mt-1.5">{t('common.appDescription')}</p>
             <a
               className="mt-2 inline-flex items-center gap-1 break-all font-mono text-[10px] text-ink-soft underline decoration-line underline-offset-2 hover:text-sakura"
               href={APP_URL}
@@ -244,11 +263,11 @@ export function SetupPage() {
           >
             <p className="flex items-center gap-1.5 font-display text-[13px] font-bold">
               <NotebookPen aria-hidden className="size-3.5 text-sakura" />
-              人家的博客喵
+              {t('setup.blog.title')}
               <ArrowUpRight aria-hidden className="ml-auto size-3.5 text-muted transition group-hover:text-sakura" />
             </p>
-            <p className="mt-1.5 text-muted">想先偷偷瞄一眼人家的博客嘛喵~ </p>
-            <p className="mt-1.5 text-muted">快戳 blog.ksable.top 来玩玩呀 (｡･ω･｡)ﾉ♡</p>
+            <p className="mt-1.5 text-muted">{t('setup.blog.intro')}</p>
+            <p className="mt-1.5 text-muted">{t('setup.blog.hint')}</p>
           </a>
         </aside>
       </div>

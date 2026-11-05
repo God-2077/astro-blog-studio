@@ -1,0 +1,75 @@
+import type { MessageTree } from '../../types';
+
+const shell = {
+  nav: {
+    toggleSidebar: { open: '打开文件索引', close: '收起文件索引' },
+    closeSidebar: '关闭文件索引',
+    home: '回到工作台',
+    newPost: '新建',
+    settings: '设置',
+    lock: '锁定',
+    githubRepo: '在 GitHub 打开仓库',
+    update: { aria: '有新版本，查看更新提示', title: '有新版本' },
+    projectSource: '在 GitHub 打开项目源码',
+  },
+  demo: {
+    badge: '演示模式',
+    banner: '演示模式：示例仓库只在内存里，不会连接 GitHub；未保存备份保存在本机演示键。刷新后恢复初始示例。',
+    settings: '看设置',
+    exit: '退出演示 / 连接真实仓库',
+  },
+  footer: {
+    demoMode: 'in-memory fixture',
+    liveMode: 'github.com · content repo',
+    cached: { one: '缓存 {count} 篇', other: '缓存 {count} 篇' },
+  },
+  leave: {
+    title: '当前文章有未保存的修改，确定离开吗？',
+    confirm: '离开',
+    cancel: '继续编辑',
+  },
+  tree: {
+    title: '索引卡',
+    count: { one: '{count} 篇', other: '{count} 篇' },
+    refresh: '检查更新',
+    refreshBusy: '正在检查更新',
+    refreshHint: '检查更新（文件树 + 文章）',
+    searchPlaceholder: '搜索文件 / 路径',
+    searchLabel: '搜索文件',
+    empty: '没有找到 Markdown 文件。',
+    emptyHint: '检查根目录和排除规则。',
+    noMatch: '没有匹配「{query}」的文件。',
+    excluded: '已排除 {count}',
+    rules: '规则',
+  },
+  newPost: {
+    eyebrow: 'new draft',
+    title: '新建文章',
+    description: '先在本地起草；盖章时只提交一次，打开编辑器时不会写仓库。',
+    titleLabel: '标题',
+    titlePlaceholder: '例如：便笺：今天的语法备忘',
+    dirLabel: '目录',
+    dirHint: '在博客根目录内选择或输入',
+    filenameLabel: '文件名',
+    filenameHint: '留空时用标题',
+    preview: '将创建 · 保存时提交',
+    commitMessage: '提交消息：',
+    start: '开始起草',
+    parking: '存入草稿箱…',
+    errors: {
+      titleRequired: '标题不能为空',
+      filenameRequired: '文件名不能为空',
+      pathTaken: '这个路径已经有文件了',
+      parkFailed: '上一篇新稿没能存入草稿箱。先清理本机存储，或回到那篇新稿处理后再试。',
+    },
+    existingDraft: {
+      title: '已经有一篇未提交的新文章草稿。',
+      description: '继续会先把上一篇存入本机草稿箱，再从空白开始；之后可以在草稿箱里重新打开。',
+      confirm: '存入草稿箱并继续',
+      cancel: '先不新建',
+    },
+  },
+} satisfies MessageTree;
+
+export type ShellMessages = typeof shell;
+export default shell;

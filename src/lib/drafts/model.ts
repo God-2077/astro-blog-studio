@@ -1,5 +1,6 @@
 import { BACKUP_VERSION, type BackupRecord, type BackupState, type EditorBackupMode, isBackupRecord } from '@/lib/backup/model';
 import { type FrontmatterField, formValuesFromData } from '@/lib/frontmatter/fields';
+import { t } from '@/lib/i18n';
 import { parseDocument, toEditingText } from '@/lib/markdown/document';
 import { normalizeRepoPath } from '@/lib/paths/paths';
 
@@ -52,7 +53,7 @@ export function draftTitle(value: unknown, path: string): string {
   const title = typeof value === 'string' ? value.trim() : '';
   if (title) return title;
   const fileName = path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');
-  return fileName || '无标题';
+  return fileName || t('common.untitled');
 }
 
 export interface DraftFromTextInput {

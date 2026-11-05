@@ -6,6 +6,7 @@ import {
   type FrontmatterFieldType,
   KNOWN_BLOG_FIELDS,
 } from '@/lib/frontmatter/fields';
+import { useT } from '@/lib/i18n/react';
 
 let fieldRowSequence = 0;
 
@@ -16,6 +17,7 @@ interface FrontmatterFieldsEditorProps {
 }
 
 export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: FrontmatterFieldsEditorProps) {
+  const t = useT();
   const rowKeysRef = useRef<string[]>([]);
   if (rowKeysRef.current.length !== fields.length) {
     const nextKeys: string[] = [];
@@ -63,14 +65,14 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
             onChange={(event) => update(index, { name: event.target.value })}
             placeholder="field_name"
             list="known-frontmatter-fields"
-            aria-label={`字段 ${index + 1} 名称`}
+            aria-label={t('settings.fields.nameAria', { index: index + 1 })}
             spellCheck={false}
           />
           <select
             className="abs-select text-[11px]"
             value={field.type}
             onChange={(event) => update(index, { type: event.target.value as FrontmatterFieldType })}
-            aria-label={`字段 ${field.name || index + 1} 类型`}
+            aria-label={t('settings.fields.typeAria', { name: field.name || index + 1 })}
           >
             {FRONTMATTER_FIELD_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -85,14 +87,14 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
               checked={field.required}
               onChange={(event) => update(index, { required: event.target.checked })}
             />
-            必填
+            {t('settings.fields.required')}
           </label>
           <button
             type="button"
             className="abs-icon-btn size-7 justify-self-end text-danger"
             onClick={() => remove(index)}
-            aria-label={`删除字段 ${field.name || index + 1}`}
-            title="删除字段"
+            aria-label={t('settings.fields.removeAria', { name: field.name || index + 1 })}
+            title={t('settings.fields.removeTitle')}
           >
             <Trash2 aria-hidden className="size-3.5" />
           </button>
@@ -102,13 +104,13 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <button type="button" className="abs-btn abs-btn-ghost h-7 text-[10.5px]" onClick={add} disabled={fields.length >= 40}>
           <Plus aria-hidden className="size-3" />
-          添加字段
+          {t('settings.fields.add')}
         </button>
         <button type="button" className="abs-btn abs-btn-ghost h-7 text-[10.5px]" onClick={onResetDefaults}>
           <RotateCcw aria-hidden className="size-3" />
-          恢复常用字段
+          {t('settings.fields.reset')}
         </button>
-        <span className="ml-auto font-mono text-[9px] text-muted">{fields.length} / 40</span>
+        <span className="ml-auto font-mono text-[9px] text-muted">{t('settings.fields.limit', { count: fields.length })}</span>
       </div>
 
       <datalist id="known-frontmatter-fields">
@@ -116,10 +118,7 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
           <option key={name} value={name} />
         ))}
       </datalist>
-      <p className="text-[9.5px] leading-relaxed text-muted">
-        名称支持字母、数字、下划线、连字符；title / date 是 astro-blog schema
-        的必填项，删除后保存的内容可能无法通过构建。已有文件里的未配置字段会原样保留。
-      </p>
+      <p className="text-[9.5px] leading-relaxed text-muted">{t('settings.fields.hint')}</p>
     </div>
   );
 }

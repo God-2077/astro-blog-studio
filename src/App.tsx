@@ -5,10 +5,12 @@ import { Toaster } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { dismissConfirm } from '@/components/confirm-toast';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { LocaleSync } from '@/components/locale-provider';
 import { ProtectedLayout } from '@/components/protected-layout';
 import { PwaUpdate } from '@/components/pwa-update';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Spinner } from '@/components/ui';
+import { useT } from '@/lib/i18n/react';
 import { DashboardPage } from '@/pages/dashboard';
 import { SettingsPage } from '@/pages/settings';
 import { SetupPage } from '@/pages/setup';
@@ -44,6 +46,7 @@ export function App() {
       }),
   );
   const vaultStatus = useVault((state) => state.status);
+  const t = useT();
 
   // Locking must also drop decrypted article/file data kept by React Query.
   useEffect(() => {
@@ -53,6 +56,7 @@ export function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
+        <LocaleSync />
         <QueryClientProvider client={queryClient}>
           <PwaUpdate />
           <HashRouter>
@@ -69,7 +73,7 @@ export function App() {
                       <Suspense
                         fallback={
                           <div className="abs-paper p-6">
-                            <Spinner label="加载编辑器" />
+                            <Spinner label={t('common.loadingEditor')} />
                           </div>
                         }
                       >
@@ -89,7 +93,7 @@ export function App() {
             toastOptions={{
               className: 'font-body text-[12px]',
               classNames: { closeButton: 'abs-toast-close' },
-              closeButtonAriaLabel: '关闭提示',
+              closeButtonAriaLabel: t('common.closeToast'),
               style: { background: 'var(--abs-paper)', border: '1.5px solid var(--abs-edge)', color: 'var(--abs-ink)' },
             }}
           />

@@ -1,3 +1,5 @@
+import { type MessageKey, t } from '@/lib/i18n';
+
 export type ErrorCode =
   | 'AUTH_INVALID'
   | 'FORBIDDEN'
@@ -11,18 +13,18 @@ export type ErrorCode =
   | 'UNSUPPORTED'
   | 'UNKNOWN';
 
-const MESSAGES: Record<ErrorCode, string> = {
-  AUTH_INVALID: '令牌无效或已过期，请重新输入 PAT。',
-  FORBIDDEN: '令牌没有这个仓库或分支的权限，或分支被保护。',
-  NOT_FOUND: '没有找到仓库、分支或文件，请检查设置。',
-  CONFLICT: '远端文件已经变化，保存前需要先处理冲突。',
-  RATE_LIMITED: 'GitHub API 配额用完了，请等重置后再试。',
-  SECONDARY_LIMIT: 'GitHub 触发了二级限流，请稍等再试。',
-  EMPTY_REPO: '仓库是空的，请先创建一次初始提交。',
-  SERVER: 'GitHub 返回了服务器错误，稍后重试。',
-  NETWORK: '网络不可用，检查连接后再试。',
-  UNSUPPORTED: '这个文件不受支持（过大或不是 UTF-8）。',
-  UNKNOWN: '发生了未知错误。',
+const MESSAGE_KEYS: Record<ErrorCode, MessageKey> = {
+  AUTH_INVALID: 'errors.authInvalid',
+  FORBIDDEN: 'errors.forbidden',
+  NOT_FOUND: 'errors.notFound',
+  CONFLICT: 'errors.conflict',
+  RATE_LIMITED: 'errors.rateLimited',
+  SECONDARY_LIMIT: 'errors.secondaryLimit',
+  EMPTY_REPO: 'errors.emptyRepo',
+  SERVER: 'errors.server',
+  NETWORK: 'errors.network',
+  UNSUPPORTED: 'errors.unsupported',
+  UNKNOWN: 'errors.unknown',
 };
 
 interface HttpLike {
@@ -45,7 +47,7 @@ export class AppError extends Error {
     code: ErrorCode,
     options: { status?: number; detail?: string; retryAfterSeconds?: number; resetAt?: number; message?: string } = {},
   ) {
-    super(options.message ?? MESSAGES[code]);
+    super(options.message ?? t(MESSAGE_KEYS[code]));
     this.name = 'AppError';
     this.code = code;
     this.status = options.status;

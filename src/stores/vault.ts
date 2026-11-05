@@ -3,6 +3,7 @@ import { flushActiveBackup } from '@/lib/backup/flush';
 import { clearBackupsByPrefix, dropBackupMemory, migrateBackups } from '@/lib/backup/store';
 import { clearContentByPrefix, dropContentMemory } from '@/lib/content/storage';
 import { clearDraftsByPrefix, dropDraftMemory } from '@/lib/drafts/store';
+import { t } from '@/lib/i18n';
 import { repoTokenKey } from '@/lib/repos/identity';
 import {
   addRepoTokenToVault,
@@ -123,7 +124,7 @@ export const useVault = create<VaultState>()((set, get) => ({
   unlockPassword: async (password) => {
     const payload = loadVault();
     if (!payload) {
-      set({ status: 'empty', mode: null, error: '没有找到保险库，请重新配置。' });
+      set({ status: 'empty', mode: null, error: t('errors.vault.notFoundSetup') });
       return;
     }
     set({ busy: true, error: null });
@@ -147,7 +148,7 @@ export const useVault = create<VaultState>()((set, get) => ({
     if (get().busy) return;
     const payload = loadVault();
     if (!payload) {
-      set({ status: 'empty', mode: null, error: '没有找到保险库，请重新配置。' });
+      set({ status: 'empty', mode: null, error: t('errors.vault.notFoundSetup') });
       return;
     }
     set({ busy: true, error: null });
@@ -172,7 +173,7 @@ export const useVault = create<VaultState>()((set, get) => ({
     const tokens = vaultSession.getRepoTokenEntries();
     const legacyToken = vaultSession.getLegacyToken();
     if (!dataKey || (Object.keys(tokens).length === 0 && !legacyToken)) {
-      throw new Error('会话已锁定，请重新解锁后再修改解锁方式');
+      throw new Error(t('errors.vault.sessionLocked'));
     }
     set({ busy: true, error: null });
     try {
@@ -194,7 +195,7 @@ export const useVault = create<VaultState>()((set, get) => ({
     const payload = loadVault();
     const dataKey = vaultSession.getDataKey();
     if (!payload || !dataKey) {
-      throw new Error('保险库已锁定，请重新解锁后再更新令牌');
+      throw new Error(t('errors.vault.lockedForToken'));
     }
     await addRepoTokenToVault(payload, dataKey, repoKey, token);
     vaultSession.setRepoToken(repoKey, token.trim());
@@ -203,7 +204,7 @@ export const useVault = create<VaultState>()((set, get) => ({
 
   removeRepoToken: async (repoKey) => {
     const payload = loadVault();
-    if (!payload) throw new Error('没有找到保险库');
+    if (!payload) throw new Error(t('errors.vault.notFound'));
     removeRepoTokenFromVault(payload, repoKey);
     vaultSession.removeRepoToken(repoKey);
     set((state) => ({ tokenRevision: state.tokenRevision + 1 }));

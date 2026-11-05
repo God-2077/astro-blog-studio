@@ -23,6 +23,8 @@ import {
   validateFrontmatterFields,
 } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
+import { LOCALE_LABELS, LOCALES, normalizeLocale } from '@/lib/i18n';
+import { useActiveLocale, useT } from '@/lib/i18n/react';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
 import { repoProfileKey, repoTokenKey } from '@/lib/repos/identity';
 import { allRepoProfiles } from '@/lib/repos/profile';
@@ -74,6 +76,8 @@ function SettingsSession() {
   const { checkNow, busy: cacheBusy } = useContentActions();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const t = useT();
+  const activeLocale = useActiveLocale();
 
   const [rootDir, setRootDir] = useState(settings.content.rootDir);
   const [extensions, setExtensions] = useState(settings.content.extensions.join(', '));
@@ -155,9 +159,9 @@ function SettingsSession() {
   const confirmDiscardSettings = async (message: string): Promise<boolean> => {
     if (!settingsDirty) return true;
     return confirmAction(message, {
-      description: '切换/添加仓库不会自动保存当前设置页的改动；选「继续」会丢弃这些未保存改动。',
-      confirmLabel: '继续',
-      cancelLabel: '继续编辑',
+      description: t('settings.confirm.discardDescription'),
+      confirmLabel: t('settings.confirm.continueLabel'),
+      cancelLabel: t('settings.confirm.keepEditing'),
       danger: true,
     });
   };
@@ -170,7 +174,7 @@ function SettingsSession() {
     const issues = validateFrontmatterFields(fields);
     if (issues.length) {
       setFieldError(issues.map((issue) => issue.message).join('；'));
-      toast.error('Frontmatter 字段有误，请先修正');
+      toast.error(t('settings.toast.fieldInvalid'));
       return;
     }
     setFieldError(null);
@@ -211,7 +215,7 @@ function SettingsSession() {
         },
       });
       await queryClient.invalidateQueries({ queryKey: ['tree'] });
-      toast.success('设置已保存');
+      toast.success(t('settings.toast.saved'));
     } finally {
       setBusy(false);
     }
@@ -220,7 +224,7 @@ function SettingsSession() {
   const updateUnlock = async (): Promise<void> => {
     if (isDemo) return;
     if (modeNeedsPassword(unlockMode) && newPassword.length < MIN_VAULT_PASSWORD_LENGTH) {
-      toast.error(`密码至少 ${MIN_VAULT_PASSWORD_LENGTH} 位`);
+      toast.error(t('errors.vault.passwordTooShort', { count: MIN_VAULT_PASSWORD_LENGTH }));
       return;
     }
     setPasswordBusy(true);
@@ -230,7 +234,7 @@ function SettingsSession() {
         ...(modeNeedsPassword(unlockMode) ? { password: newPassword } : {}),
       });
       setNewPassword('');
-      toast.success(`解锁方式已更新：${vaultModeLabel(unlockMode)}`);
+      toast.success(t('settings.toast.unlockUpdated', { mode: vaultModeLabel(unlockMode) }));
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -245,31 +249,33 @@ function SettingsSession() {
 
   const clearLocalBackups = async (): Promise<void> => {
     if (clearingBackups) return;
-    const confirmed = await confirmAction('清除本仓库在这台设备上的未保存备份？此操作不可恢复。', {
-      description: '只清当前仓库当前分支的本机备份，不会动 GitHub 上的文件；正在编辑的内容会重新写入。',
-      confirmLabel: '清除备份',
+    const confirmed = await confirmAction(t('settings.confirm.clearBackupsTitle'), {
+      description: t('settings.confirm.clearBackupsDescription'),
+      confirmLabel: t('settings.confirm.clearBackupsConfirm'),
       danger: true,
     });
     if (!confirmed) return;
     setClearingBackups(true);
     try {
       const ok = await clearBackupsByPrefix(backupKeyPrefix(mode, repo));
-      if (ok) toast.success('已清除本仓库的本机备份');
-      else toast.error('清除失败，请稍后再试');
+      if (ok) toast.success(t('settings.toast.clearBackupsDone'));
+      else toast.error(t('settings.toast.clearBackupsFailed'));
     } finally {
       setClearingBackups(false);
     }
   };
 
-  const cacheLastSynced = content.lastSyncedAt ? formatInTimeZone(new Date(content.lastSyncedAt), config.timezone) : '尚未同步';
+  const cacheLastSynced = content.lastSyncedAt
+    ? formatInTimeZone(new Date(content.lastSyncedAt), config.timezone)
+    : t('settings.cache.neverSynced');
   const cachePhaseLabel =
     content.status === 'loading'
       ? content.mode === 'full'
-        ? '正在读取全部文章…'
-        : '正在读取本机缓存…'
+        ? t('settings.cache.phaseReadingFull')
+        : t('settings.cache.phaseReadingCache')
       : content.status === 'updating'
-        ? '正在同步文章变更…'
-        : '正在检查远端更新…';
+        ? t('settings.cache.phaseSyncing')
+        : t('settings.cache.phaseChecking');
   const cachePercent =
     content.progress.total > 0 ? Math.min(100, Math.round((content.progress.done / content.progress.total) * 100)) : 0;
 
@@ -279,12 +285,12 @@ function SettingsSession() {
 
   const forceReloadCache = async (): Promise<void> => {
     if (isDemo) {
-      toast.error('演示模式不写本机缓存');
+      toast.error(t('settings.toast.demoNoCache'));
       return;
     }
-    const confirmed = await confirmAction('强制全量更新会清除本仓库的本机文章缓存，并重新读取全部文章。继续吗？', {
-      description: '按当前索引并发重新读取；只影响这台设备上的缓存，不会改 GitHub 上的文件。',
-      confirmLabel: '重新读取',
+    const confirmed = await confirmAction(t('settings.confirm.forceFullTitle'), {
+      description: t('settings.confirm.forceFullDescription'),
+      confirmLabel: t('settings.confirm.forceFullConfirm'),
     });
     if (!confirmed) return;
     await checkNow({ forceFull: true, notify: true });
@@ -292,19 +298,19 @@ function SettingsSession() {
 
   const openAddRepo = async (): Promise<void> => {
     if (repoBusy) return;
-    if (!(await confirmDiscardSettings('添加并切换仓库前，当前未保存的设置改动会被丢弃。'))) return;
+    if (!(await confirmDiscardSettings(t('settings.confirm.addRepoDiscard')))) return;
     setAddRepoOpen(true);
   };
 
   const handleSwitchRepo = async (profile: RepoProfile): Promise<void> => {
     if (repoBusy) return;
-    if (!(await confirmDiscardSettings(`切换到 ${profile.owner}/${profile.name} 前，当前未保存的设置改动会被丢弃。`))) {
+    if (!(await confirmDiscardSettings(t('settings.confirm.switchDiscard', { repo: `${profile.owner}/${profile.name}` })))) {
       return;
     }
     setRepoBusy(true);
     try {
       await switchRepo(repoProfileKey(profile));
-      toast.success(`已切换到 ${profile.owner}/${profile.name}`);
+      toast.success(t('settings.toast.switched', { repo: `${profile.owner}/${profile.name}` }));
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -314,27 +320,29 @@ function SettingsSession() {
 
   const handleAddRepo = async (input: Parameters<typeof addRepo>[0]): Promise<void> => {
     await addRepo(input);
-    toast.success('已添加并切换仓库');
+    toast.success(t('settings.toast.addedAndSwitched'));
   };
 
   const handleUpdateToken = async (profile: RepoProfile, token: string): Promise<void> => {
     await updateToken(profile, token);
-    toast.success(`已更新 ${profile.owner}/${profile.name} 的令牌`);
+    toast.success(t('settings.toast.tokenUpdated', { repo: `${profile.owner}/${profile.name}` }));
   };
 
   const handleRemoveRepo = async (profile: RepoProfile): Promise<void> => {
     if (repoBusy) return;
-    const confirmed = await confirmAction(`从本机移除仓库「${profile.owner}/${profile.name}@${profile.branch}」？`, {
-      description:
-        '会删除这个仓库在保险库中的 PAT（同仓库其他分支仍在使用时保留），并移除它的仓库级配置。本机加密文章缓存、草稿与备份不会立即删除；重置保险库时会统一清除。',
-      confirmLabel: '移除仓库',
-      danger: true,
-    });
+    const confirmed = await confirmAction(
+      t('settings.confirm.removeTitle', { repo: `${profile.owner}/${profile.name}@${profile.branch}` }),
+      {
+        description: t('settings.confirm.removeDescription'),
+        confirmLabel: t('settings.confirm.removeConfirm'),
+        danger: true,
+      },
+    );
     if (!confirmed) return;
     setRepoBusy(true);
     try {
       await removeRepo(profile);
-      toast.success('已移除仓库');
+      toast.success(t('settings.toast.removed'));
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -343,23 +351,20 @@ function SettingsSession() {
   };
 
   const resetVault = async (): Promise<void> => {
-    const confirmed = await confirmAction(
-      '重置保险库会删除本机所有仓库的 PAT 与仓库列表，并清除本机所有真实仓库的未保存备份、草稿和文章缓存；当前内容/字段/提交模板会保留为下次配置的默认值。需要重新输入 PAT。继续吗？',
-      {
-        description: 'GitHub 上的文章不受影响；未提交到仓库的本机内容无法找回。',
-        confirmLabel: '重置保险库',
-        danger: true,
-      },
-    );
+    const confirmed = await confirmAction(t('settings.confirm.resetVaultTitle'), {
+      description: t('settings.confirm.resetVaultDescription'),
+      confirmLabel: t('settings.confirm.resetVaultConfirm'),
+      danger: true,
+    });
     if (!confirmed) return;
     await vault.reset();
     navigate('/setup');
   };
 
   const resetFields = async (): Promise<void> => {
-    const confirmed = await confirmAction('恢复 hello-world 常用字段？当前字段列表会被替换。', {
-      description: '已保存文章里的其他 frontmatter 键不会被删除，编辑器会按未知字段保留它们。',
-      confirmLabel: '恢复默认',
+    const confirmed = await confirmAction(t('settings.confirm.resetFieldsTitle'), {
+      description: t('settings.confirm.resetFieldsDescription'),
+      confirmLabel: t('settings.confirm.resetFieldsConfirm'),
     });
     if (!confirmed) return;
     setFields(cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS));
@@ -370,30 +375,36 @@ function SettingsSession() {
     <div className="min-w-0 space-y-3">
       <header className="abs-paper flex flex-wrap items-center justify-between gap-2 p-3">
         <div className="flex items-center gap-2">
-          <button type="button" className="abs-icon-btn" onClick={() => navigate('/')} aria-label="回到工作台">
+          <button
+            type="button"
+            className="abs-icon-btn"
+            onClick={() => navigate('/')}
+            aria-label={t('settings.header.backToDashboard')}
+          >
             <ArrowLeft aria-hidden className="size-3.5" />
           </button>
           <div>
-            <h1 className="font-display text-[22px] font-bold leading-tight">设置</h1>
+            <h1 className="font-display text-[22px] font-bold leading-tight">{t('settings.header.title')}</h1>
             <p className="font-mono text-[9px] text-muted">
-              {repo.owner}/{repo.name} · {repo.defaultBranch} · {isDemo ? '演示模式' : '真实仓库'}
+              {repo.owner}/{repo.name} · {repo.defaultBranch} · {isDemo ? t('settings.mode.demo') : t('settings.mode.live')}
             </p>
           </div>
         </div>
         <button type="button" className="abs-btn abs-btn-primary" onClick={() => void save()} disabled={busy}>
-          {busy ? '保存中…' : '保存设置'}
+          {busy ? t('settings.header.saving') : t('settings.header.save')}
         </button>
       </header>
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_290px]">
         <div className="space-y-3">
           {!isDemo ? (
-            <Collapse title="仓库" tape="blush" meta={`${repoProfiles.length} 个 · 独立 PAT`}>
+            <Collapse
+              title={t('settings.repos.title')}
+              tape="blush"
+              meta={t('settings.repos.meta', { count: repoProfiles.length })}
+            >
               <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-                <p className="min-w-0 flex-1 text-[10.5px] leading-relaxed text-muted">
-                  所有仓库共用同一个保险库与解锁方式；切换不需要重新输密码。每个仓库有自己的 PAT，内容与排除、Frontmatter
-                  字段与提交消息也按仓库保存。切换只清内存视图，不删除本机加密缓存或草稿。
-                </p>
+                <p className="min-w-0 flex-1 text-[10.5px] leading-relaxed text-muted">{t('settings.repos.intro')}</p>
                 <button
                   type="button"
                   className="abs-btn abs-btn-ghost h-7 shrink-0 px-2.5 text-[10px]"
@@ -401,7 +412,7 @@ function SettingsSession() {
                   disabled={repoBusy}
                 >
                   <Plus aria-hidden className="size-3" />
-                  添加仓库
+                  {t('settings.repos.add')}
                 </button>
               </div>
 
@@ -425,17 +436,19 @@ function SettingsSession() {
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-1">
-                          {isActive ? <span className="abs-badge abs-badge-blush">当前</span> : null}
-                          {!tokenReady ? <span className="font-mono text-[9px] text-danger">缺少 PAT</span> : null}
+                          {isActive ? <span className="abs-badge abs-badge-blush">{t('settings.repos.current')}</span> : null}
+                          {!tokenReady ? (
+                            <span className="font-mono text-[9px] text-danger">{t('settings.repos.missingPat')}</span>
+                          ) : null}
                           {!isActive ? (
                             <button
                               type="button"
                               className="abs-btn abs-btn-ghost h-7 px-2.5 text-[10px]"
                               onClick={() => void handleSwitchRepo(profile)}
                               disabled={repoBusy || !tokenReady}
-                              title={tokenReady ? undefined : '先更新这个仓库的令牌'}
+                              title={tokenReady ? undefined : t('settings.repos.tokenMissingHint')}
                             >
-                              切换
+                              {t('settings.repos.switch')}
                             </button>
                           ) : null}
                           <button
@@ -444,7 +457,7 @@ function SettingsSession() {
                             onClick={() => setTokenEditing(profile)}
                             disabled={repoBusy}
                           >
-                            更新令牌
+                            {t('settings.repos.updateToken')}
                           </button>
                           {!isActive ? (
                             <button
@@ -453,7 +466,7 @@ function SettingsSession() {
                               onClick={() => void handleRemoveRepo(profile)}
                               disabled={repoBusy}
                             >
-                              移除
+                              {t('settings.repos.remove')}
                             </button>
                           ) : null}
                         </div>
@@ -465,14 +478,17 @@ function SettingsSession() {
             </Collapse>
           ) : null}
 
-          <Collapse title="内容与排除" tape="blush">
+          <Collapse title={t('settings.content.title')} tape="blush">
             {isDemo ? (
               <p className="mt-1 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2 text-[10.5px] leading-relaxed text-muted">
-                演示模式使用固定的示例仓库与排除规则；这些字段在连接真实仓库后生效。
+                {t('settings.content.demoNote')}
               </p>
             ) : null}
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
-              <Field label="根目录" hint={<span className="font-mono">相对仓库根</span>}>
+              <Field
+                label={t('settings.content.rootDir')}
+                hint={<span className="font-mono">{t('settings.content.rootDirHint')}</span>}
+              >
                 <input
                   className="abs-input font-mono text-[11px]"
                   value={rootDir}
@@ -480,7 +496,7 @@ function SettingsSession() {
                   disabled={isDemo}
                 />
               </Field>
-              <Field label="文件扩展名" hint="逗号分隔">
+              <Field label={t('settings.content.extensions')} hint={t('settings.content.extensionsHint')}>
                 <input
                   className="abs-input font-mono text-[11px]"
                   value={extensions}
@@ -488,20 +504,28 @@ function SettingsSession() {
                   disabled={isDemo}
                 />
               </Field>
-              <Field label="时区" hint="用于 date 模板与 updated">
+              <Field label={t('settings.content.timezone')} hint={t('settings.content.timezoneHint')}>
                 <input
                   className="abs-input font-mono text-[11px]"
                   value={timezone}
                   onChange={(event) => setTimezone(event.target.value)}
                 />
               </Field>
-              <Field label="当前可见" hint="来自文件树">
-                <input className="abs-input font-mono text-[11px]" value={isDemo ? '示例数据' : '见文件树'} disabled />
+              <Field label={t('settings.content.visible')} hint={t('settings.content.visibleHint')}>
+                <input
+                  className="abs-input font-mono text-[11px]"
+                  value={isDemo ? t('settings.content.demoData') : t('settings.content.seeTree')}
+                  disabled
+                />
               </Field>
             </div>
             <Field
-              label="索引并发"
-              hint={`${INDEX_CONCURRENCY_MIN}–${INDEX_CONCURRENCY_MAX}，默认 3。首次全量读取与增量同步时同时进行的 20 篇批次数；调高更快，过高可能触发 GitHub 限流。`}
+              label={t('settings.content.indexConcurrency')}
+              hint={t('settings.content.indexConcurrencyHint', {
+                min: INDEX_CONCURRENCY_MIN,
+                max: INDEX_CONCURRENCY_MAX,
+                default: 3,
+              })}
               className="mt-3"
             >
               <input
@@ -513,7 +537,11 @@ function SettingsSession() {
                 onChange={(event) => setIndexConcurrency(event.target.value)}
               />
             </Field>
-            <Field label="排除规则" hint={<span className="font-mono">一行一条；前缀或 glob</span>} className="mt-3">
+            <Field
+              label={t('settings.content.excludes')}
+              hint={<span className="font-mono">{t('settings.content.excludesHint')}</span>}
+              className="mt-3"
+            >
               <textarea
                 className="abs-textarea min-h-[110px] font-mono text-[10.5px]"
                 value={excludes}
@@ -524,18 +552,15 @@ function SettingsSession() {
           </Collapse>
 
           <Collapse
-            title="本机文章缓存"
+            title={t('settings.cache.title')}
             tape="mint"
-            meta={isDemo ? '演示模式 · 仅内存' : `${content.cachedCount} 篇 · AES-GCM`}
+            meta={isDemo ? t('settings.cache.demoMeta') : t('settings.cache.meta', { count: content.cachedCount })}
           >
-            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
-              首次打开会把全库文章读一遍并加密保存在本机 IndexedDB；之后每次只拉取文件树，按路径与 blob sha
-              比对，只重新读取新增或修改的文章，并从缓存里删除已删除的文章。
-            </p>
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">{t('settings.cache.intro')}</p>
             <div className="mt-2 grid gap-2 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2 font-mono text-[10px] text-muted sm:grid-cols-3">
-              <span>已缓存 {content.cachedCount} 篇</span>
-              <span>上次同步 {cacheLastSynced}</span>
-              <span>树 {content.treeSha ? content.treeSha.slice(0, 8) : '—'}</span>
+              <span>{t('settings.cache.cached', { count: content.cachedCount })}</span>
+              <span>{t('settings.cache.lastSynced', { value: cacheLastSynced })}</span>
+              <span>{t('settings.cache.tree', { value: content.treeSha ? content.treeSha.slice(0, 8) : '—' })}</span>
             </div>
             {cacheBusy ? (
               <div className="mt-2">
@@ -555,9 +580,7 @@ function SettingsSession() {
               </div>
             ) : null}
             {content.persist === 'failed' ? (
-              <p className="mt-2 text-[10px] leading-relaxed text-muted">
-                本机缓存写入失败（可能是空间不足）；本次会话仍可浏览，重新打开网站会重新读取。
-              </p>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted">{t('settings.cache.persistFailed')}</p>
             ) : null}
             <div className="mt-2 flex flex-wrap gap-2">
               <button
@@ -568,7 +591,7 @@ function SettingsSession() {
                 aria-busy={cacheBusy}
               >
                 <RefreshCw aria-hidden className={cn('size-3', cacheBusy && 'animate-spin')} />
-                {cacheBusy ? '检查中…' : '检查更新'}
+                {cacheBusy ? t('settings.cache.checking') : t('settings.cache.checkUpdates')}
               </button>
               <button
                 type="button"
@@ -576,29 +599,25 @@ function SettingsSession() {
                 onClick={() => void forceReloadCache()}
                 disabled={cacheBusy || isDemo}
               >
-                强制全量更新
+                {t('settings.cache.forceFull')}
               </button>
             </div>
             <p className="mt-2 text-[9px] leading-relaxed text-muted">
-              {isDemo
-                ? '演示仓库只存在内存里，演示模式不写本机缓存。'
-                : '真实仓库用保险库数据密钥派生的子密钥加密；锁定后无法读取，重置保险库会一并清除。'}
+              {isDemo ? t('settings.cache.demoFooter') : t('settings.cache.liveFooter')}
             </p>
           </Collapse>
 
           <Collapse
-            title="Frontmatter 字段"
+            title={t('settings.frontmatter.title')}
             tape="mint"
             meta={
               <>
-                {fields.length} 个字段
-                {fieldError ? <span className="ml-1 text-danger">有误</span> : null}
+                {t('settings.frontmatter.meta', { count: fields.length })}
+                {fieldError ? <span className="ml-1 text-danger">{t('settings.frontmatter.invalid')}</span> : null}
               </>
             }
           >
-            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
-              决定编辑器的字段、类型和必填校验；删除字段不会删除已有文件里的键，未配置字段会原样保留。
-            </p>
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">{t('settings.frontmatter.intro')}</p>
             <FrontmatterFieldsEditor
               fields={fields}
               onChange={(next) => {
@@ -617,9 +636,11 @@ function SettingsSession() {
             ) : null}
           </Collapse>
 
-          <Collapse title="提交消息">
+          <Collapse title={t('settings.commit.title')}>
             <p className="mt-0.5 text-[10.5px] text-muted">
-              可用 {'{path} {title} {oldPath} {newPath} {dir} {name} {date} {action}'}；未知占位符保持原文。
+              {t('settings.commit.hint', {
+                placeholders: '{path} {title} {oldPath} {newPath} {dir} {name} {date} {action}',
+              })}
             </p>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
               <Field label="create">
@@ -662,13 +683,13 @@ function SettingsSession() {
                 checked={confirmBeforeCommit}
                 onChange={(event) => setConfirmBeforeCommit(event.target.checked)}
               />
-              保存前弹提交确认
+              {t('settings.commit.confirmBefore')}
             </label>
           </Collapse>
 
-          <Collapse title="编辑与预览">
+          <Collapse title={t('settings.editor.title')}>
             <div className="mt-2 grid gap-3 sm:grid-cols-3">
-              <Field label="正文字号">
+              <Field label={t('settings.editor.fontSize')}>
                 <input
                   className="abs-input"
                   type="number"
@@ -685,7 +706,7 @@ function SettingsSession() {
                   checked={showLineNumbers}
                   onChange={(event) => setShowLineNumbers(event.target.checked)}
                 />
-                显示行号
+                {t('settings.editor.showLineNumbers')}
               </label>
               <label className="mt-5 flex items-center gap-2 text-[11px]">
                 <input
@@ -694,12 +715,10 @@ function SettingsSession() {
                   checked={updateUpdatedAt}
                   onChange={(event) => setUpdateUpdatedAt(event.target.checked)}
                 />
-                保存时更新 updated
+                {t('settings.editor.updateUpdatedAt')}
               </label>
             </div>
-            <p className="mt-2 text-[10px] leading-relaxed text-muted">
-              预览支持 GFM、代码、数学、剧透、ruby 与 ::: 容器；原始 HTML 会被净化，链接卡片降级为普通链接。
-            </p>
+            <p className="mt-2 text-[10px] leading-relaxed text-muted">{t('settings.editor.previewHint')}</p>
             <div className="mt-3 border-t border-dashed border-line pt-3">
               <label className="flex items-center gap-2 text-[11px]">
                 <input
@@ -708,12 +727,9 @@ function SettingsSession() {
                   checked={backupUnsaved}
                   onChange={(event) => setBackupUnsaved(event.target.checked)}
                 />
-                备份未保存的修改
+                {t('settings.editor.backupUnsaved')}
               </label>
-              <p className="mt-1 text-[10px] leading-relaxed text-muted">
-                真实仓库的备份用保险库密钥加密后写在本机
-                IndexedDB，只能在解锁后恢复；演示模式不加密。进入编辑器时会检查并提示恢复。
-              </p>
+              <p className="mt-1 text-[10px] leading-relaxed text-muted">{t('settings.editor.backupHint')}</p>
               <button
                 type="button"
                 className="abs-btn abs-btn-ghost mt-2 text-[10.5px]"
@@ -721,31 +737,53 @@ function SettingsSession() {
                 disabled={clearingBackups}
                 aria-busy={clearingBackups}
               >
-                {clearingBackups ? '清除中…' : '清除本仓库的本机备份'}
+                {clearingBackups ? t('settings.editor.clearingBackups') : t('settings.editor.clearBackups')}
               </button>
             </div>
           </Collapse>
 
-          <Collapse title="外观" meta={`即时生效 · 当前${resolvedTheme === 'night' ? '夜' : '昼'}`}>
-            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">
-              默认跟随系统；手动选择后会记住。夜间使用暖墨纸与米白墨，不是把浅色主题反相。
-            </p>
+          <Collapse
+            title={t('settings.appearance.title')}
+            meta={t('settings.appearance.meta', {
+              theme: resolvedTheme === 'night' ? t('common.theme.night.label') : t('common.theme.day.label'),
+            })}
+          >
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">{t('settings.appearance.intro')}</p>
             <div className="mt-2.5 flex flex-wrap items-center gap-3">
-              <span className="abs-label">主题</span>
-              <fieldset className="abs-seg" aria-label="主题">
-                <legend className="sr-only">主题</legend>
+              <span className="abs-label">{t('common.themeLabel')}</span>
+              <fieldset className="abs-seg" aria-label={t('common.themeLabel')}>
+                <legend className="sr-only">{t('common.themeLabel')}</legend>
                 {THEME_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     type="button"
-                    title={option.hint}
+                    title={t(option.hintKey)}
                     aria-pressed={settings.appearance.theme === option.value}
                     onClick={() => setThemePreference(option.value)}
                   >
-                    {option.label}
+                    {t(option.labelKey)}
                   </button>
                 ))}
               </fieldset>
+            </div>
+            <div className="mt-2.5 flex flex-wrap items-center gap-3">
+              <span className="abs-label">{t('common.language')}</span>
+              <select
+                className="abs-input w-auto min-w-[160px]"
+                aria-label={t('common.language')}
+                value={activeLocale}
+                onChange={(event) => {
+                  const next = normalizeLocale(event.target.value);
+                  if (!next) return;
+                  useSettings.getState().patch({ appearance: { ...useSettings.getState().appearance, locale: next } });
+                }}
+              >
+                {LOCALES.map((locale) => (
+                  <option key={locale} value={locale}>
+                    {LOCALE_LABELS[locale]}
+                  </option>
+                ))}
+              </select>
             </div>
           </Collapse>
         </div>
@@ -755,20 +793,23 @@ function SettingsSession() {
             title={
               <>
                 <KeyRound aria-hidden className="size-3.5 text-sakura" />
-                安全
+                {t('settings.security.title')}
               </>
             }
-            meta={isDemo ? '演示模式' : '已加密保存'}
+            meta={isDemo ? t('settings.mode.demo') : t('settings.security.encrypted')}
           >
             <p className="mt-1 break-all font-mono text-[9px] text-muted">
-              令牌：{isDemo ? '演示模式无令牌' : '所有仓库分别加密保存'}
+              {t('settings.security.tokens', {
+                value: isDemo ? t('settings.security.demoNoToken') : t('settings.security.tokensEncrypted'),
+              })}
             </p>
             {!isDemo ? (
               <p className="mt-1 text-[10px] leading-relaxed text-muted">
-                当前解锁方式：<strong className="text-ink">{vaultModeLabel(vault.mode)}</strong>
+                {t('settings.security.currentMode')}
+                <strong className="text-ink">{vaultModeLabel(vault.mode)}</strong>
               </p>
             ) : null}
-            <Field label="自动锁定（分钟，0 关闭）" className="mt-2">
+            <Field label={t('settings.security.autoLock')} className="mt-2">
               <input
                 className="abs-input"
                 type="number"
@@ -783,18 +824,22 @@ function SettingsSession() {
               <div className="mt-3 border-t border-dashed border-line pt-3">
                 {vault.mode === 'legacy-mixed' ? (
                   <p className="mb-2 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[10px] leading-relaxed text-danger">
-                    这是旧版「密码或指纹」模式。选择一种方式并更新后，会改为严格双因子或单一方式；设备包装会被移除。
+                    {t('settings.security.legacyWarning')}
                   </p>
                 ) : null}
                 <UnlockModePicker value={unlockMode} onChange={setUnlockMode} />
                 {modeNeedsPassword(unlockMode) ? (
-                  <Field label="新密码" hint={`至少 ${MIN_VAULT_PASSWORD_LENGTH} 位；不要求旧密码`} className="mt-2">
+                  <Field
+                    label={t('settings.security.newPassword')}
+                    hint={t('settings.security.newPasswordHint', { min: MIN_VAULT_PASSWORD_LENGTH })}
+                    className="mt-2"
+                  >
                     <input
                       className="abs-input"
                       type="password"
                       value={newPassword}
                       onChange={(event) => setNewPassword(event.target.value)}
-                      placeholder="输入新密码"
+                      placeholder={t('settings.security.newPasswordPlaceholder')}
                       autoComplete="new-password"
                     />
                   </Field>
@@ -805,11 +850,9 @@ function SettingsSession() {
                   onClick={() => void updateUnlock()}
                   disabled={passwordBusy}
                 >
-                  {passwordBusy ? '更新中…' : '更新解锁方式'}
+                  {passwordBusy ? t('settings.security.updating') : t('settings.security.updateUnlock')}
                 </button>
-                <p className="mt-1.5 text-[9px] leading-relaxed text-muted">
-                  立即生效，存在本机保险库里；已加密的未保存备份不会失效。
-                </p>
+                <p className="mt-1.5 text-[9px] leading-relaxed text-muted">{t('settings.security.updateNote')}</p>
               </div>
             ) : null}
 
@@ -817,7 +860,7 @@ function SettingsSession() {
               {!isDemo ? (
                 <button type="button" className="abs-btn abs-btn-ghost text-[10.5px]" onClick={() => void lockNow()}>
                   <LockKeyhole aria-hidden className="size-3" />
-                  立即锁定
+                  {t('settings.security.lockNow')}
                 </button>
               ) : null}
               {!isDemo ? (
@@ -826,17 +869,15 @@ function SettingsSession() {
                   className="abs-btn abs-btn-ghost border-danger/40 text-[10.5px] text-danger"
                   onClick={() => void resetVault()}
                 >
-                  重置保险库
+                  {t('settings.security.resetVault')}
                 </button>
               ) : null}
             </div>
-            <p className="mt-2 text-[9px] leading-relaxed text-muted">
-              双因子下忘记密码或指纹变化都无法找回，只能重置保险库并重新输入 PAT；本机真实仓库的未保存备份会一起清除。
-            </p>
+            <p className="mt-2 text-[9px] leading-relaxed text-muted">{t('settings.security.footer')}</p>
           </Collapse>
 
           <Collapse
-            title={<span className="text-[16px] font-bold text-ink">当前配置</span>}
+            title={<span className="text-[16px] font-bold text-ink">{t('settings.config.title')}</span>}
             className="text-[10px] leading-relaxed text-muted"
           >
             <p className="mt-1 break-all font-mono">
@@ -844,13 +885,9 @@ function SettingsSession() {
               <br />
               {repo.defaultBranch} · {config.rootDir}
               <br />
-              {config.excludes.length} 条排除
+              {t('settings.config.excludes', { count: config.excludes.length })}
             </p>
-            <p className="mt-2 text-[9px]">
-              {isDemo
-                ? '演示模式的仓库内容只在内存里；未保存备份保存在本机演示键（不加密）。'
-                : '备份加密后只写本机 IndexedDB，不会上传。'}
-            </p>
+            <p className="mt-2 text-[9px]">{isDemo ? t('settings.config.demoNote') : t('settings.config.liveNote')}</p>
           </Collapse>
         </aside>
       </div>

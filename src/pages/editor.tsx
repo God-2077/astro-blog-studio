@@ -34,6 +34,7 @@ import {
 } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { mapError } from '@/lib/github/errors';
+import { useActiveLocale, useT } from '@/lib/i18n/react';
 import {
   composeDocument,
   composeSourceDocument,
@@ -79,6 +80,8 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const navigate = useNavigate();
   const { gateway, repo, config, key, mode } = useGateway();
   const settings = useSettings();
+  const t = useT();
+  const locale = useActiveLocale();
   const resolvedTheme = useResolvedTheme();
   const fields = settings.frontmatter.fields;
   const queryClient = useQueryClient();
@@ -316,13 +319,10 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   useEffect(() => {
     if (backup.status !== 'failed' || backupFailureNotified.current) return;
     backupFailureNotified.current = true;
-    toast.error('本机备份失败', {
-      description:
-        backup.failure === 'too-large'
-          ? '文件太大，未写入本机备份；编辑不受影响。'
-          : '浏览器存储不可用或空间不足；编辑不受影响，但刷新后可能无法恢复未保存内容。',
+    toast.error(t('editor.backup.failedTitle'), {
+      description: backup.failure === 'too-large' ? t('editor.backup.failedTooLarge') : t('editor.backup.failedStorage'),
     });
-  }, [backup.status, backup.failure]);
+  }, [backup.status, backup.failure, t]);
 
   const extraFields = useMemo(() => {
     const configured = new Set(fields.map((field) => field.name));
@@ -339,10 +339,10 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
 
   const leaveEditor = async (): Promise<void> => {
     if (dirty) {
-      const leave = await confirmAction('有未保存的修改，确定离开吗？', {
-        description: '离开后这些修改不会写入仓库；本机备份开启时，回到这篇还能看到备份提示。',
-        confirmLabel: '离开',
-        cancelLabel: '继续编辑',
+      const leave = await confirmAction(t('editor.leave.title'), {
+        description: t('editor.leave.description'),
+        confirmLabel: t('editor.leave.confirm'),
+        cancelLabel: t('editor.leave.cancel'),
         danger: true,
       });
       if (!leave) return;
@@ -397,7 +397,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       const built = buildText({ autoUpdatedAt: false });
       if (Object.keys(built.errors).length) {
         setFieldErrors(built.errors);
-        toast.error('表单里有无效字段', { description: '修好后再切到源文件。' });
+        toast.error(t('editor.form.invalidTitle'), { description: t('editor.form.invalidDescription') });
         return;
       }
       text = built.text;
@@ -426,7 +426,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       usePendingPost.getState().setDraft({ path: path ?? record.path, text: record.text });
       setDraftLost(false);
       backup.acknowledgeRestored();
-      toast.success('已恢复本机草稿', { description: '首次盖章保存时才会在仓库里创建文件。' });
+      toast.success(t('editor.backup.restoredNewTitle'), { description: t('editor.backup.restoredNewDescription') });
       return;
     }
 
@@ -448,11 +448,11 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     setMoveOpen(false);
     setFieldErrors({});
     backup.acknowledgeRestored();
-    toast.success('已恢复本机备份', { description: '保存前不会提交；确认后再盖章。' });
+    toast.success(t('editor.backup.restoredTitle'), { description: t('editor.backup.restoredDescription') });
   };
 
   const handleDiscardBackup = (): void => {
-    void backup.discard().then(() => toast.success('已丢弃本机备份'));
+    void backup.discard().then(() => toast.success(t('editor.backup.discarded')));
   };
 
   const handleDeferBackup = (): void => {
@@ -487,7 +487,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         version: 1,
         repoKey,
         path,
-        title: currentTitle || path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '') || '无标题',
+        title: currentTitle || path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '') || t('editor.draft.noTitle'),
         isNew,
         baseSha: isNew ? '' : loadedSha,
         mode: editorMode,
@@ -501,23 +501,20 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         setDraftSavedAt(record.savedAt);
         draftLoadedRef.current = true;
         useDrafts.getState().remember(record);
-        toast.success('已存入本机草稿箱', {
-          description:
-            mode === 'demo'
-              ? '演示模式没有保险库，草稿以明文保存在本机。盖章前不会提交。'
-              : '已用保险库密钥加密保存；盖章前不会提交到 GitHub。',
+        toast.success(t('editor.draft.savedTitle'), {
+          description: mode === 'demo' ? t('editor.draft.savedDemoDescription') : t('editor.draft.savedLiveDescription'),
         });
         return;
       }
       if (result === 'locked') {
-        toast.error('保险库已锁定，草稿没有保存', { description: '重新解锁后再点一次「保存草稿」。' });
+        toast.error(t('editor.draft.lockedTitle'), { description: t('editor.draft.lockedDescription') });
         return;
       }
       if (result === 'too-large') {
-        toast.error('文章太大，未能存入草稿箱', { description: '单篇草稿上限约 100 万字符。' });
+        toast.error(t('editor.draft.tooLargeTitle'), { description: t('editor.draft.tooLargeDescription') });
         return;
       }
-      toast.error('草稿保存失败', { description: '浏览器存储空间可能不足；先删掉一些草稿或备份再试。' });
+      toast.error(t('editor.draft.failedTitle'), { description: t('editor.draft.failedDescription') });
     } finally {
       setDraftSaving(false);
     }
@@ -554,9 +551,9 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     if (wasNew) {
       navigate(`/edit?path=${encodeURIComponent(path ?? '')}`, { replace: true });
       usePendingPost.getState().clearDraft();
-      toast.success('已创建并提交 · 1 个提交');
+      toast.success(t('editor.commit.createdToast'));
     } else {
-      toast.success('已提交 · 1 个提交');
+      toast.success(t('editor.commit.submittedToast'));
     }
   };
 
@@ -565,7 +562,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     const { text, errors } = buildText();
     if (Object.keys(errors).length) {
       setFieldErrors(errors);
-      toast.error('请先修正 frontmatter 字段', { description: '有必填字段为空或格式不正确。' });
+      toast.error(t('editor.frontmatter.invalidError'), { description: t('editor.frontmatter.invalidDescription') });
       return;
     }
     setSaving(true);
@@ -584,7 +581,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       const error = mapError(caught);
       if (error.code === 'CONFLICT') {
         if (isNew) {
-          toast.error('远端已经有同名文件', { description: '请回到工作台换一个文件名或路径；当前草稿仍保留。' });
+          toast.error(t('editor.commit.nameConflictTitle'), { description: t('editor.commit.nameConflictDescription') });
         } else {
           setConflictOpen(true);
         }
@@ -606,7 +603,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     const { text, errors } = buildText();
     if (Object.keys(errors).length) {
       setFieldErrors(errors);
-      toast.error('请先修正 frontmatter 字段');
+      toast.error(t('editor.frontmatter.invalidError'));
       return;
     }
     try {
@@ -619,7 +616,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         sha: latest.sha,
       });
       await applySaved(result, text);
-      toast.success('已覆盖远端并提交');
+      toast.success(t('editor.commit.overwrittenToast'));
     } catch (caught) {
       toast.error(mapError(caught).message);
     }
@@ -642,7 +639,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       await backup.markSaved();
       await clearLocalDraft();
       await queryClient.invalidateQueries({ queryKey: ['tree', key] });
-      toast.success('已删除并提交');
+      toast.success(t('editor.commit.deletedToast'));
       navigate('/');
     } catch (caught) {
       toast.error(mapError(caught).message);
@@ -653,14 +650,14 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     if (!path || isNew) return;
     const target = joinPath(normalizeRepoPath(moveTarget));
     if (!target || target === path) {
-      setMoveError('请输入不同的目标路径');
+      setMoveError(t('editor.move.samePath'));
       return;
     }
     setMoveError(null);
     try {
       const { text, errors } = buildText();
       if (Object.keys(errors).length) {
-        setMoveError('请先修正 frontmatter 字段');
+        setMoveError(t('editor.frontmatter.invalidError'));
         return;
       }
       const result = await gateway.moveFile({
@@ -688,7 +685,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       await backup.markSaved();
       await clearLocalDraft();
       await queryClient.invalidateQueries({ queryKey: ['tree', key] });
-      toast.success('已移动并提交');
+      toast.success(t('editor.commit.movedToast'));
       setMoveOpen(false);
       navigate(`/edit?path=${encodeURIComponent(target)}`);
     } catch (caught) {
@@ -703,11 +700,11 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const candidateCharCount = candidate ? backupCharCount(candidate.text) : 0;
   const backupStatusLabel =
     backup.status === 'saved' && backup.savedAt
-      ? `本机已备份 ${formatInTimeZone(new Date(backup.savedAt), config.timezone).slice(11, 16)}`
+      ? t('editor.backup.savedAt', { time: formatInTimeZone(new Date(backup.savedAt), config.timezone).slice(11, 16) })
       : backup.status === 'pending'
-        ? '备份中…'
+        ? t('editor.backup.pending')
         : backup.status === 'failed'
-          ? '备份失败'
+          ? t('editor.backup.failed')
           : '';
   const draftUnavailable = isNew && (!pendingDraft || pendingDraft.path !== path);
   const waitingForDraft = draftRequested && !draftReady;
@@ -715,7 +712,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   if ((draftUnavailable && backup.checking) || waitingForDraft) {
     return (
       <div className="abs-paper p-6">
-        <Spinner label={draftRequested ? '读取本机草稿' : '检查本机备份'} />
+        <Spinner label={draftRequested ? t('editor.draft.reading') : t('editor.backup.checking')} />
       </div>
     );
   }
@@ -724,18 +721,16 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     return (
       <>
         <div className="abs-paper mx-auto max-w-[620px] p-6">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">draft lost</p>
-          <h1 className="mt-1 font-display text-[24px] font-bold">没有找到这篇新文章的草稿</h1>
-          <p className="mt-2 text-[11.5px] leading-relaxed text-muted">
-            新文章草稿只保存在创建它的标签页、本机草稿箱和浏览器备份里。没有找到对应草稿后，不会再恢复，也不会在仓库里留下空文件。
-          </p>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">{t('editor.draft.lostEyebrow')}</p>
+          <h1 className="mt-1 font-display text-[24px] font-bold">{t('editor.draft.lostTitle')}</h1>
+          <p className="mt-2 text-[11.5px] leading-relaxed text-muted">{t('editor.draft.lostDescription')}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" className="abs-btn abs-btn-primary text-[11px]" onClick={() => navigate('/')}>
               <ArrowLeft aria-hidden className="size-3.5" />
-              回到工作台重新新建
+              {t('editor.draft.lostNew')}
             </button>
             <button type="button" className="abs-btn abs-btn-ghost text-[11px]" onClick={() => navigate('/?drafts=1')}>
-              打开草稿箱
+              {t('editor.draft.lostOpenBox')}
             </button>
           </div>
         </div>
@@ -759,7 +754,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   if (!isNew && file.isLoading) {
     return (
       <div className="abs-paper p-6">
-        <Spinner label="读取文件" />
+        <Spinner label={t('editor.readingFile')} />
       </div>
     );
   }
@@ -770,7 +765,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         <ErrorNote error={file.error} onRetry={() => void file.refetch()} />
         <button type="button" className="abs-btn" onClick={() => navigate('/')}>
           <ArrowLeft aria-hidden className="size-3.5" />
-          回到工作台
+          {t('editor.backToDashboard')}
         </button>
       </div>
     );
@@ -785,10 +780,10 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const isDemo = mode === 'demo';
   const hasUpdatedField = fields.some((field) => field.name === 'updated' && field.type === 'date');
   const updatedFieldHint = fieldErrors.updated
-    ? '格式错误'
+    ? t('editor.frontmatter.updatedFormatError')
     : settings.editor.updateUpdatedAt
-      ? '未填写会自动更新'
-      : '按输入保存';
+      ? t('editor.frontmatter.updatedAutoHint')
+      : t('editor.frontmatter.updatedManualHint');
 
   return (
     <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -796,22 +791,27 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         <header className="abs-paper min-w-0 p-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="flex min-w-0 items-start gap-2">
-              <button type="button" className="abs-icon-btn mt-0.5" onClick={() => void leaveEditor()} aria-label="回到工作台">
+              <button
+                type="button"
+                className="abs-icon-btn mt-0.5"
+                onClick={() => void leaveEditor()}
+                aria-label={t('editor.backToDashboard')}
+              >
                 <ArrowLeft aria-hidden className="size-3.5" />
               </button>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <h1 className="truncate font-display text-[18px] font-bold leading-tight">{fileName}</h1>
                   {isNew ? (
-                    <Badge tone="blush">未提交</Badge>
+                    <Badge tone="blush">{t('editor.status.uncommitted')}</Badge>
                   ) : dirty ? (
-                    <Badge tone="blush">未保存</Badge>
+                    <Badge tone="blush">{t('editor.status.unsaved')}</Badge>
                   ) : (
-                    <Badge tone="mint">已保存</Badge>
+                    <Badge tone="mint">{t('editor.status.saved')}</Badge>
                   )}
-                  {isTrue('draft') ? <Badge tone="butter">草稿</Badge> : null}
-                  {isTrue('sticky') ? <Badge tone="mint">置顶</Badge> : null}
-                  {yamlBroken ? <Badge tone="blush">YAML 异常</Badge> : null}
+                  {isTrue('draft') ? <Badge tone="butter">{t('editor.status.draftBadge')}</Badge> : null}
+                  {isTrue('sticky') ? <Badge tone="mint">{t('editor.status.stickyBadge')}</Badge> : null}
+                  {yamlBroken ? <Badge tone="blush">{t('editor.status.yamlBadge')}</Badge> : null}
                 </div>
                 <p className="mt-0.5 truncate font-mono text-[9px] text-muted">{path}</p>
               </div>
@@ -823,10 +823,10 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                 onClick={() => void handleSaveDraft()}
                 disabled={draftSaving || saving}
                 aria-busy={draftSaving}
-                title="保存到本机草稿箱（真实仓库加密），不会提交到 GitHub"
+                title={t('editor.draft.saveTooltip')}
               >
                 <Save aria-hidden className="size-3" />
-                {draftSaving ? '保存中…' : '保存草稿'}
+                {draftSaving ? t('editor.draft.saving') : t('editor.draft.save')}
               </button>
               {githubUrl ? (
                 <a
@@ -851,7 +851,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                     }}
                   >
                     <MoveRight aria-hidden className="size-3" />
-                    移动
+                    {t('editor.move.button')}
                   </button>
                   <button
                     type="button"
@@ -859,7 +859,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                     onClick={() => setDeleteOpen(true)}
                   >
                     <Trash2 aria-hidden className="size-3" />
-                    删除
+                    {t('editor.delete.button')}
                   </button>
                 </>
               ) : null}
@@ -869,13 +869,13 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
 
         {candidate && backup.deferred ? (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-butter bg-butter/40 px-3 py-2 text-[10.5px] text-ink-soft">
-            <span className="font-semibold text-ink">本机有一份未保存的备份（{candidateSavedAtLabel}）</span>
-            <span className="text-muted">恢复前不会再自动覆盖。</span>
+            <span className="font-semibold text-ink">{t('editor.backup.banner', { time: candidateSavedAtLabel })}</span>
+            <span className="text-muted">{t('editor.backup.bannerHint')}</span>
             <button type="button" className="abs-btn h-7 px-2.5 text-[10.5px]" onClick={() => handleRestoreBackup(candidate)}>
-              恢复
+              {t('editor.backup.restore')}
             </button>
             <button type="button" className="abs-btn abs-btn-ghost h-7 px-2.5 text-[10.5px]" onClick={handleDiscardBackup}>
-              丢弃
+              {t('editor.backup.discard')}
             </button>
           </div>
         ) : null}
@@ -886,8 +886,12 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">frontmatter</span>
               <span className="font-mono text-[9px] text-muted">
-                {isNew ? '新文件 · 保存时创建' : hasFrontmatter ? `${Object.keys(originalData).length} fields` : '无'}
-                {extraFields.length ? ` · ${extraFields.length} 个未知字段保留` : ''}
+                {isNew
+                  ? t('editor.frontmatter.newFile')
+                  : hasFrontmatter
+                    ? t('editor.frontmatter.fieldsCount', { count: Object.keys(originalData).length })
+                    : t('editor.frontmatter.none')}
+                {extraFields.length ? ` · ${t('editor.frontmatter.unknownKept', { count: extraFields.length })}` : ''}
               </span>
             </div>
 
@@ -895,7 +899,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
               <div className="mt-2 space-y-2">
                 <p className="flex items-start gap-1.5 text-[11px] text-danger">
                   <FileWarning aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                  YAML 解析失败：{fmError}
+                  {t('editor.frontmatter.yamlError', { error: fmError })}
                 </p>
                 <textarea
                   className="abs-textarea min-h-[150px] font-mono text-[11px]"
@@ -904,17 +908,17 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                     setRawInner(event.target.value);
                     markDirty();
                   }}
-                  aria-label="原始 frontmatter"
+                  aria-label={t('editor.frontmatter.rawAria')}
                 />
-                <p className="text-[10px] text-muted">修好 YAML 后保存；正文改动会原样保留。</p>
+                <p className="text-[10px] text-muted">{t('editor.frontmatter.yamlErrorHint')}</p>
               </div>
             ) : (
               <>
                 <FrontmatterForm fields={fields} values={form} errors={fieldErrors} onChange={updateField} />
                 <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-[9px] text-muted">
-                  <span>{meta.eol === '\r\n' ? 'CRLF' : 'LF'} 保留</span>
+                  <span>{t('editor.frontmatter.eolKept', { eol: meta.eol === '\r\n' ? 'CRLF' : 'LF' })}</span>
                   {hasUpdatedField ? <span>{updatedFieldHint}</span> : null}
-                  {isNew ? <span className="text-sakura">首次保存只调用一次创建 API</span> : null}
+                  {isNew ? <span className="text-sakura">{t('editor.frontmatter.firstSaveOnce')}</span> : null}
                 </div>
               </>
             )}
@@ -924,24 +928,31 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         <section className="abs-sheet min-w-0 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft px-3 py-2">
             <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
-              {sourceActive ? 'source · 整份文件' : 'markdown'}
+              {sourceActive ? t('editor.editorMode.sourceSheetLabel') : 'markdown'}
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-[9px] text-muted">
-                {words.toLocaleString('en-US')} 字 · 约 {Math.max(1, Math.round(words / 300))} 分钟
+                {t('common.units.words', { count: words.toLocaleString(locale) })}
+                {' · '}
+                {t('editor.readingTime', { count: Math.max(1, Math.round(words / 300)) })}
               </span>
-              <fieldset className="abs-seg" aria-label="编辑模式">
-                <legend className="sr-only">编辑模式</legend>
-                <button type="button" aria-pressed={!sourceActive} title="按 frontmatter 字段编辑" onClick={switchToForm}>
-                  表单
+              <fieldset className="abs-seg" aria-label={t('editor.editorMode.label')}>
+                <legend className="sr-only">{t('editor.editorMode.label')}</legend>
+                <button
+                  type="button"
+                  aria-pressed={!sourceActive}
+                  title={t('editor.editorMode.formTitle')}
+                  onClick={switchToForm}
+                >
+                  {t('editor.editorMode.form')}
                 </button>
                 <button
                   type="button"
                   aria-pressed={sourceActive}
-                  title="直接编辑整份文件（含 frontmatter），保存时原样写回"
+                  title={t('editor.editorMode.sourceTitle')}
                   onClick={switchToSource}
                 >
-                  源文件
+                  {t('editor.editorMode.source')}
                 </button>
               </fieldset>
             </div>
@@ -949,7 +960,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
           {sourceActive && sourceParsed.frontmatterError ? (
             <p className="flex items-start gap-1.5 border-b border-line-soft bg-butter/50 px-3 py-1.5 text-[10px] leading-relaxed text-warning">
               <FileWarning aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-              frontmatter YAML 解析失败：{sourceParsed.frontmatterError}；仍可保存，但博客构建可能失败。
+              {t('editor.frontmatter.sourceYamlError', { error: sourceParsed.frontmatterError })}
             </p>
           ) : null}
           <div className="min-w-0 px-2">
@@ -986,40 +997,56 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
               <p className="truncate font-mono text-[9px] text-muted">{path}</p>
               <p className="mt-0.5 flex items-center gap-2 font-mono text-[9px] text-muted">
                 {meta.mixed ? (
-                  <span className="text-warning">混用换行符，保存将统一为 {meta.eol === '\r\n' ? 'CRLF' : 'LF'}</span>
+                  <span className="text-warning">
+                    {t('editor.status.mixedEol', { eol: meta.eol === '\r\n' ? 'CRLF' : 'LF' })}
+                  </span>
                 ) : null}
-                {!isDemo && !repo.canPush ? <span className="text-danger">只读令牌</span> : null}
+                {!isDemo && !repo.canPush ? <span className="text-danger">{t('editor.status.readOnly')}</span> : null}
                 {backupEnabled && dirty && backup.status !== 'idle' ? (
                   <span className={backup.status === 'failed' ? 'text-warning' : undefined}>{backupStatusLabel}</span>
                 ) : null}
                 {draftSavedAt ? (
                   <span className="text-muted">
-                    草稿箱 {formatInTimeZone(new Date(draftSavedAt), config.timezone).slice(11, 16)}
+                    {t('editor.draft.savedAt', {
+                      time: formatInTimeZone(new Date(draftSavedAt), config.timezone).slice(11, 16),
+                    })}
                   </span>
                 ) : null}
               </p>
               {sourceActive ? (
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[9px] text-muted">
-                  <span>{meta.eol === '\r\n' ? 'CRLF' : 'LF'} 保留</span>
+                  <span>{t('editor.frontmatter.eolKept', { eol: meta.eol === '\r\n' ? 'CRLF' : 'LF' })}</span>
                   {sourceParsed.frontmatterError ? null : (
                     <span>
-                      {sourceParsed.hasFrontmatter ? `${Object.keys(sourceParsed.data).length} fields` : '无 frontmatter'}
+                      {sourceParsed.hasFrontmatter
+                        ? t('editor.frontmatter.fieldsCount', { count: Object.keys(sourceParsed.data).length })
+                        : t('editor.frontmatter.noFrontmatter')}
                     </span>
                   )}
-                  {extraFields.length ? <span>{extraFields.length} 个未知字段保留</span> : null}
-                  {missingRequired.length ? <span className="text-warning">缺少必填：{missingRequired.join('、')}</span> : null}
-                  {settings.editor.updateUpdatedAt && hasUpdatedField ? <span>源文件模式不改写 updated</span> : null}
-                  {isNew ? <span className="text-sakura">首次保存只调用一次创建 API</span> : null}
+                  {extraFields.length ? (
+                    <span>{t('editor.frontmatter.unknownKept', { count: extraFields.length })}</span>
+                  ) : null}
+                  {missingRequired.length ? (
+                    <span className="text-warning">
+                      {t('editor.frontmatter.missingRequired', {
+                        names: missingRequired.join(t('editor.frontmatter.listSeparator')),
+                      })}
+                    </span>
+                  ) : null}
+                  {settings.editor.updateUpdatedAt && hasUpdatedField ? (
+                    <span>{t('editor.frontmatter.sourceNoUpdated')}</span>
+                  ) : null}
+                  {isNew ? <span className="text-sakura">{t('editor.frontmatter.firstSaveOnce')}</span> : null}
                 </p>
               ) : null}
             </div>
             <div className="flex items-center gap-2">
               {isNew ? (
-                <span className="text-[10px] font-bold text-sakura">未提交</span>
+                <span className="text-[10px] font-bold text-sakura">{t('editor.status.uncommitted')}</span>
               ) : dirty ? (
-                <span className="text-[10px] font-bold text-sakura">未保存</span>
+                <span className="text-[10px] font-bold text-sakura">{t('editor.status.unsaved')}</span>
               ) : (
-                <span className="text-[10px] text-muted">已保存</span>
+                <span className="text-[10px] text-muted">{t('editor.status.saved')}</span>
               )}
               <Popover.Root open={saveOpen} onOpenChange={setSaveOpen}>
                 <Popover.Trigger asChild>
@@ -1034,10 +1061,11 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                       }
                     }}
                     disabled={saving || !repo.canPush}
-                    aria-label={isNew ? '创建并提交' : '保存并提交'}
+                    aria-label={isNew ? t('editor.commit.createAria') : t('editor.commit.saveAria')}
                   >
-                    盖 章
-                    <br />保 存
+                    {t('editor.commit.stampTop')}
+                    <br />
+                    {t('editor.commit.stampBottom')}
                   </button>
                 </Popover.Trigger>
                 <Popover.Portal>
@@ -1048,8 +1076,8 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                     className="z-50 w-[340px] max-w-[calc(100vw-24px)] rounded-xl border-[1.5px] border-edge bg-paper p-3 shadow-pop outline-none"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-display text-[13px] font-bold">本次提交</span>
-                      <Popover.Close className="abs-icon-btn size-6" aria-label="关闭">
+                      <span className="font-display text-[13px] font-bold">{t('editor.commit.sectionTitle')}</span>
+                      <Popover.Close className="abs-icon-btn size-6" aria-label={t('common.close')}>
                         <X aria-hidden className="size-3" />
                       </Popover.Close>
                     </div>
@@ -1060,11 +1088,15 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                         setMessage(event.target.value);
                         setMessageEdited(true);
                       }}
-                      aria-label="提交消息"
+                      aria-label={t('editor.commit.messageAria')}
                     />
                     <p className="mt-1.5 font-mono text-[9px] text-muted">
-                      {repo.defaultBranch} · {isNew ? '将创建 1 个提交' : '1 个提交'} · {dirty ? '含未保存修改' : '无改动'}
-                      {sourceActive ? ' · 源文件' : ''}
+                      {t('editor.commit.summary', {
+                        branch: repo.defaultBranch,
+                        commits: isNew ? t('editor.commit.createCommits') : t('editor.commit.oneCommit'),
+                        change: dirty ? t('editor.commit.dirty') : t('editor.commit.clean'),
+                      })}
+                      {sourceActive ? t('editor.commit.sourceSuffix') : ''}
                     </p>
                     <button
                       type="button"
@@ -1073,7 +1105,11 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                       disabled={saving}
                     >
                       <Check aria-hidden className="size-3.5" />
-                      {saving ? '提交中…' : isNew ? '确认创建' : '确认盖章'}
+                      {saving
+                        ? t('editor.commit.submitting')
+                        : isNew
+                          ? t('editor.commit.confirmCreate')
+                          : t('editor.commit.confirmStamp')}
                     </button>
                   </Popover.Content>
                 </Popover.Portal>
@@ -1086,10 +1122,10 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       <aside className="min-w-0 xl:sticky xl:top-[76px] xl:self-start">
         <div className="abs-paper flex max-h-[calc(100vh-96px)] min-h-0 flex-col overflow-hidden">
           <div className="flex items-center justify-between gap-2 border-b border-line-soft px-3 py-2">
-            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">预览 · 实时</span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">{t('editor.preview.live')}</span>
             <span className="flex items-center gap-1 font-mono text-[9px] text-success">
               <span className="size-1.5 rounded-full bg-success" />
-              {rendered.warnings.length ? `${rendered.warnings.length} 个净化提示` : 'OK'}
+              {rendered.warnings.length ? t('editor.preview.warnings', { count: rendered.warnings.length }) : 'OK'}
             </span>
           </div>
           {rendered.warnings.length ? (
@@ -1107,9 +1143,9 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(520px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
-            <Dialog.Title className="font-display text-[20px] font-bold">远端文件已经变化</Dialog.Title>
+            <Dialog.Title className="font-display text-[20px] font-bold">{t('editor.conflict.title')}</Dialog.Title>
             <Dialog.Description className="mt-1 text-[11px] leading-relaxed text-muted">
-              保存被拒绝了，避免静默覆盖别人的修改。选择一种处理方式。
+              {t('editor.conflict.description')}
             </Dialog.Description>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
@@ -1120,13 +1156,13 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                   void file.refetch();
                 }}
               >
-                重新加载远端
+                {t('editor.conflict.reload')}
               </button>
               <button type="button" className="abs-btn abs-btn-primary text-[11px]" onClick={() => void handleOverwrite()}>
-                覆盖远端
+                {t('editor.conflict.overwrite')}
               </button>
               <button type="button" className="abs-btn abs-btn-ghost text-[11px]" onClick={() => setConflictOpen(false)}>
-                取消
+                {t('common.cancel')}
               </button>
             </div>
           </Dialog.Content>
@@ -1137,11 +1173,9 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(560px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
-            <Dialog.Title className="font-display text-[20px] font-bold">移动 / 重命名</Dialog.Title>
-            <Dialog.Description className="mt-1 text-[11px] text-muted">
-              一次提交完成移动；目标路径不能已存在。
-            </Dialog.Description>
-            <Field label="目标路径" className="mt-4">
+            <Dialog.Title className="font-display text-[20px] font-bold">{t('editor.move.title')}</Dialog.Title>
+            <Dialog.Description className="mt-1 text-[11px] text-muted">{t('editor.move.description')}</Dialog.Description>
+            <Field label={t('editor.move.targetLabel')} className="mt-4">
               <input
                 className="abs-input font-mono text-[11px]"
                 value={moveTarget}
@@ -1151,10 +1185,10 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
             {moveError ? <p className="mt-2 text-[11px] text-danger">{moveError}</p> : null}
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" className="abs-btn abs-btn-ghost text-[11px]" onClick={() => setMoveOpen(false)}>
-                取消
+                {t('common.cancel')}
               </button>
               <button type="button" className="abs-btn abs-btn-primary text-[11px]" onClick={() => void handleMove()}>
-                移动并提交
+                {t('editor.move.submit')}
               </button>
             </div>
           </Dialog.Content>
@@ -1165,20 +1199,20 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         <AlarmDialog.Portal>
           <AlarmDialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
           <AlarmDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(480px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
-            <AlarmDialog.Title className="font-display text-[20px] font-bold text-danger">删除这篇文章？</AlarmDialog.Title>
+            <AlarmDialog.Title className="font-display text-[20px] font-bold text-danger">
+              {t('editor.delete.title')}
+            </AlarmDialog.Title>
             <AlarmDialog.Description className="mt-1 break-all font-mono text-[10px] leading-relaxed text-muted">
               {path}
             </AlarmDialog.Description>
-            <p className="mt-3 text-[11px] text-ink-soft">
-              会创建一个删除提交到 {repo.defaultBranch}。这个操作不会从 Git 历史里消失。
-            </p>
+            <p className="mt-3 text-[11px] text-ink-soft">{t('editor.delete.description', { branch: repo.defaultBranch })}</p>
             <div className="mt-4 flex justify-end gap-2">
-              <AlarmDialog.Cancel className="abs-btn abs-btn-ghost text-[11px]">取消</AlarmDialog.Cancel>
+              <AlarmDialog.Cancel className="abs-btn abs-btn-ghost text-[11px]">{t('common.cancel')}</AlarmDialog.Cancel>
               <AlarmDialog.Action
                 className="abs-btn border-danger bg-danger text-[11px] text-[var(--abs-on-danger)]"
                 onClick={() => void handleDelete()}
               >
-                删除并提交
+                {t('editor.delete.submit')}
               </AlarmDialog.Action>
             </div>
           </AlarmDialog.Content>

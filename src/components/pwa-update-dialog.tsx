@@ -1,5 +1,6 @@
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { useState } from 'react';
+import { useT } from '@/lib/i18n/react';
 import { useEditorGuard } from '@/stores/editor';
 import { usePwaUpdate } from '@/stores/pwa';
 
@@ -11,6 +12,7 @@ const RELOAD_FALLBACK_MS = 1_500;
  * 刷新会丢掉内存里的编辑，所以「稍后」必须是一个真实可用的出口。
  */
 export function PwaUpdateDialog() {
+  const t = useT();
   const needRefresh = usePwaUpdate((state) => state.needRefresh);
   const dismissed = usePwaUpdate((state) => state.dismissed);
   const applyUpdate = usePwaUpdate((state) => state.applyUpdate);
@@ -39,17 +41,15 @@ export function PwaUpdateDialog() {
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
         <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(480px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
-          <AlertDialog.Title className="font-display text-[20px] font-bold">网站有新版本</AlertDialog.Title>
+          <AlertDialog.Title className="font-display text-[20px] font-bold">{t('pwa.title')}</AlertDialog.Title>
           <AlertDialog.Description className="mt-1 text-[11px] leading-relaxed text-muted">
-            新版本已经准备好，刷新页面即可使用；页面里未保存的改动会丢失。
+            {t('pwa.description')}
           </AlertDialog.Description>
-          {dirty ? (
-            <p className="mt-3 text-[11px] leading-relaxed text-danger">编辑器里有未保存的修改，建议先保存再刷新。</p>
-          ) : null}
+          {dirty ? <p className="mt-3 text-[11px] leading-relaxed text-danger">{t('pwa.dirty')}</p> : null}
           <div className="mt-4 flex justify-end gap-2">
-            <AlertDialog.Cancel className="abs-btn abs-btn-ghost text-[11px]">稍后</AlertDialog.Cancel>
+            <AlertDialog.Cancel className="abs-btn abs-btn-ghost text-[11px]">{t('pwa.later')}</AlertDialog.Cancel>
             <button type="button" className="abs-btn text-[11px]" onClick={handleRefresh} disabled={applying}>
-              {applying ? '刷新中…' : '立即刷新'}
+              {applying ? t('pwa.refreshing') : t('pwa.refreshNow')}
             </button>
           </div>
         </AlertDialog.Content>

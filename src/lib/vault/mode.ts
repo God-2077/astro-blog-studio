@@ -1,3 +1,6 @@
+import { t } from '@/lib/i18n';
+import type { MessageKey } from '@/lib/i18n/messages';
+
 export type VaultMode = 'device' | 'password' | 'two-factor';
 
 /** `legacy-mixed` only exists for vaults created before modes were split: both wraps present. */
@@ -7,8 +10,8 @@ export const MIN_VAULT_PASSWORD_LENGTH = 8;
 
 export interface VaultModeOption {
   value: VaultMode;
-  label: string;
-  hint: string;
+  labelKey: MessageKey;
+  hintKey: MessageKey;
 }
 
 /**
@@ -19,18 +22,18 @@ export interface VaultModeOption {
 export const VAULT_MODE_OPTIONS: ReadonlyArray<VaultModeOption> = [
   {
     value: 'device',
-    label: '设备指纹',
-    hint: '本机自动解锁，刷新后直接打开；共用电脑不建议。',
+    labelKey: 'common.vaultMode.device.label',
+    hintKey: 'common.vaultMode.device.hint',
   },
   {
     value: 'password',
-    label: '密码',
-    hint: '每次新标签页输入密码；不绑定设备，换设备也能用。',
+    labelKey: 'common.vaultMode.password.label',
+    hintKey: 'common.vaultMode.password.hint',
   },
   {
     value: 'two-factor',
-    label: '密码 + 设备双因子',
-    hint: '密码与本机指纹必须同时匹配；任一丢失只能重置保险库。',
+    labelKey: 'common.vaultMode.twoFactor.label',
+    hintKey: 'common.vaultMode.twoFactor.hint',
   },
 ];
 
@@ -41,14 +44,14 @@ export function modeNeedsPassword(mode: VaultMode): boolean {
 export function vaultModeLabel(mode: VaultModeState | null): string {
   switch (mode) {
     case 'device':
-      return '设备指纹自动解锁';
+      return t('common.vaultMode.device.autoLabel');
     case 'password':
-      return '密码';
+      return t('common.vaultMode.password.label');
     case 'two-factor':
-      return '密码 + 设备双因子';
+      return t('common.vaultMode.twoFactor.label');
     case 'legacy-mixed':
-      return '旧版：密码或设备指纹';
+      return t('common.vaultMode.legacy');
     default:
-      return '未配置';
+      return t('common.vaultMode.none');
   }
 }

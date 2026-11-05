@@ -5,6 +5,7 @@ import type { RepoProfile } from '@/lib/config/schema';
 import { mapError } from '@/lib/github/errors';
 import { LiveGateway } from '@/lib/github/live';
 import { parseRepoInput } from '@/lib/github/repo-input';
+import { t } from '@/lib/i18n';
 import { repoProfileKey, repoTokenKey } from '@/lib/repos/identity';
 import { profileFromSettings } from '@/lib/repos/profile';
 import { vaultSession } from '@/lib/vault/session';
@@ -66,21 +67,21 @@ export function useRepoManager() {
   const park = useCallback(async (): Promise<void> => {
     const result = await parkPendingDraft();
     if (result === 'failed') {
-      throw new Error('上一篇新稿没能存入草稿箱，操作已取消；请先处理好那篇新稿。');
+      throw new Error(t('errors.repo.parkFailed'));
     }
   }, [parkPendingDraft]);
 
   const switchRepo = useCallback(
     async (key: string): Promise<void> => {
       const target = useSettings.getState().repos.find((profile) => repoProfileKey(profile) === key);
-      if (!target) throw new Error('没有找到要切换的仓库。');
+      if (!target) throw new Error(t('errors.repo.switchMissing'));
       const tokenKey = repoTokenKey(target);
       if (!vaultSession.hasStoredTokenForRepo(tokenKey)) {
-        throw new Error('这个仓库缺少 PAT，请先更新令牌。');
+        throw new Error(t('errors.repo.switchNoToken'));
       }
       await park();
       if (!useSettings.getState().activateRepo(key)) {
-        throw new Error('切换仓库失败，请刷新后再试。');
+        throw new Error(t('errors.repo.switchFailed'));
       }
       clearInMemory();
     },
@@ -90,13 +91,13 @@ export function useRepoManager() {
   const addRepo = useCallback(
     async (input: AddRepoInput): Promise<void> => {
       const parsed = parseRepoInput(input.repoInput);
-      if (!parsed) throw new Error('仓库格式应为 owner/repository，或完整的 GitHub URL。');
+      if (!parsed) throw new Error(t('errors.repo.invalidInput'));
 
       const tokenKey = repoTokenKey(parsed);
       const enteredToken = input.token.trim();
       const existingToken = vaultSession.getStoredTokenForRepo(tokenKey);
       const token = enteredToken || existingToken;
-      if (!token) throw new Error('请先输入这个仓库的 PAT。');
+      if (!token) throw new Error(t('errors.repo.tokenRequired'));
 
       const branchInput = input.branch.trim();
       const gateway = new LiveGateway({
@@ -116,10 +117,10 @@ export function useRepoManager() {
       const key = repoProfileKey(repo);
       const state = useSettings.getState();
       if (state.repo && repoProfileKey(state.repo) === key) {
-        throw new Error('这个仓库和分支已经添加过了。');
+        throw new Error(t('errors.repo.alreadyAdded'));
       }
       if (state.repos.some((profile) => repoProfileKey(profile) === key)) {
-        throw new Error('这个仓库和分支已经添加过了。');
+        throw new Error(t('errors.repo.alreadyAdded'));
       }
 
       await park();
@@ -137,9 +138,9 @@ export function useRepoManager() {
         rootDir: input.rootDir.trim() || 'src',
         excludes: splitLines(input.excludes),
       });
-      if (!latest.addRepo(profile)) throw new Error('这个仓库和分支已经添加过了。');
+      if (!latest.addRepo(profile)) throw new Error(t('errors.repo.alreadyAdded'));
       if (!useSettings.getState().activateRepo(key)) {
-        throw new Error('仓库已添加，但切换失败；请刷新后在仓库列表里手动切换。');
+        throw new Error(t('errors.repo.activateFailed'));
       }
       clearInMemory();
     },
@@ -149,7 +150,7 @@ export function useRepoManager() {
   const updateToken = useCallback(
     async (profile: RepoProfile, token: string): Promise<void> => {
       const value = token.trim();
-      if (!value) throw new Error('请输入新的 PAT。');
+      if (!value) throw new Error(t('errors.repo.newTokenRequired'));
       const gateway = new LiveGateway({
         token: value,
         owner: profile.owner,
@@ -175,7 +176,7 @@ export function useRepoManager() {
     const key = repoProfileKey(profile);
     const state = useSettings.getState();
     if (state.repo && repoProfileKey(state.repo) === key) {
-      throw new Error('当前正在使用这个仓库，请先切换到其他仓库。');
+      throw new Error(t('errors.repo.removeActive'));
     }
     const tokenKey = repoTokenKey(profile);
     const stillUsed =
@@ -185,7 +186,7 @@ export function useRepoManager() {
     // Remove the PAT first: if the vault write fails, keep the profile so the
     // user can retry instead of leaving a repository without a token.
     if (!stillUsed) await useVault.getState().removeRepoToken(tokenKey);
-    if (!useSettings.getState().removeRepo(key)) throw new Error('没有找到要移除的仓库。');
+    if (!useSettings.getState().removeRepo(key)) throw new Error(t('errors.repo.removeMissing'));
   }, []);
 
   return { switchRepo, addRepo, updateToken, removeRepo };

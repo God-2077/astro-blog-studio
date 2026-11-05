@@ -4,6 +4,7 @@ import { type ContentStorage, createContentStorage, dropContentMemory } from '@/
 import { type SyncCounts, type SyncMode, type SyncResult, syncContent } from '@/lib/content/sync';
 import { mapError } from '@/lib/github/errors';
 import type { FileContent } from '@/lib/github/types';
+import { t } from '@/lib/i18n';
 import { type PostSummary, summarize } from '@/lib/posts/summary';
 
 export type ContentStatus = 'idle' | 'checking' | 'loading' | 'updating' | 'ready' | 'error';
@@ -122,7 +123,7 @@ function applyResult(result: SyncResult, input: ContentSyncInput): void {
     progress: { done: 0, total: 0 },
   };
   if (!result.ok) {
-    useContent.setState({ ...common, status: 'error', error: '部分文章同步失败，请重试。' });
+    useContent.setState({ ...common, status: 'error', error: t('errors.hooks.syncPartialStored') });
     return;
   }
   useContent.setState({ ...common, status: 'ready', error: null });

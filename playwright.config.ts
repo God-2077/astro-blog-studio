@@ -21,6 +21,8 @@ export default defineConfig({
     channel: 'msedge',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    // 现有用例按中文文案定位；浏览器语言固定 zh-CN，i18n 用例用 test.use({ locale }) 覆盖。
+    locale: 'zh-CN',
   },
   projects: [
     {
@@ -30,7 +32,7 @@ export default defineConfig({
     },
     {
       name: 'demo',
-      testMatch: /(demo|repos\.mock)\.spec\.ts/,
+      testMatch: /(demo|repos\.mock|i18n)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], channel: 'msedge', storageState: { cookies: [], origins: [] } },
     },
     {

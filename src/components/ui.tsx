@@ -2,6 +2,7 @@
 import { AlertCircle, LoaderCircle, RotateCw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { mapError } from '@/lib/github/errors';
+import { useT } from '@/lib/i18n/react';
 import { cn } from '@/lib/utils/cn';
 
 export type BadgeTone = 'mint' | 'butter' | 'blush' | 'ink' | 'ghost';
@@ -30,17 +31,19 @@ export function Field({
   );
 }
 
-export function Spinner({ label = '加载中' }: { label?: string }) {
+export function Spinner({ label }: { label?: string }) {
+  const t = useT();
   return (
     <span className="inline-flex items-center gap-2 text-[11px] text-muted" role="status">
       <LoaderCircle aria-hidden className="size-3.5 animate-spin" />
-      {label}
+      {label ?? t('common.loading')}
     </span>
   );
 }
 
 export function ErrorNote({ error, onRetry, className }: { error: unknown; onRetry?: () => void; className?: string }) {
   const mapped = mapError(error);
+  const t = useT();
   return (
     <div
       className={cn(
@@ -57,7 +60,7 @@ export function ErrorNote({ error, onRetry, className }: { error: unknown; onRet
       {onRetry ? (
         <button type="button" className="abs-btn abs-btn-ghost mt-2 h-7 px-2.5 text-[10px]" onClick={onRetry}>
           <RotateCw aria-hidden className="size-3" />
-          重试
+          {t('common.retry')}
         </button>
       ) : null}
     </div>

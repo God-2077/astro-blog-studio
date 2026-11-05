@@ -3,6 +3,7 @@ import { KeyRound, X } from 'lucide-react';
 import { useState } from 'react';
 import { Field, Spinner } from '@/components/ui';
 import type { RepoProfile } from '@/lib/config/schema';
+import { useT } from '@/lib/i18n/react';
 
 export function RepoTokenDialog({
   profile,
@@ -13,6 +14,7 @@ export function RepoTokenDialog({
   onClose: () => void;
   onSubmit: (token: string) => Promise<void>;
 }) {
+  const t = useT();
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export function RepoTokenDialog({
     if (busy) return;
     const value = token.trim();
     if (!value) {
-      setError('请输入新的 PAT。');
+      setError(t('errors.repo.newTokenRequired'));
       return;
     }
     setBusy(true);
@@ -48,20 +50,27 @@ export function RepoTokenDialog({
                 <KeyRound aria-hidden className="size-3.5" />
                 repository token
               </p>
-              <Dialog.Title className="font-display text-[21px] font-bold leading-tight">更新仓库令牌</Dialog.Title>
+              <Dialog.Title className="font-display text-[21px] font-bold leading-tight">
+                {t('dialogs.repoToken.title')}
+              </Dialog.Title>
               <Dialog.Description className="mt-1 break-all text-[11px] leading-relaxed text-muted">
                 <span className="font-mono">
                   {profile.owner}/{profile.name}@{profile.branch}
                 </span>
-                <br />新 PAT 会加密保存到同一个保险库；同一仓库的其他分支也会使用它。
+                <br />
+                {t('dialogs.repoToken.description')}
               </Dialog.Description>
             </div>
-            <Dialog.Close className="abs-icon-btn" aria-label="关闭">
+            <Dialog.Close className="abs-icon-btn" aria-label={t('common.close')}>
               <X aria-hidden className="size-3.5" />
             </Dialog.Close>
           </div>
 
-          <Field label="新的 GitHub PAT" hint={<span className="font-mono">会先验证能否访问这个仓库</span>} className="mt-4">
+          <Field
+            label={t('dialogs.repoToken.label')}
+            hint={<span className="font-mono">{t('dialogs.repoToken.hint')}</span>}
+            className="mt-4"
+          >
             <input
               className="abs-input font-mono text-[11px]"
               type="password"
@@ -83,9 +92,9 @@ export function RepoTokenDialog({
           ) : null}
 
           <div className="mt-4 flex items-center justify-end gap-2">
-            <Dialog.Close className="abs-btn abs-btn-ghost h-8 text-[11px]">取消</Dialog.Close>
+            <Dialog.Close className="abs-btn abs-btn-ghost h-8 text-[11px]">{t('common.cancel')}</Dialog.Close>
             <button type="button" className="abs-btn h-8 text-[11px]" onClick={() => void submit()} disabled={busy}>
-              {busy ? <Spinner label="校验并保存…" /> : '校验并更新'}
+              {busy ? <Spinner label={t('dialogs.repoToken.busy')} /> : t('dialogs.repoToken.submit')}
             </button>
           </div>
         </Dialog.Content>

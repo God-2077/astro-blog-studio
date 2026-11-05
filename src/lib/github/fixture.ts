@@ -11,6 +11,7 @@ import type {
   TreeEntry,
   TreeResult,
 } from '@/lib/github/types';
+import { t } from '@/lib/i18n';
 
 function fnv1a(text: string): string {
   let hash = 0x811c9dc5;
@@ -74,7 +75,7 @@ export class FixtureGateway implements GitHubGateway {
   }
 
   async readBlob(): Promise<Uint8Array> {
-    throw new AppError('UNSUPPORTED', { message: '演示模式没有二进制文件。' });
+    throw new AppError('UNSUPPORTED', { message: t('errors.fixture.noBinary') });
   }
 
   private commit(message: string): CommitResult {
@@ -85,10 +86,10 @@ export class FixtureGateway implements GitHubGateway {
   async writeFile(input: FileWriteInput): Promise<CommitResult> {
     const existing = this.files.get(input.path);
     if (input.sha && existing && existing.sha !== input.sha) {
-      throw new AppError('CONFLICT', { detail: '远端文件已更新。' });
+      throw new AppError('CONFLICT', { detail: t('errors.fixture.remoteChanged') });
     }
     if (!input.sha && existing) {
-      throw new AppError('CONFLICT', { detail: '同名文件已存在。' });
+      throw new AppError('CONFLICT', { detail: t('errors.fixture.duplicateName') });
     }
     this.files.set(input.path, { text: input.text, sha: shaFor(input.text) });
     return { ...this.commit(input.message), contentSha: shaFor(input.text) };
@@ -106,7 +107,7 @@ export class FixtureGateway implements GitHubGateway {
     const existing = this.files.get(input.from);
     if (!existing) throw new AppError('NOT_FOUND', { detail: input.from });
     if (existing.sha !== input.sha) throw new AppError('CONFLICT');
-    if (this.files.has(input.to)) throw new AppError('CONFLICT', { detail: '目标路径已存在。' });
+    if (this.files.has(input.to)) throw new AppError('CONFLICT', { detail: t('errors.fixture.targetExists') });
     this.files.delete(input.from);
     this.files.set(input.to, { text: input.text, sha: shaFor(input.text) });
     return this.commit(input.message);

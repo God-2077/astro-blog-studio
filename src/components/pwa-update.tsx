@@ -2,6 +2,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { PwaUpdateDialog } from '@/components/pwa-update-dialog';
+import { t } from '@/lib/i18n';
 import { startUpdatePolling } from '@/lib/pwa/update-polling';
 import { usePwaUpdate } from '@/stores/pwa';
 
@@ -45,7 +46,7 @@ export function PwaUpdate() {
 
   useEffect(() => {
     if (!isOfflineReady) return;
-    toast.success('已缓存，断网也能打开');
+    toast.success(t('pwa.offlineReady'));
   }, [isOfflineReady]);
 
   useEffect(() => {

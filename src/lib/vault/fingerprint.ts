@@ -1,4 +1,5 @@
 import type { UnknownComponents } from '@fingerprintjs/fingerprintjs';
+import { t } from '@/lib/i18n';
 import { sha256Hex } from './crypto';
 
 export type DeviceSource = 'fpjs' | 'local';
@@ -116,7 +117,7 @@ async function fpjsFingerprints(): Promise<DeviceFingerprints> {
     stableComponents[key] = component;
   }
   if (Object.keys(stableComponents).length === 0) {
-    throw new Error('没有可用的稳定指纹特征');
+    throw new Error(t('errors.vault.noStableFingerprint'));
   }
   const stableId = `fpjs:${module.hashComponents(stableComponents)}`;
   return toFingerprints({ id: stableId, source: 'fpjs' }, [{ id: `fpjs:${result.visitorId}`, source: 'fpjs' }]);

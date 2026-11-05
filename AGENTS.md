@@ -170,6 +170,13 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
     - 旧版单 `token` 解锁后 best-effort 迁移到活动仓库；迁移失败时本次会话仍把旧 PAT 绑定到活动 slug，下次解锁重试。
     - 切回原仓库必须复用 IndexedDB 缓存：tree sha + 配置签名未变时只拉 HEAD tree，0 次文章正文读取；这条必须有单元/端到端回归。
 
+13. **多语言（i18n）**
+    - 所有用户可见文案（页面、组件、toast、错误、校验、aria-label）必须走 `src/lib/i18n` 的 `useT()`（React）或 `t()`（非 React）；禁止在 JSX、`new Error`、toast 里硬编码 UI 文案。代码注释继续用中文，不翻译。
+    - 词典在 `src/lib/i18n/messages/<locale>/<namespace>.ts`：`zh-CN` 是源，`zh-TW` / `ja` / `en` 必须用对应 `XMessages` 类型同构；四语的键集合、占位符、复数形状必须一致，`tests/unit/i18n.test.ts` 会校验。新增词条要四语同时补齐，不允许只加中文。
+    - 语言只支持 `zh-CN` / `zh-TW` / `ja` / `en`；浏览器语言不在四语内回退 `en`。语言存 `Settings.appearance.locale`（未设置=跟随浏览器），切换必须即时生效并同步 `<html lang>`。品牌名、代码、路径、模板占位符与 `create/update/delete/move` 不译。
+    - 不翻译 demo 示例文章、README/docs；它们不是 UI 文案。PWA manifest 的 `lang` 与 `index.html` 的静态 description 保持现状。
+    - Playwright 全局固定 `locale: 'zh-CN'`，现有中文断言不得改；语言行为在 `tests/e2e/i18n.spec.ts` 用 `test.use({ locale })` 覆盖。修改公开行为时同步 README / DESIGN / docs。
+
 ## 测试协议
 
 1. `pnpm test:seed`（测试仓库为空或需要恢复种子）。

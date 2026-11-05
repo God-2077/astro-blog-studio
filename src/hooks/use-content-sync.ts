@@ -6,6 +6,7 @@ import { contentRepoKey, contentSignature } from '@/lib/content/model';
 import type { SyncResult } from '@/lib/content/sync';
 import { useGateway } from '@/lib/gateway/context';
 import { mapError } from '@/lib/github/errors';
+import { useT } from '@/lib/i18n/react';
 import { INDEX_CHUNK_SIZE, MAX_INDEX_FILES, planIndex } from '@/lib/posts/summary';
 import { buildTreeModel } from '@/lib/tree/model';
 import { useContent } from '@/stores/content';
@@ -68,6 +69,7 @@ export function useContentActions(): ContentActions {
   const busy = useContent((state) => state.checkPending || isBusyStatus(state.status));
   const repoKey = contentRepoKey(mode, repo, repo.defaultBranch);
   const signature = contentSignature(config);
+  const t = useT();
 
   const checkNow = useCallback<ContentActions['checkNow']>(
     async (options = {}) => {
@@ -79,7 +81,7 @@ export function useContentActions(): ContentActions {
 
       state.beginCheck();
       const toastId = notify
-        ? toast.loading(forceFull ? '正在重新读取全部文章…' : '正在检查远端更新…', { id: CHECK_TOAST_ID })
+        ? toast.loading(t(forceFull ? 'errors.hooks.loadingFull' : 'errors.hooks.loadingCheck'), { id: CHECK_TOAST_ID })
         : null;
       let outcome: { ok: boolean; message: string } | null = null;
 
@@ -103,7 +105,7 @@ export function useContentActions(): ContentActions {
           return failWith(mapError(caught).message);
         }
         if (!fresh.data) {
-          return failWith(fresh.error ? mapError(fresh.error).message : '读取文件树失败，请重试');
+          return failWith(fresh.error ? mapError(fresh.error).message : t('errors.hooks.treeFailed'));
         }
 
         const plan = planIndex(buildTreeModel(fresh.data.entries, config).files, INDEX_CHUNK_SIZE, MAX_INDEX_FILES);
@@ -119,11 +121,11 @@ export function useContentActions(): ContentActions {
         });
 
         if (!result) {
-          outcome = { ok: false, message: '同步没有完成，请稍后重试' };
+          outcome = { ok: false, message: t('errors.hooks.syncIncomplete') };
           return null;
         }
         if (!result.ok) {
-          outcome = { ok: false, message: '部分文章同步失败，请重试' };
+          outcome = { ok: false, message: t('errors.hooks.syncPartial') };
           return result;
         }
 
@@ -131,10 +133,14 @@ export function useContentActions(): ContentActions {
           ok: true,
           message:
             result.mode === 'unchanged'
-              ? '已是最新'
+              ? t('errors.hooks.upToDate')
               : result.mode === 'full'
-                ? `已读取全部 ${result.meta?.files.length ?? plan.indexed} 篇`
-                : `已同步 · 新增 ${result.counts.added} / 修改 ${result.counts.modified} / 删除 ${result.counts.deleted}`,
+                ? t('errors.hooks.fullDone', { count: result.meta?.files.length ?? plan.indexed })
+                : t('errors.hooks.diffDone', {
+                    added: result.counts.added,
+                    modified: result.counts.modified,
+                    deleted: result.counts.deleted,
+                  }),
         };
         return result;
       } catch (caught) {
@@ -148,7 +154,7 @@ export function useContentActions(): ContentActions {
         }
       }
     },
-    [repoKey, signature, mode, tree, gateway, config, indexConcurrency],
+    [repoKey, signature, mode, tree, gateway, config, indexConcurrency, t],
   );
 
   return { checkNow, busy, pending };

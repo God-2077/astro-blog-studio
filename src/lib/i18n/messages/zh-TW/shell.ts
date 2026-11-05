@@ -1,0 +1,74 @@
+import type { ShellMessages } from '../zh-CN/shell';
+
+const shell: ShellMessages = {
+  nav: {
+    toggleSidebar: { open: '開啟檔案索引', close: '收合檔案索引' },
+    closeSidebar: '關閉檔案索引',
+    home: '回到工作室',
+    newPost: '新建',
+    settings: '設定',
+    lock: '鎖定',
+    githubRepo: '在 GitHub 開啟儲存庫',
+    update: { aria: '有新版本，查看更新提示', title: '有新版本' },
+    projectSource: '在 GitHub 開啟專案原始碼',
+  },
+  demo: {
+    badge: '示範模式',
+    banner: '示範模式：範例儲存庫只在記憶體裡，不會連線 GitHub；未儲存備份儲存在本機示範鍵。重新整理後會還原初始範例。',
+    settings: '看設定',
+    exit: '退出示範 / 連線真實儲存庫',
+  },
+  footer: {
+    demoMode: 'in-memory fixture',
+    liveMode: 'github.com · content repo',
+    cached: { one: '快取 {count} 篇', other: '快取 {count} 篇' },
+  },
+  leave: {
+    title: '目前文章有未儲存的修改，確定要離開嗎？',
+    confirm: '離開',
+    cancel: '繼續編輯',
+  },
+  tree: {
+    title: '索引卡',
+    count: { one: '{count} 篇', other: '{count} 篇' },
+    refresh: '檢查更新',
+    refreshBusy: '正在檢查更新',
+    refreshHint: '檢查更新（檔案樹 + 文章）',
+    searchPlaceholder: '搜尋檔案 / 路徑',
+    searchLabel: '搜尋檔案',
+    empty: '找不到 Markdown 檔案。',
+    emptyHint: '檢查根目錄和排除規則。',
+    noMatch: '沒有符合「{query}」的檔案。',
+    excluded: '已排除 {count}',
+    rules: '規則',
+  },
+  newPost: {
+    eyebrow: 'new draft',
+    title: '新建文章',
+    description: '先在本機起草；蓋章時只提交一次，開啟編輯器時不會寫入儲存庫。',
+    titleLabel: '標題',
+    titlePlaceholder: '例如：便箋：今天的語法備忘',
+    dirLabel: '目錄',
+    dirHint: '在部落格根目錄內選擇或輸入',
+    filenameLabel: '檔名',
+    filenameHint: '留空時使用標題',
+    preview: '將建立 · 儲存時提交',
+    commitMessage: '提交訊息：',
+    start: '開始起草',
+    parking: '存入草稿匣…',
+    errors: {
+      titleRequired: '標題不能為空',
+      filenameRequired: '檔名不能為空',
+      pathTaken: '這個路徑已經有檔案了',
+      parkFailed: '上一篇新稿沒能存入草稿匣。請先清理本機儲存空間，或回到那篇新稿處理後再試。',
+    },
+    existingDraft: {
+      title: '已經有一篇未提交的新文章草稿。',
+      description: '繼續會先把上一篇存入本機草稿匣，再從空白開始；之後可以在草稿匣裡重新開啟。',
+      confirm: '存入草稿匣並繼續',
+      cancel: '先不新建',
+    },
+  },
+};
+
+export default shell;

@@ -8,6 +8,7 @@ import { useContentActions, useContentSync } from '@/hooks/use-content-sync';
 import { useTreeModel } from '@/hooks/use-data';
 import { APP_NAME, APP_URL, APP_VERSION } from '@/lib/config/app-meta';
 import { useGateway } from '@/lib/gateway/context';
+import { useActiveLocale, useT } from '@/lib/i18n/react';
 import { cn } from '@/lib/utils/cn';
 import { useContent } from '@/stores/content';
 import { useEditorGuard } from '@/stores/editor';
@@ -17,6 +18,8 @@ import { useUi } from '@/stores/ui';
 import { useVault } from '@/stores/vault';
 
 export function AppShell() {
+  const t = useT();
+  const locale = useActiveLocale();
   const { mode, repo } = useGateway();
   const { tree, model } = useTreeModel();
   const navigate = useNavigate();
@@ -37,9 +40,9 @@ export function AppShell() {
 
   const confirmLeave = async (): Promise<boolean> =>
     !dirty ||
-    (await confirmAction('当前文章有未保存的修改，确定离开吗？', {
-      confirmLabel: '离开',
-      cancelLabel: '继续编辑',
+    (await confirmAction(t('shell.leave.title'), {
+      confirmLabel: t('shell.leave.confirm'),
+      cancelLabel: t('shell.leave.cancel'),
       danger: true,
     }));
 
@@ -91,7 +94,7 @@ export function AppShell() {
           type="button"
           className="abs-icon-btn lg:hidden"
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          aria-label={sidebarOpen ? '收起文件索引' : '打开文件索引'}
+          aria-label={sidebarOpen ? t('shell.nav.toggleSidebar.close') : t('shell.nav.toggleSidebar.open')}
           aria-expanded={sidebarOpen}
         >
           {sidebarOpen ? <X aria-hidden className="size-4" /> : <Menu aria-hidden className="size-4" />}
@@ -105,7 +108,7 @@ export function AppShell() {
               if (leave) navigate('/');
             });
           }}
-          aria-label="回到工作台"
+          aria-label={t('shell.nav.home')}
         >
           <span className="abs-seal" aria-hidden>
             樱
@@ -121,7 +124,7 @@ export function AppShell() {
         {mode === 'demo' ? (
           <span className="abs-badge abs-badge-blush">
             <Sparkles aria-hidden className="size-3" />
-            演示模式
+            {t('shell.demo.badge')}
           </span>
         ) : null}
 
@@ -132,9 +135,15 @@ export function AppShell() {
             className="abs-btn abs-btn-primary hidden h-8 px-3 text-[11px] sm:inline-flex"
           >
             <Plus aria-hidden className="size-3.5" />
-            新建
+            {t('shell.nav.newPost')}
           </Link>
-          <Link to="/settings" onClick={guardLeave('/settings')} className="abs-icon-btn" aria-label="设置" title="设置">
+          <Link
+            to="/settings"
+            onClick={guardLeave('/settings')}
+            className="abs-icon-btn"
+            aria-label={t('shell.nav.settings')}
+            title={t('shell.nav.settings')}
+          >
             <Settings aria-hidden className="size-3.5" />
           </Link>
           {updateReady ? (
@@ -142,15 +151,21 @@ export function AppShell() {
               type="button"
               className="abs-icon-btn relative"
               onClick={reopenUpdate}
-              aria-label="有新版本，查看更新提示"
-              title="有新版本"
+              aria-label={t('shell.nav.update.aria')}
+              title={t('shell.nav.update.title')}
             >
               <RefreshCw aria-hidden className="size-3.5" />
               <span aria-hidden className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-sakura" />
             </button>
           ) : null}
           {mode === 'live' ? (
-            <button type="button" className="abs-icon-btn" onClick={() => void handleLock()} aria-label="锁定" title="锁定">
+            <button
+              type="button"
+              className="abs-icon-btn"
+              onClick={() => void handleLock()}
+              aria-label={t('shell.nav.lock')}
+              title={t('shell.nav.lock')}
+            >
               <LockKeyhole aria-hidden className="size-3.5" />
             </button>
           ) : (
@@ -159,8 +174,8 @@ export function AppShell() {
               href={repo.htmlUrl}
               target="_blank"
               rel="noreferrer noopener"
-              aria-label="在 GitHub 打开仓库"
-              title="在 GitHub 打开仓库"
+              aria-label={t('shell.nav.githubRepo')}
+              title={t('shell.nav.githubRepo')}
             >
               <Github aria-hidden className="size-3.5" />
             </a>
@@ -170,21 +185,21 @@ export function AppShell() {
 
       {mode === 'demo' ? (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-line bg-paper/70 px-3 py-2 text-[10.5px] text-ink-soft">
-          <span>演示模式：示例仓库只在内存里，不会连接 GitHub；未保存备份保存在本机演示键。刷新后恢复初始示例。</span>
+          <span>{t('shell.demo.banner')}</span>
           <div className="flex items-center gap-3">
             <Link
               to="/settings"
               onClick={guardLeave('/settings')}
               className="underline decoration-line underline-offset-2 hover:text-sakura"
             >
-              看设置
+              {t('shell.demo.settings')}
             </Link>
             <button
               type="button"
               className="font-semibold text-sakura underline decoration-dashed underline-offset-2"
               onClick={() => window.location.assign(window.location.pathname)}
             >
-              退出演示 / 连接真实仓库
+              {t('shell.demo.exit')}
             </button>
           </div>
         </div>
@@ -213,11 +228,11 @@ export function AppShell() {
       <footer className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line/60 px-1 pt-3 font-mono text-[9.5px] text-muted">
         <span className="flex items-center gap-2">
           <span className={cn('inline-block size-1.5 rounded-full', tree.isError ? 'bg-danger' : 'bg-success')} />
-          {mode === 'demo' ? 'in-memory fixture' : 'github.com · content repo'}
-          {mode === 'live' && cachedCount > 0 ? ` · 缓存 ${cachedCount} 篇` : ''}
+          {mode === 'demo' ? t('shell.footer.demoMode') : t('shell.footer.liveMode')}
+          {mode === 'live' && cachedCount > 0 ? ` · ${t('shell.footer.cached', { count: cachedCount })}` : ''}
         </span>
         <span>
-          API {rate.remaining.toLocaleString('en-US')} / {rate.limit.toLocaleString('en-US')} ·{' '}
+          API {rate.remaining.toLocaleString(locale)} / {rate.limit.toLocaleString(locale)} ·{' '}
           {rate.limit ? Math.round((rate.remaining / rate.limit) * 100) : 0}%
         </span>
         <a
@@ -225,7 +240,7 @@ export function AppShell() {
           href={APP_URL}
           target="_blank"
           rel="noreferrer noopener"
-          title="在 GitHub 打开项目源码"
+          title={t('shell.nav.projectSource')}
         >
           {APP_NAME} v{APP_VERSION}
         </a>
@@ -236,7 +251,7 @@ export function AppShell() {
           <button
             type="button"
             className="absolute inset-0 bg-[var(--abs-overlay)] backdrop-blur-[2px]"
-            aria-label="关闭文件索引"
+            aria-label={t('shell.nav.closeSidebar')}
             onClick={() => setSidebarOpen(false)}
           />
           <div className="absolute inset-y-0 left-0 w-[min(86vw,320px)] p-3">

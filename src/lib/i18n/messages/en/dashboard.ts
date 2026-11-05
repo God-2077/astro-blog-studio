@@ -1,0 +1,104 @@
+import type { DashboardMessages } from '../zh-CN/dashboard';
+
+const dashboard: DashboardMessages = {
+  eyebrow: { demo: 'demo workspace', live: 'workspace' },
+  title: 'What are we writing today?',
+  actions: {
+    sync: { syncing: 'Syncing…', checking: 'Checking…', idle: 'Check for updates' },
+    drafts: { label: 'Drafts', open: 'View local Drafts', close: 'Back to posts' },
+    newPost: 'New post',
+  },
+  treeTruncated: 'GitHub truncated the file tree; the index may be incomplete.',
+  summary: {
+    syncing: 'Syncing {done} / {total}',
+    all: { one: 'All {count} posts', other: 'All {count} posts' },
+    frontmatter: 'Reading frontmatter',
+  },
+  stats: {
+    label: 'Stats',
+    posts: 'All posts',
+    excluded: '{count} excluded',
+    reading: 'Reading file tree',
+    drafts: 'Drafts',
+    encrypted: 'Encrypted',
+    basedOn: { one: 'Based on all {count} posts', other: 'Based on all {count} posts' },
+  },
+  list: {
+    recent: 'Recently edited',
+    drafts: 'Drafts',
+    loading: 'Loading…',
+    draftsMeta: '{count} posts · includes auto-backups · local only',
+    sortLabel: 'Sort recent posts',
+    sortUpdated: 'By frontmatter updated, newest first',
+    sortDate: 'By frontmatter date, newest first',
+    demoPlain: 'Demo mode · plaintext',
+    encrypted: 'AES-GCM encrypted',
+    truncated:
+      'The content repository has {total} posts; only the first {indexed} are indexed to avoid reading the whole library at once.',
+    skipped: '{count} posts not read (too large, binary, or insufficient permissions).',
+    badges: { draft: 'Draft', sticky: 'Pinned', encrypted: 'Encrypted', yaml: 'YAML issue' },
+    emptyTitle: 'No Markdown files yet',
+    emptyAction: 'Check the root directory and exclusion rules',
+    emptyBody:
+      'No visible .md / .mdx files under the current root directory {rootDir}. The exclusion rules may also be hiding everything.',
+    pending: 'The file tree has {count} files, but their frontmatter has not been read yet.',
+    loadMore: 'Load more',
+    shown: 'Showing {shown} / {total} posts · {page} per page',
+    allShown: { one: 'All {count} posts shown', other: 'All {count} posts shown' },
+  },
+  receipt: {
+    title: 'Commit receipt',
+    archived: 'Archived',
+    waiting: 'Waiting',
+    view: 'View commit ↗',
+    empty: 'Your first saved post will produce a commit receipt here.',
+  },
+  goals: {
+    title: 'Small goals for today',
+    item1: 'Finish the table section of the Markdown cheat sheet',
+    item2: 'Turn the reading-notes draft into a published post',
+    item3: 'Add updated to an old note',
+  },
+  cache: {
+    local: 'Local cache',
+    entries: { one: '{count} posts', other: '{count} posts' },
+    memory: 'Memory only',
+    branch: 'Branch',
+    mode: 'Mode',
+    demo: 'In-memory demo',
+    live: 'Live repository',
+  },
+  speedHint: 'From opening the page to saving an edit, the goal is under 30 seconds.',
+  settingsLink: 'Connection & commit settings',
+  drafts: {
+    parkFailedTitle: 'Could not save the previous new draft to Drafts',
+    parkFailedDescription:
+      'Local storage may be full or locked. Handle that new draft first, or free up local storage before opening this one.',
+    removeTitle: 'Delete “{title}” from Drafts?',
+    removeDescription: 'This local draft (including any auto-backup) will be cleared and cannot be recovered.',
+    removeConfirm: 'Delete draft',
+    removeFailedTitle: 'Could not delete this draft',
+    removeFailedDescription: 'Local storage is unavailable. Try again later.',
+    removed: 'Deleted from Drafts',
+    emptyTitle: 'Drafts is empty',
+    emptyBody:
+      'Click “Save draft” in the editor, or let unsaved edits auto-backup; anything not stamped yet shows up here. Copies for live repositories are encrypted with the vault key.',
+    badges: { new: 'New post', existing: 'Existing post', backup: 'Auto-backup', source: 'Source file' },
+    removeAria: 'Delete from Drafts: {title}',
+    removeAction: 'Delete from Drafts',
+  },
+  status: {
+    error: 'Post sync did not finish',
+    checking: 'Checking for remote updates…',
+    loadingFull: 'First load · reading all posts',
+    loadingCache: 'Reading local cache…',
+    updating: 'Syncing post changes',
+    fallback: 'Local cache',
+    synced: 'Synced · added {added} / modified {modified} / deleted {deleted}',
+    persistFailed:
+      'Could not write the local cache (possibly out of space). You can keep browsing this session; reopening the site will read everything again.',
+    lastError: 'The last sync did not finish',
+  },
+};
+
+export default dashboard;

@@ -31,7 +31,11 @@ vi.mock('@fingerprintjs/fingerprintjs', () => ({
 /** Fresh module instance = fresh fingerprint cache, so device changes are observable. */
 async function freshVault() {
   vi.resetModules();
-  return import('@/lib/vault/keystore');
+  const vault = await import('@/lib/vault/keystore');
+  // 模块重置会连带重置 i18n 的当前语言；这里恢复成测试默认的简体中文。
+  const { setCurrentLocale } = await import('@/lib/i18n/locale-state');
+  setCurrentLocale('zh-CN');
+  return vault;
 }
 
 beforeEach(() => {

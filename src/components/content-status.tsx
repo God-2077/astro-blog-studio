@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react';
 import { ErrorNote, Spinner } from '@/components/ui';
 import type { SyncCounts, SyncMode } from '@/lib/content/sync';
+import { useT } from '@/lib/i18n/react';
 import type { ContentStatus } from '@/stores/content';
 
 export interface ContentStatusProps {
@@ -24,27 +25,32 @@ function percent(progress: { done: number; total: number }): number {
  * a successful delta leaves a one-line receipt for the rest of the session.
  */
 export function ContentSyncStatus({ status, mode, progress, counts, persist, error, onRetry }: ContentStatusProps) {
+  const t = useT();
   const busy = status === 'checking' || status === 'loading' || status === 'updating';
   const failure = status === 'error';
   const hasCounts = Boolean(counts && counts.added + counts.modified + counts.deleted > 0);
   if (!busy && !failure && persist !== 'failed' && !hasCounts) return null;
 
   const label = failure
-    ? '文章同步未完成'
+    ? t('dashboard.status.error')
     : status === 'checking'
-      ? '正在检查远端更新…'
+      ? t('dashboard.status.checking')
       : status === 'loading'
         ? mode === 'full'
-          ? '首次加载 · 正在读取全部文章'
-          : '正在读取本机缓存…'
+          ? t('dashboard.status.loadingFull')
+          : t('dashboard.status.loadingCache')
         : status === 'updating'
-          ? '正在同步文章变更'
+          ? t('dashboard.status.updating')
           : '';
 
   return (
     <section className="mt-3 rounded-xl border border-dashed border-line bg-paper px-3 py-2" role="status" aria-live="polite">
       <div className="flex flex-wrap items-center gap-2">
-        {busy ? <Spinner label={label} /> : <span className="text-[11px] text-muted">{label || '本机缓存'}</span>}
+        {busy ? (
+          <Spinner label={label} />
+        ) : (
+          <span className="text-[11px] text-muted">{label || t('dashboard.status.fallback')}</span>
+        )}
         {busy && progress.total > 0 ? (
           <span className="ml-auto font-mono text-[10px] text-muted">
             {progress.done} / {progress.total}
@@ -53,7 +59,7 @@ export function ContentSyncStatus({ status, mode, progress, counts, persist, err
         {failure ? (
           <button type="button" className="abs-btn abs-btn-ghost ml-auto h-7 px-2.5 text-[10px]" onClick={onRetry}>
             <RefreshCw aria-hidden className="size-3" />
-            重试
+            {t('common.retry')}
           </button>
         ) : null}
       </div>
@@ -66,17 +72,15 @@ export function ContentSyncStatus({ status, mode, progress, counts, persist, err
 
       {hasCounts && counts ? (
         <p className="mt-1 font-mono text-[10px] text-muted">
-          已同步 · 新增 {counts.added} / 修改 {counts.modified} / 删除 {counts.deleted}
+          {t('dashboard.status.synced', { added: counts.added, modified: counts.modified, deleted: counts.deleted })}
         </p>
       ) : null}
 
       {persist === 'failed' ? (
-        <p className="mt-1 text-[10px] leading-relaxed text-muted">
-          本机缓存写入失败（可能是空间不足）；本次会话仍可浏览，重新打开网站会重新读取。
-        </p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted">{t('dashboard.status.persistFailed')}</p>
       ) : null}
 
-      {failure ? <ErrorNote error={error ?? '上次同步没有完成'} onRetry={onRetry} className="mt-2" /> : null}
+      {failure ? <ErrorNote error={error ?? t('dashboard.status.lastError')} onRetry={onRetry} className="mt-2" /> : null}
     </section>
   );
 }

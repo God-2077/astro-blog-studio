@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DEFAULT_FRONTMATTER_FIELDS, FRONTMATTER_FIELD_TYPES } from '@/lib/frontmatter/fields';
+import { LOCALES } from '@/lib/i18n/locale';
 
 export const repoSchema = z.object({
   owner: z.string().min(1),
@@ -82,6 +83,8 @@ export const settingsSchema = z.object({
       .enum(['native', 'system', 'day', 'night'])
       .transform((value) => (value === 'native' ? 'system' : value))
       .catch('system'),
+    // 未设置时跟随浏览器语言；显式选择后持久化。
+    locale: z.enum(LOCALES).optional().catch(undefined),
     motion: z.enum(['full', 'reduced', 'off']),
     density: z.enum(['cozy', 'compact']),
   }),

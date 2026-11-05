@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { confirmAction } from '@/components/confirm-toast';
 import { FileCardIcon, FolderCardIcon } from '@/components/paper-icons';
 import { ErrorNote, SkeletonList } from '@/components/ui';
+import { useT } from '@/lib/i18n/react';
 import type { TreeModel, TreeNode } from '@/lib/tree/model';
 import { cn } from '@/lib/utils/cn';
 import { useEditorGuard } from '@/stores/editor';
@@ -39,6 +40,7 @@ interface TreePanelProps {
 }
 
 export function TreePanel({ model, activePath, isLoading, refreshing, error, onRetry, onRefresh }: TreePanelProps) {
+  const t = useT();
   const navigate = useNavigate();
   const setSidebarOpen = useUi((state) => state.setSidebarOpen);
   const [query, setQuery] = useState('');
@@ -55,9 +57,9 @@ export function TreePanel({ model, activePath, isLoading, refreshing, error, onR
 
   const openFile = async (path: string): Promise<void> => {
     if (path !== activePath && useEditorGuard.getState().dirty) {
-      const leave = await confirmAction('当前文章有未保存的修改，确定离开吗？', {
-        confirmLabel: '离开',
-        cancelLabel: '继续编辑',
+      const leave = await confirmAction(t('shell.leave.title'), {
+        confirmLabel: t('shell.leave.confirm'),
+        cancelLabel: t('shell.leave.cancel'),
         danger: true,
       });
       if (!leave) return;
@@ -121,16 +123,18 @@ export function TreePanel({ model, activePath, isLoading, refreshing, error, onR
   return (
     <div className="abs-paper flex h-full min-h-0 flex-col overflow-hidden">
       <div className="flex items-center justify-between gap-2 border-b border-line-soft px-3 py-2.5">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">索引卡</span>
-        <span className="font-mono text-[10px] text-muted">{model ? `${model.totalMarkdown} 篇` : '—'}</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{t('shell.tree.title')}</span>
+        <span className="font-mono text-[10px] text-muted">
+          {model ? t('shell.tree.count', { count: model.totalMarkdown }) : '—'}
+        </span>
         <button
           type="button"
           className="abs-icon-btn ml-auto size-7"
           onClick={onRefresh}
           disabled={refreshing}
           aria-busy={refreshing}
-          title={refreshing ? '正在检查更新' : '检查更新（文件树 + 文章）'}
-          aria-label="检查更新"
+          title={refreshing ? t('shell.tree.refreshBusy') : t('shell.tree.refreshHint')}
+          aria-label={t('shell.tree.refresh')}
         >
           <RefreshCw aria-hidden className={cn('size-3', refreshing && 'animate-spin')} />
         </button>
@@ -144,8 +148,8 @@ export function TreePanel({ model, activePath, isLoading, refreshing, error, onR
             className="abs-input h-8 pl-8 text-[11.5px]"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索文件 / 路径"
-            aria-label="搜索文件"
+            placeholder={t('shell.tree.searchPlaceholder')}
+            aria-label={t('shell.tree.searchLabel')}
           />
         </label>
       </div>
@@ -159,13 +163,13 @@ export function TreePanel({ model, activePath, isLoading, refreshing, error, onR
           <ErrorNote error={error} onRetry={onRetry} className="m-1" />
         ) : !model || model.files.length === 0 ? (
           <p className="px-2 py-6 text-center text-[11px] leading-relaxed text-muted">
-            没有找到 Markdown 文件。
+            {t('shell.tree.empty')}
             <br />
-            检查根目录和排除规则。
+            {t('shell.tree.emptyHint')}
           </p>
         ) : filtered ? (
           filtered.length === 0 ? (
-            <p className="px-2 py-6 text-center text-[11px] text-muted">没有匹配「{query}」的文件。</p>
+            <p className="px-2 py-6 text-center text-[11px] text-muted">{t('shell.tree.noMatch', { query })}</p>
           ) : (
             <ul className="space-y-0.5">
               {filtered.map((file) => (
@@ -193,9 +197,9 @@ export function TreePanel({ model, activePath, isLoading, refreshing, error, onR
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-line-soft px-3 py-2 font-mono text-[9.5px] text-muted">
-        <span>已排除 {model?.excludedCount ?? 0}</span>
+        <span>{t('shell.tree.excluded', { count: model?.excludedCount ?? 0 })}</span>
         <Link to="/settings" className="text-ink-soft underline decoration-line underline-offset-2 hover:text-sakura">
-          规则
+          {t('shell.tree.rules')}
         </Link>
       </div>
     </div>

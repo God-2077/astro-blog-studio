@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { Marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
+import { t } from '@/lib/i18n';
 import { escapeHtml } from './escape';
 import { renderFencedCode } from './highlight';
 
@@ -86,9 +87,9 @@ export interface RenderResult {
 export function renderMarkdown(markdown: string): RenderResult {
   installHooks();
   const warnings: string[] = [];
-  if (/<script\b/i.test(markdown)) warnings.push('预览已移除 <script> 标签');
-  if (/<style\b/i.test(markdown)) warnings.push('预览已移除 <style> 标签');
-  if (/\son[a-z]+\s*=/i.test(markdown)) warnings.push('预览已移除内联事件属性');
+  if (/<script\b/i.test(markdown)) warnings.push(t('errors.markdown.scriptRemoved'));
+  if (/<style\b/i.test(markdown)) warnings.push(t('errors.markdown.styleRemoved'));
+  if (/\son[a-z]+\s*=/i.test(markdown)) warnings.push(t('errors.markdown.inlineEventRemoved'));
 
   const transformed = preprocessShoka(markdown);
   const raw = marked.parse(transformed, { async: false }) as string;

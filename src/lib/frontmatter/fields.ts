@@ -1,3 +1,5 @@
+import { t } from '@/lib/i18n';
+import type { MessageKey } from '@/lib/i18n/messages';
 import { serializeFieldLines } from '@/lib/markdown/document';
 
 export const FRONTMATTER_FIELD_TYPES = ['string', 'date', 'number', 'boolean', 'list'] as const;
@@ -37,17 +39,17 @@ export const DEFAULT_FRONTMATTER_FIELDS: FrontmatterField[] = [
 ];
 
 /** All frontmatter keys supported by astro-blog/src/content/config.ts. */
-export const KNOWN_BLOG_FIELDS: Record<string, { type: FrontmatterFieldType; required: boolean; hint?: string }> = {
+export const KNOWN_BLOG_FIELDS: Record<string, { type: FrontmatterFieldType; required: boolean; hint?: MessageKey }> = {
   title: { type: 'string', required: true },
   date: { type: 'date', required: true },
   updated: { type: 'date', required: false },
-  description: { type: 'string', required: false, hint: 'SEO / 列表摘要' },
-  link: { type: 'string', required: false, hint: '自定义 URL slug' },
-  cover: { type: 'string', required: false, hint: '封面图片路径' },
+  description: { type: 'string', required: false, hint: 'common.fieldHint.description' },
+  link: { type: 'string', required: false, hint: 'common.fieldHint.link' },
+  cover: { type: 'string', required: false, hint: 'common.fieldHint.cover' },
   tags: { type: 'list', required: false },
   subtitle: { type: 'string', required: false },
   catalog: { type: 'boolean', required: false },
-  categories: { type: 'list', required: false, hint: '用 > 表示层级' },
+  categories: { type: 'list', required: false, hint: 'common.fieldHint.categories' },
   sticky: { type: 'boolean', required: false },
   draft: { type: 'boolean', required: false },
   tocNumbering: { type: 'boolean', required: false },
@@ -56,7 +58,7 @@ export const KNOWN_BLOG_FIELDS: Record<string, { type: FrontmatterFieldType; req
   quiz: { type: 'boolean', required: false },
   password: { type: 'string', required: false },
   keywords: { type: 'list', required: false },
-  hideFrom: { type: 'string', required: false, hint: 'home / home_rss / rss / all' },
+  hideFrom: { type: 'string', required: false, hint: 'common.fieldHint.hideFrom' },
   nofollow: { type: 'boolean', required: false },
   noindex: { type: 'boolean', required: false },
   noarchive: { type: 'boolean', required: false },
@@ -82,25 +84,25 @@ export interface FrontmatterFieldIssue {
 export function validateFrontmatterFields(fields: FrontmatterField[]): FrontmatterFieldIssue[] {
   const issues: FrontmatterFieldIssue[] = [];
   if (fields.length > 40) {
-    issues.push({ index: -1, message: '字段最多 40 个' });
+    issues.push({ index: -1, message: t('errors.validation.maxFields') });
   }
   const seen = new Set<string>();
   fields.forEach((field, index) => {
     const name = field.name.trim();
     if (!name) {
-      issues.push({ index, message: '字段名不能为空' });
+      issues.push({ index, message: t('errors.validation.emptyName') });
       return;
     }
     if (!FIELD_NAME_RE.test(name)) {
-      issues.push({ index, message: '字段名只能包含字母、数字、下划线或连字符，且以字母/下划线开头' });
+      issues.push({ index, message: t('errors.validation.invalidName') });
     } else if (isReservedFieldName(name)) {
-      issues.push({ index, message: `字段名 ${name} 是保留名` });
+      issues.push({ index, message: t('errors.validation.reservedName', { name }) });
     }
     if (!FRONTMATTER_FIELD_TYPES.includes(field.type)) {
-      issues.push({ index, message: '字段类型无效' });
+      issues.push({ index, message: t('errors.validation.invalidType') });
     }
     if (seen.has(name)) {
-      issues.push({ index, message: `字段名 ${name} 重复` });
+      issues.push({ index, message: t('errors.validation.duplicateName', { name }) });
     }
     seen.add(name);
   });
@@ -193,13 +195,13 @@ function validateFieldValue(field: FrontmatterField, value: FrontmatterFormValue
   if (field.type === 'boolean') return null;
   const text = typeof value === 'string' ? value.trim() : '';
   if (!text) {
-    return field.required ? '必填字段' : null;
+    return field.required ? t('errors.validation.requiredValue') : null;
   }
   if (field.type === 'date' && !DATE_RE.test(text)) {
-    return '日期格式应为 YYYY-MM-DD HH:mm:ss';
+    return t('errors.validation.invalidDate');
   }
   if (field.type === 'number' && !Number.isFinite(Number(text))) {
-    return '请输入有效数字';
+    return t('errors.validation.invalidNumber');
   }
   return null;
 }
@@ -296,5 +298,6 @@ export function buildNewPostDocument(fields: readonly FrontmatterField[], input:
 }
 
 export function knownFieldHint(name: string): string | undefined {
-  return KNOWN_BLOG_FIELDS[name.trim()]?.hint;
+  const hint = KNOWN_BLOG_FIELDS[name.trim()]?.hint;
+  return hint ? t(hint) : undefined;
 }

@@ -1,3 +1,5 @@
+import { t } from '@/lib/i18n';
+
 const pad = (value: number): string => String(value).padStart(2, '0');
 
 /** Format a Date as `YYYY-MM-DD HH:mm:ss` in the given IANA timezone. */
@@ -23,7 +25,7 @@ export function dateOnlyInTimeZone(date: Date, timeZone: string): string {
 
 /** Human label for a frontmatter date string without parsing it as UTC. */
 export function displayDate(value: string | undefined): string {
-  if (!value) return '无日期';
+  if (!value) return t('common.noDate');
   const text = value.trim();
   const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!match) return text;

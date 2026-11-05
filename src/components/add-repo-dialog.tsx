@@ -3,6 +3,7 @@ import { GitBranch, KeyRound, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { Field, Spinner } from '@/components/ui';
 import type { AddRepoInput } from '@/hooks/use-repo-manager';
+import { useT } from '@/lib/i18n/react';
 
 export interface AddRepoDefaults {
   rootDir: string;
@@ -18,6 +19,7 @@ export function AddRepoDialog({
   onClose: () => void;
   onSubmit: (input: AddRepoInput) => Promise<void>;
 }) {
+  const t = useT();
   const [repoInput, setRepoInput] = useState('');
   const [branch, setBranch] = useState('');
   const [token, setToken] = useState('');
@@ -29,7 +31,7 @@ export function AddRepoDialog({
   const submit = async (): Promise<void> => {
     if (busy) return;
     if (!repoInput.trim()) {
-      setError('请先填写仓库。');
+      setError(t('dialogs.addRepo.repoRequired'));
       return;
     }
     setBusy(true);
@@ -55,20 +57,22 @@ export function AddRepoDialog({
                 <GitBranch aria-hidden className="size-3.5" />
                 add repository
               </p>
-              <Dialog.Title className="font-display text-[22px] font-bold leading-tight">添加仓库</Dialog.Title>
+              <Dialog.Title className="font-display text-[22px] font-bold leading-tight">
+                {t('dialogs.addRepo.title')}
+              </Dialog.Title>
               <Dialog.Description className="mt-1 text-[11px] leading-relaxed text-muted">
-                每个仓库保存自己的 PAT，但共用同一个保险库与解锁方式。添加后会立即切换到这个仓库。
+                {t('dialogs.addRepo.description')}
               </Dialog.Description>
             </div>
-            <Dialog.Close className="abs-icon-btn" aria-label="关闭">
+            <Dialog.Close className="abs-icon-btn" aria-label={t('common.close')}>
               <X aria-hidden className="size-3.5" />
             </Dialog.Close>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <Field
-              label="仓库"
-              hint={<span className="font-mono">owner/repository 或 GitHub URL</span>}
+              label={t('dialogs.addRepo.repo')}
+              hint={<span className="font-mono">{t('dialogs.addRepo.repoHint')}</span>}
               className="sm:col-span-2"
             >
               <input
@@ -79,7 +83,10 @@ export function AddRepoDialog({
                 spellCheck={false}
               />
             </Field>
-            <Field label="分支" hint={<span className="font-mono">留空使用仓库默认分支</span>}>
+            <Field
+              label={t('dialogs.addRepo.branch')}
+              hint={<span className="font-mono">{t('dialogs.addRepo.branchHint')}</span>}
+            >
               <input
                 className="abs-input font-mono text-[11px]"
                 value={branch}
@@ -88,7 +95,7 @@ export function AddRepoDialog({
                 spellCheck={false}
               />
             </Field>
-            <Field label="PAT" hint={<span className="font-mono">已有同仓库令牌时可留空</span>}>
+            <Field label={t('dialogs.addRepo.pat')} hint={<span className="font-mono">{t('dialogs.addRepo.patHint')}</span>}>
               <input
                 className="abs-input font-mono text-[11px]"
                 type="password"
@@ -99,7 +106,10 @@ export function AddRepoDialog({
                 spellCheck={false}
               />
             </Field>
-            <Field label="根目录" hint={<span className="font-mono">相对仓库根</span>}>
+            <Field
+              label={t('dialogs.addRepo.rootDir')}
+              hint={<span className="font-mono">{t('dialogs.addRepo.rootDirHint')}</span>}
+            >
               <input
                 className="abs-input font-mono text-[11px]"
                 value={rootDir}
@@ -107,7 +117,10 @@ export function AddRepoDialog({
                 placeholder="src"
               />
             </Field>
-            <Field label="排除规则" hint={<span className="font-mono">一行一条；前缀或 glob</span>}>
+            <Field
+              label={t('dialogs.addRepo.excludes')}
+              hint={<span className="font-mono">{t('dialogs.addRepo.excludesHint')}</span>}
+            >
               <textarea
                 className="abs-textarea min-h-[84px] font-mono text-[10.5px]"
                 value={excludes}
@@ -117,7 +130,7 @@ export function AddRepoDialog({
           </div>
 
           <p className="mt-3 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2 text-[10px] leading-relaxed text-muted">
-            新仓库会先沿用当前仓库的扩展名、时区、索引并发、Frontmatter 字段与提交模板；这些配置之后按仓库独立保存。
+            {t('dialogs.addRepo.note')}
           </p>
 
           {error ? (
@@ -130,21 +143,21 @@ export function AddRepoDialog({
           ) : null}
 
           <div className="mt-5 flex items-center justify-end gap-2">
-            <Dialog.Close className="abs-btn abs-btn-ghost h-8 text-[11px]">取消</Dialog.Close>
+            <Dialog.Close className="abs-btn abs-btn-ghost h-8 text-[11px]">{t('common.cancel')}</Dialog.Close>
             <button type="button" className="abs-btn h-8 text-[11px]" onClick={() => void submit()} disabled={busy}>
               {busy ? (
-                <Spinner label="校验并添加…" />
+                <Spinner label={t('dialogs.addRepo.busy')} />
               ) : (
                 <>
                   <Plus aria-hidden className="size-3.5" />
-                  校验并添加
+                  {t('dialogs.addRepo.submit')}
                 </>
               )}
             </button>
           </div>
           <p className="mt-3 flex items-center gap-1 font-mono text-[9px] text-muted">
             <KeyRound aria-hidden className="size-3" />
-            PAT 只以密文写入本机保险库，不会出现在日志或 URL 里。
+            {t('dialogs.addRepo.patFooter')}
           </p>
         </Dialog.Content>
       </Dialog.Portal>

@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { useT } from '@/lib/i18n/react';
 import { cn } from '@/lib/utils/cn';
 import { VAULT_MODE_OPTIONS, type VaultMode } from '@/lib/vault/mode';
 
@@ -17,10 +18,11 @@ interface UnlockModePickerProps {
  */
 export function UnlockModePicker({ value, onChange, disabled, hideLegend }: UnlockModePickerProps) {
   const name = useId();
+  const t = useT();
 
   return (
     <fieldset className="min-w-0" disabled={disabled}>
-      <legend className={cn('abs-label', hideLegend && 'sr-only')}>解锁方式</legend>
+      <legend className={cn('abs-label', hideLegend && 'sr-only')}>{t('unlock.modePicker.legend')}</legend>
       <div className="mt-1.5 grid gap-2">
         {VAULT_MODE_OPTIONS.map((option) => {
           const selected = value === option.value;
@@ -38,14 +40,14 @@ export function UnlockModePicker({ value, onChange, disabled, hideLegend }: Unlo
                 name={name}
                 value={option.value}
                 className="mt-0.5 size-3.5 accent-[var(--abs-sakura)]"
-                aria-label={option.label}
+                aria-label={t(option.labelKey)}
                 checked={selected}
                 onChange={() => onChange(option.value)}
                 disabled={disabled}
               />
               <span className="min-w-0">
-                <strong className="block">{option.label}</strong>
-                <span className="text-muted">{option.hint}</span>
+                <strong className="block">{t(option.labelKey)}</strong>
+                <span className="text-muted">{t(option.hintKey)}</span>
               </span>
             </label>
           );
@@ -57,8 +59,7 @@ export function UnlockModePicker({ value, onChange, disabled, hideLegend }: Unlo
           className="mt-2 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[10.5px] leading-relaxed text-danger"
           role="note"
         >
-          必须同时满足密码与本机指纹；换设备、清除浏览器数据或指纹变化后都无法解锁，只能重置保险库并重新输入
-          PAT，本机真实仓库的未保存备份也会被清除。
+          {t('unlock.modePicker.twoFactorWarning')}
         </p>
       ) : null}
     </fieldset>

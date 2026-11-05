@@ -16,15 +16,7 @@ import {
 describe('frontmatter field definitions', () => {
   it('ships the common hello-world fields with title/date required', () => {
     const names = DEFAULT_FRONTMATTER_FIELDS.map((field) => field.name);
-    expect(names).toEqual([
-      'title',
-      'date',
-      'updated',
-      'description',
-      'categories',
-      'tags',
-      'draft',
-    ]);
+    expect(names).toEqual(['title', 'date', 'updated', 'description', 'categories', 'tags', 'draft']);
     expect(DEFAULT_FRONTMATTER_FIELDS.filter((field) => field.required).map((field) => field.name)).toEqual(['title', 'date']);
     expect(cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS)).not.toBe(DEFAULT_FRONTMATTER_FIELDS);
   });
