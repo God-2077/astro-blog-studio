@@ -8,6 +8,7 @@ import {
   DEFAULT_FRONTMATTER_FIELDS,
   type FrontmatterField,
   formValuesFromData,
+  hasRequiredTitleField,
   missingRequiredFieldNames,
   validateFrontmatterFields,
   valueToDisplay,
@@ -144,6 +145,24 @@ describe('frontmatter form mapping', () => {
     expect(missingRequiredFieldNames([{ name: 'draft', type: 'boolean', required: true }], {})).toEqual([]);
     expect(missingRequiredFieldNames([{ name: 'tags', type: 'list', required: true }], { tags: [] })).toEqual(['tags']);
     expect(missingRequiredFieldNames([{ name: 'order', type: 'number', required: true }], { order: 0 })).toEqual([]);
+  });
+});
+
+describe('new post title field', () => {
+  it('shows the title input for the default required string title', () => {
+    expect(hasRequiredTitleField(DEFAULT_FRONTMATTER_FIELDS)).toBe(true);
+  });
+
+  it('hides the title input when title is not configured', () => {
+    expect(hasRequiredTitleField([{ name: 'date', type: 'date', required: true }])).toBe(false);
+  });
+
+  it('hides the title input when title is optional', () => {
+    expect(hasRequiredTitleField([{ name: 'title', type: 'string', required: false }])).toBe(false);
+  });
+
+  it('hides the title input when title is required but not a string', () => {
+    expect(hasRequiredTitleField([{ name: 'title', type: 'list', required: true }])).toBe(false);
   });
 });
 

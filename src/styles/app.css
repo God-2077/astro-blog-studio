@@ -451,6 +451,12 @@
     color: var(--abs-danger);
   }
 
+  /* 进行中的按钮保留主按钮的前景/背景对比度；禁用态不再整体半透明。 */
+  .abs-btn-busy:disabled {
+    opacity: 1;
+    cursor: progress;
+  }
+
   .abs-icon-btn {
     display: inline-grid;
     place-items: center;

@@ -163,6 +163,7 @@ const editor: EditorMessages = {
     targetLabel: '移動先のパス',
     samePath: '別の移動先パスを入力してください',
     submit: '移動してコミット',
+    submitting: '移動してコミットしています…',
   },
   delete: {
     button: '削除',

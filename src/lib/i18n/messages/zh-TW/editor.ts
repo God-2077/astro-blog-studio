@@ -153,6 +153,7 @@ const editor: EditorMessages = {
     targetLabel: '目標路徑',
     samePath: '請輸入不同的目標路徑',
     submit: '移動並提交',
+    submitting: '正在移動並提交…',
   },
   delete: {
     button: '刪除',

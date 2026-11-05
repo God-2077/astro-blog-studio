@@ -52,6 +52,7 @@ const shell: ShellMessages = {
     dirHint: '在部落格根目錄內選擇或輸入',
     filenameLabel: '檔名',
     filenameHint: '留空時使用標題',
+    filenameHintRequired: '必填，用於產生文章路徑',
     preview: '將建立 · 儲存時提交',
     commitMessage: '提交訊息：',
     start: '開始起草',

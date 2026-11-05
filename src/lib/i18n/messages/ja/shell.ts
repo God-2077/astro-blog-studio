@@ -54,6 +54,7 @@ const shell: ShellMessages = {
     dirHint: 'ブログのルートディレクトリ内で選択または入力',
     filenameLabel: 'ファイル名',
     filenameHint: '空欄の場合はタイトルを使用',
+    filenameHintRequired: '必須です。記事のパスに使われます',
     preview: '作成予定 · 保存時にコミット',
     commitMessage: 'コミットメッセージ：',
     start: '下書きを始める',

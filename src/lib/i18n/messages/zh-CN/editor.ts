@@ -153,6 +153,7 @@ const editor = {
     targetLabel: '目标路径',
     samePath: '请输入不同的目标路径',
     submit: '移动并提交',
+    submitting: '正在移动并提交…',
   },
   delete: {
     button: '删除',

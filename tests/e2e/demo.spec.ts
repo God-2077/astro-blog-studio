@@ -236,6 +236,63 @@ test.describe('demo mode', () => {
     await expect(page.locator('.abs-tree-row').filter({ hasText: 'E2E-新建稿.md' })).toBeVisible();
   });
 
+  test('hides the title input when the configured title is optional', async ({ page }) => {
+    await page.goto('/?demo=1#/settings');
+    const fieldsSection = page.locator('section.abs-paper').filter({ hasText: 'Frontmatter 字段' });
+    await fieldsSection.getByRole('checkbox').first().uncheck();
+    const commitSection = page.locator('section.abs-paper').filter({ hasText: '提交消息' });
+    await commitSection.locator('input.abs-input').nth(0).fill('create: {title} @ {path}');
+    await page.getByRole('button', { name: '保存设置' }).click();
+    await expect(page.getByText('设置已保存')).toBeVisible();
+
+    await page.goto('/?demo=1');
+    await page.getByRole('button', { name: '新建文章' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('label.abs-field').filter({ hasText: '标题' })).toHaveCount(0);
+    const filename = dialog.locator('label.abs-field').filter({ hasText: '文件名' }).locator('input');
+    await expect(filename).toHaveAttribute('aria-required', 'true');
+
+    await dialog.getByRole('button', { name: '开始起草' }).click();
+    await expect(dialog.getByRole('alert')).toHaveText('文件名不能为空');
+
+    await filename.fill('无标题稿');
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(dialog.getByText('src/无标题稿.md', { exact: true })).toBeVisible();
+    await expect(dialog.locator('code')).toHaveText('create: 无标题稿 @ src/无标题稿.md');
+    await dialog.getByRole('button', { name: '开始起草' }).click();
+
+    await expect(page).toHaveURL(/new=1/);
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    await page.getByRole('button', { name: '源文件' }).click();
+    await expect(page.locator('.cm-content')).not.toContainText('title:');
+    await expect(page.locator('.cm-content')).toContainText('date:');
+    await expect(page.locator('.cm-content')).toContainText('draft: true');
+  });
+
+  test('moves directly with toast feedback and keeps errors inside the dialog', async ({ page }) => {
+    await page.goto(
+      '/?demo=1#/edit?path=src%2Fcontent%2Fblog%2Fnote%2F%E4%BE%BF%E7%AC%BA-Markdown-%E5%A4%87%E5%BF%98%E5%8D%95.md',
+    );
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    await page.getByRole('button', { name: '移动', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('移动 / 重命名')).toBeVisible();
+
+    const target = dialog.locator('input.abs-input');
+    await expect(target).toHaveValue('src/content/blog/note/便笺-Markdown-备忘单.md');
+    await target.fill('src/pages/about.md');
+    // 直接提交，不再出现二次确认页；失败同时留在对话框并给出 toast。
+    await dialog.getByRole('button', { name: '移动并提交' }).click();
+    await expect(dialog.getByText('确认移动并提交？')).toHaveCount(0);
+    await expect(dialog.getByRole('alert')).toContainText('目标路径已存在。');
+    await expect(page.locator('[data-sonner-toast]').filter({ hasText: '目标路径已存在。' })).toBeVisible();
+
+    await target.fill('src/content/blog/note/E2E-移动稿.md');
+    await dialog.getByRole('button', { name: '移动并提交' }).click();
+    await expect(page.getByText('已移动并提交')).toBeVisible();
+    await expect(page).toHaveURL(/path=src%2Fcontent%2Fblog%2Fnote%2FE2E-/);
+  });
+
   test('keeps several drafts in the local draft box and retires one after commit', async ({ page }) => {
     await page.goto('/?demo=1');
 

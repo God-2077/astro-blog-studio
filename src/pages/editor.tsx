@@ -110,6 +110,9 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState('');
   const [moveError, setMoveError] = useState<string | null>(null);
+  const [moving, setMoving] = useState(false);
+  const movingRef = useRef(false);
+  const moveTargetInputRef = useRef<HTMLInputElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('form');
   const [sourceText, setSourceText] = useState('');
@@ -124,6 +127,11 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const openedDraftRef = useRef<DraftRecord | null>(null);
   /** This session's content came from the draft box, so committing retires it. */
   const draftLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!moveOpen) return;
+    moveTargetInputRef.current?.focus();
+  }, [moveOpen]);
 
   useEffect(() => {
     if (!path) return;
@@ -646,32 +654,43 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     }
   };
 
+  const closeMoveDialog = (): void => {
+    setMoveOpen(false);
+    setMoving(false);
+    setMoveError(null);
+  };
+
+  /** 移动 Dialog 直接提交；进行中去重，按钮文案与 toast 同步状态。 */
   const handleMove = async (): Promise<void> => {
-    if (!path || isNew) return;
+    if (!path || isNew || movingRef.current) return;
     const target = joinPath(normalizeRepoPath(moveTarget));
     if (!target || target === path) {
       setMoveError(t('editor.move.samePath'));
       return;
     }
+    const { text, errors } = buildText();
+    if (Object.keys(errors).length) {
+      setMoveError(t('editor.frontmatter.invalidError'));
+      return;
+    }
+    movingRef.current = true;
+    setMoving(true);
     setMoveError(null);
+    const toastId = toast.loading(t('editor.move.submitting'));
     try {
-      const { text, errors } = buildText();
-      if (Object.keys(errors).length) {
-        setMoveError(t('editor.frontmatter.invalidError'));
-        return;
-      }
+      const message = renderCommitMessage(settings.commit.move, {
+        path: target,
+        oldPath: path,
+        newPath: target,
+        action: 'move',
+        date: formatInTimeZone(new Date(), config.timezone),
+        title: resolveCommitTitle(currentTitle, target),
+      });
       const result = await gateway.moveFile({
         from: path,
         to: target,
         text,
-        message: renderCommitMessage(settings.commit.move, {
-          path: target,
-          oldPath: path,
-          newPath: target,
-          action: 'move',
-          date: formatInTimeZone(new Date(), config.timezone),
-          title: resolveCommitTitle(currentTitle, target),
-        }),
+        message,
         branch: repo.defaultBranch,
         sha: loadedSha,
       });
@@ -685,11 +704,16 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       await backup.markSaved();
       await clearLocalDraft();
       await queryClient.invalidateQueries({ queryKey: ['tree', key] });
-      toast.success(t('editor.commit.movedToast'));
-      setMoveOpen(false);
+      toast.success(t('editor.commit.movedToast'), { id: toastId });
+      closeMoveDialog();
       navigate(`/edit?path=${encodeURIComponent(target)}`);
     } catch (caught) {
-      setMoveError(mapError(caught).detail ?? mapError(caught).message);
+      const error = mapError(caught);
+      setMoveError(error.detail ?? error.message);
+      toast.error(error.message, { id: toastId, description: error.detail });
+    } finally {
+      movingRef.current = false;
+      setMoving(false);
     }
   };
 
@@ -847,6 +871,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                     onClick={() => {
                       setMoveTarget(path);
                       setMoveError(null);
+                      setMoving(false);
                       setMoveOpen(true);
                     }}
                   >
@@ -1169,26 +1194,55 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         </Dialog.Portal>
       </Dialog.Root>
 
-      <Dialog.Root open={moveOpen} onOpenChange={setMoveOpen}>
+      <Dialog.Root
+        open={moveOpen}
+        onOpenChange={(next) => {
+          if (next) return;
+          if (moving) return;
+          closeMoveDialog();
+        }}
+      >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(560px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
+          <Dialog.Content
+            className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-24px)] w-[min(560px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop"
+            aria-busy={moving}
+            onEscapeKeyDown={(event) => {
+              if (moving) event.preventDefault();
+            }}
+            onPointerDownOutside={(event) => {
+              if (moving) event.preventDefault();
+            }}
+          >
             <Dialog.Title className="font-display text-[20px] font-bold">{t('editor.move.title')}</Dialog.Title>
             <Dialog.Description className="mt-1 text-[11px] text-muted">{t('editor.move.description')}</Dialog.Description>
             <Field label={t('editor.move.targetLabel')} className="mt-4">
               <input
                 className="abs-input font-mono text-[11px]"
                 value={moveTarget}
-                onChange={(event) => setMoveTarget(event.target.value)}
+                onChange={(event) => {
+                  setMoveTarget(event.target.value);
+                  setMoveError(null);
+                }}
+                ref={moveTargetInputRef}
               />
             </Field>
-            {moveError ? <p className="mt-2 text-[11px] text-danger">{moveError}</p> : null}
+            {moveError ? (
+              <p className="mt-2 text-[11px] text-danger" role="alert">
+                {moveError}
+              </p>
+            ) : null}
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="abs-btn abs-btn-ghost text-[11px]" onClick={() => setMoveOpen(false)}>
+              <button type="button" className="abs-btn abs-btn-ghost text-[11px]" onClick={closeMoveDialog} disabled={moving}>
                 {t('common.cancel')}
               </button>
-              <button type="button" className="abs-btn abs-btn-primary text-[11px]" onClick={() => void handleMove()}>
-                {t('editor.move.submit')}
+              <button
+                type="button"
+                className="abs-btn abs-btn-primary abs-btn-busy text-[11px]"
+                onClick={() => void handleMove()}
+                disabled={moving}
+              >
+                <span aria-live="polite">{moving ? t('editor.move.submitting') : t('editor.move.submit')}</span>
               </button>
             </div>
           </Dialog.Content>

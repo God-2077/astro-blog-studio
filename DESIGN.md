@@ -85,13 +85,13 @@ Markdown 源码语法色是一组**角色别名**，底层继续沿用上面的�
 - **保存草稿**：文件头 ghost「保存草稿」把当前编辑状态（表单/源文件模式、原始 YAML、正文、`sourceText`、已有文件的 `baseSha`）写入本机草稿箱；只写 IndexedDB，**不调用任何写 API**。真实仓库用保险库数据密钥经 HKDF（`abs:draft:v1`）派生的 AES-GCM 子密钥加密，demo 明文；成功后底栏在备份状态旁显示「草稿箱 HH:mm」并 toast。盖章提交（新建稿，或本次会话来自草稿箱）后移除该路径草稿，移动/删除同步清理；从草稿箱打开时若同路径自动备份更新，优先用备份内容，避免丢掉离开前的编辑。
 - **frontmatter 纸由设置中的字段配置动态生成**：名称、类型（string/date/number/boolean/list）、必填标记；string 单行、date 文本 + 格式提示、number 数字、boolean 复选、list 逗号分隔（categories 支持 `>` 层级）；password 字段掩码。必填为空或格式错误时在字段下就地提示并阻止提交。
 - **表单 / 源文件切换**：Markdown 纸头右侧「N 字 · 约 N 分钟」旁复用 `.abs-seg` 分段控件（`aria-pressed`，与设置页主题切换同一组件）。源文件模式把整份文件（`---` frontmatter + 正文）放进同一块 CodeMirror、隐藏 frontmatter 纸，眉题改为 `SOURCE · 整份文件`；页脚细条显示换行风格、字段数、未知字段数、缺少必填与「源文件模式不改写 updated」。源文件模式保存只还原原文件的 CRLF/LF 与 BOM，不解析 frontmatter、不改写键、不折叠结尾空行；YAML 损坏时纸头出现红色细条提示但仍允许保存。来源就是仓库里的那份文件，所以没有新增纹理/动画，安静规则照旧。模式是会话内视图状态（默认表单），刷新回到表单。
-- **新稿状态**：新建文章先在本地起草，URL 带 `new=1`；头部显示「未提交」，隐藏 GitHub/移动/删除，底栏提示「未提交」。第一次盖章保存才创建文件（一次 API），成功后 URL 去掉 `new` 并切换为普通编辑态。刷新/直接打开没有内存草稿的 `new=1` 时先检查本机备份：有备份就弹窗恢复，没有才显示「草稿已丢失」，绝不创建空文件。开始下一篇新稿时，上一篇内存草稿先经 `capturePendingDraft` 存入草稿箱（优先最新备份，其次已有草稿，最后初始文本），确认后才清空内存草稿；因此可以同时保留多篇新稿。
+- **新稿状态**：新建文章先在本地起草，URL 带 `new=1`；标题字段未配置或非必填时对话框隐藏标题输入框，文件名成为必填并用于 `{title}` 回退；头部显示「未提交」，隐藏 GitHub/移动/删除，底栏提示「未提交」。第一次盖章保存才创建文件（一次 API），成功后 URL 去掉 `new` 并切换为普通编辑态。刷新/直接打开没有内存草稿的 `new=1` 时先检查本机备份：有备份就弹窗恢复，没有才显示「草稿已丢失」，绝不创建空文件。开始下一篇新稿时，上一篇内存草稿先经 `capturePendingDraft` 存入草稿箱（优先最新备份，其次已有草稿，最后初始文本），确认后才清空内存草稿；因此可以同时保留多篇新稿。
 - **未保存备份**：编辑时约 600ms 防抖把整份文件快照写入本机 IndexedDB（同一文件只留最新一份；键含 mode + repo + branch + path），底栏在「未保存」旁显示「本机已备份 HH:mm」。真实仓库的快照以 AES-GCM 信封落盘（密钥由保险库数据密钥经 HKDF 派生），demo 快照保持明文；锁定前先 flush 再清密钥。进入编辑器时读取备份并弹 `AlertDialog`「发现未保存的备份」：显示保存时间、字数、路径，远端已变化时多一条 danger 提示；操作为「稍后 / 丢弃备份 / 恢复备份」。恢复用 `.abs-btn`（**不引入实心樱粉**），丢弃为 ghost + `border-danger/40 text-danger`，稍后为 ghost；「稍后」后文件头下方出现 butter 细条（恢复 / 丢弃），期间暂停覆盖式备份。恢复已有文件保留备份的 base sha，保存仍走 409；恢复新稿回到「未提交」，只写 pending draft。保存/移动/删除成功后删除备份；设置里可关闭或清除本仓库备份。弹窗不开入场动画，安静规则照旧。
 - **安静规则**：编辑纸无纹理、无旋转、无入场动画；只有 CodeMirror 的活动行/选区/选词匹配使用极浅腮红。Markdown 语法色只做层级区分（标题 `--abs-ink`、链接/分割线 `--abs-sakura-deep`、代码 `--abs-success`、字符串 `--abs-warning`、标点/引用/注释 `--abs-ink-soft`），不加背景块、不加发光。印章是唯一的实心红。
 - 提交：底栏「盖章保存」旋转印章；开启确认时弹出提交消息纸片；新稿按钮为「确认创建」，普通保存为「确认盖章」；成功后回执 toast。
 - 冲突：Radix Dialog，提供「重新加载远端 / 覆盖远端 / 取消」；新稿的远端同名冲突只提示换路径并保留草稿，不提供覆盖。
 - 只读/无权限：保存按钮禁用，底部提示；GitHub 返回 403 时 toast + 详情。
-- 移动：预填当前路径，一次提交；删除：AlertDialog。
+- 移动：预填当前路径；点「移动并提交」后按钮立即变为「正在移动并提交…」并在原对话框内提交，进行中的按钮保持主按钮在昼/夜下的对比度，禁用关闭/取消；成功/失败用 toast 反馈，失败同时留在框内可修改重试；删除：AlertDialog。
 - 移动端：预览在下方；索引在抽屉；盖章固定在纸尾。
 
 ### 设置（`/settings`）
@@ -123,7 +123,7 @@ Markdown 源码语法色是一组**角色别名**，底层继续沿用上面的�
 - **界面语言**：`src/lib/i18n` 是零依赖的类型化词典（`zh-CN` 源 + `zh-TW` / `ja` / `en` 同构），React 组件用 `useT()`，非 React 模块（错误翻译、校验、toast）用 `t()`；`LocaleSync` 挂在 App 根部，把 `settings.appearance.locale`（未设置则按浏览器检测）同步到 `<html lang>` 与模块级当前语言。所有用户可见文案都必须走词典，代码注释仍用中文；词典键、占位符与复数形状由 `tests/unit/i18n.test.ts` 校验。
 - 状态：Zustand `settings`（persist，活动仓库顶层配置 + 非活动仓库档案）、`vault`（不持久化，内存保存全部仓库 PAT）、`content`（本机文章缓存状态：status/progress/summaries/错误，不持久化，切换/锁定即清空内存但保留 IndexedDB）、`drafts`（草稿箱列表：显式草稿 + 自动备份合并后的 items/status，切换/锁定即清空内存）、`ui`、`rate-limit`、`last-commit`、`editor guard`、`pending-post`、`pwa`；未保存备份走 `useEditorBackup` + `lib/backup`（IndexedDB），草稿箱走 `lib/drafts`（IndexedDB `abs-drafts`，AES-GCM 子密钥），本机文章缓存走 `lib/content`（IndexedDB `abs-content`，AES-GCM），三者都不放进 service worker 缓存；服务端状态全部在 TanStack Query，key 含 `mode:owner/name@branch:rootDir`，切换仓库/分支/根目录自动失效。
 - 反馈全部就地：`ErrorNote`、`EmptyState`、`SkeletonList`、sonner toast；不把错误塞进 `console` 当用户反馈。toast 右侧常驻 `.abs-toast-close` X（纸底、1.5px 线边框的 24px 方块，hover 转 ink），点击立即关闭；自动消失与滑动关闭保留。
-- **确认统一走 `confirmAction`（`components/confirm-toast.tsx`）**：不再用 `window.confirm`。自定义 sonner toast 呈现「说明 + 取消 / 确认」，返回 `Promise<boolean>`，确认按钮用 `.abs-btn`（破坏性操作用 `.abs-btn-danger` 红色描边，实心樱粉仍只给「新建文章」）；不自动消失，默认焦点在「取消」，Esc 等价取消，滑动关闭/被新确认顶掉都按取消收口，调用方的 `await` 不会悬挂。确认后的异步动作由调用方继续 `await`，并对慢操作给按钮忙碌态与结果 toast。
+- **确认不使用 `window.confirm` / `alert`**：普通确认统一走 `confirmAction`（`components/confirm-toast.tsx`）；保存这类需要展示提交消息的操作使用编辑器内的提交消息 Popover；移动在移动 Dialog 内直接提交，不做二次确认，按钮进入进行中态并用 toast 报结果。`confirmAction` 用自定义 sonner toast 呈现「说明 + 取消 / 确认」，返回 `Promise<boolean>`，确认按钮用 `.abs-btn`（破坏性操作用 `.abs-btn-danger` 红色描边，实心樱粉仍只给「新建文章」）；不自动消失，默认焦点在「取消」，Esc 等价取消，滑动关闭/被新确认顶掉都按取消收口，调用方的 `await` 不会悬挂。确认后的异步动作由调用方继续 `await`，并对慢操作给按钮忙碌态与结果 toast。
 - **PWA 更新提示**：`PwaUpdate` 挂在 App 根部（`virtual:pwa-register/react`）。新版本进入 waiting 时用 Radix `AlertDialog` 弹「网站有新版本」，按钮「稍后」（`.abs-btn-ghost`）/「立即刷新」（默认 `.abs-btn`，**不用**实心樱粉——实心樱粉仍只属于「新建文章」）。点过「稍后」后顶栏出现带樱粉圆点的 `.abs-icon-btn`，可再次唤起弹窗；编辑器脏状态时弹窗内多一行 danger 提示，刷新时沿用现有 `beforeunload` 兜底。只有用户点「立即刷新」才整页 reload，**不自动刷新**。`pnpm dev` 不注册 Service Worker，PWA 只在构建产物里可见。浏览器标签图标与 `apple-touch-icon` 统一使用 `public/apple-touch-icon.png`。
 
 ## 动效
@@ -150,7 +150,7 @@ Markdown 源码语法色是一组**角色别名**，底层继续沿用上面的�
 - 原型里的封面网格、日历、分类视图、设置左侧目录、底部状态条未进入 v1；当前以文件树 + 工作台为主。
 - 代码高亮在编辑器中用 CodeMirror 的 Markdown 语法 + 自定义 `HighlightStyle`（`--abs-md-*` 角色）；默认浅色 fallback 已关闭。预览代码块用内置轻量高亮（按语言族着色、未知语言纯文本），不接入 shiki，避免首屏膨胀。
 - 预览对「表格单元格内含未转义 `|` 的行内代码」这类 GFM 边界会按标准表格解析；生产内容写作时请用 `\|`。这是解析器行为，不是安全降级。
-- 新建文章通过对话框而不是独立页面；移动/删除在编辑器中完成。
+- 新建文章通过对话框而不是独立页面；移动/删除在编辑器中完成，移动在对话框内直接提交一次（按钮进行中态 + toast 状态）。
 - **新稿先在本地起草**：对话框不写仓库；进入编辑器时显示「未提交」，第一次盖章才创建文件（一次 API）。这比原型里「先建文件再编辑」更克制，也避免空文件提交。刷新后若本机有备份，进入编辑器会先提示恢复草稿，而不是直接丢失。
 - **未保存备份**：原型没有本地草稿恢复；实现增加 IndexedDB 备份与进入检查。它只在本机、可关闭/清除，不改变 GitHub 写协议；恢复旧草稿时保留 base sha，冲突处理仍由现有 409 流程负责。
 - **frontmatter 字段可配置**：原型是固定字段；实现改为设置中的字段列表（名称/类型/必填），默认参考 hello-world 常用字段，超出字段作为未知字段保留。

@@ -1,14 +1,14 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { FilePlus2, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { confirmAction, dismissConfirm } from '@/components/confirm-toast';
 import { Field } from '@/components/ui';
 import { useParkPendingDraft } from '@/hooks/use-pending-draft';
-import { buildNewPostDocument } from '@/lib/frontmatter/fields';
+import { buildNewPostDocument, hasRequiredTitleField } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { useT } from '@/lib/i18n/react';
-import { renderCommitMessage } from '@/lib/paths/commit-message';
+import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
 import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
 import { collectFolders, type TreeModel } from '@/lib/tree/model';
 import { formatInTimeZone } from '@/lib/utils/date';
@@ -52,6 +52,7 @@ export function NewPostDialog({
   const [parking, setParking] = useState(false);
   /** 确认条挂在 sonner 根层：等待回答期间先解除 Dialog 的模态，否则 body 的 pointer-events 会挡住它。 */
   const [confirming, setConfirming] = useState(false);
+  const filenameRef = useRef<HTMLInputElement>(null);
 
   const folders = useMemo(
     () => (model ? collectFolders(model.nodes).map((folder) => joinPath(config.rootDir, folder.path)) : []),
@@ -67,7 +68,11 @@ export function NewPostDialog({
     setDir(folders.includes(preferred) ? preferred : config.rootDir);
   }, [open, settings.editor.defaultDir, config.rootDir, folders]);
 
-  const safeName = sanitizeFilePart(filename || title);
+  const showTitle = hasRequiredTitleField(settings.frontmatter.fields);
+  useEffect(() => {
+    if (open && !showTitle) filenameRef.current?.focus();
+  }, [open, showTitle]);
+  const safeName = sanitizeFilePart(showTitle ? filename || title : filename);
   const finalFile = safeName ? (safeName.toLowerCase().endsWith('.md') ? safeName : `${safeName}.md`) : '';
   const normalizedDir = normalizeRepoPath(dir);
   const fullDir =
@@ -76,17 +81,18 @@ export function NewPostDialog({
       : normalizedDir || config.rootDir;
   const path = joinPath(fullDir, finalFile);
   const date = formatInTimeZone(new Date(), settings.content.timezone);
+  const messageTitle = showTitle ? title.trim() || undefined : finalFile ? resolveCommitTitle('', path) : undefined;
   const message = renderCommitMessage(settings.commit.create, {
     path,
     action: 'create',
     date,
-    title: title.trim() || undefined,
+    title: messageTitle,
   });
   const collision = Boolean(model?.files.some((file) => file.path === path));
 
   const handleCreate = async (): Promise<void> => {
     if (parking || confirming) return;
-    if (!title.trim()) {
+    if (showTitle && !title.trim()) {
       setError(t('shell.newPost.errors.titleRequired'));
       return;
     }
@@ -117,7 +123,7 @@ export function NewPostDialog({
       }
     }
 
-    const text = buildNewPostDocument(settings.frontmatter.fields, { title: title.trim(), date });
+    const text = buildNewPostDocument(settings.frontmatter.fields, { title: showTitle ? title.trim() : '', date });
     setPendingDraft({ path, text });
     onOpenChange(false);
     navigate(`/edit?path=${encodeURIComponent(path)}&new=1`);
@@ -160,19 +166,27 @@ export function NewPostDialog({
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <Field label={t('shell.newPost.titleLabel')} className="sm:col-span-2">
-              <input
-                className="abs-input"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder={t('shell.newPost.titlePlaceholder')}
-              />
-            </Field>
+            {showTitle ? (
+              <Field label={t('shell.newPost.titleLabel')} className="sm:col-span-2">
+                <input
+                  className="abs-input"
+                  value={title}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    setError(null);
+                  }}
+                  placeholder={t('shell.newPost.titlePlaceholder')}
+                />
+              </Field>
+            ) : null}
             <Field label={t('shell.newPost.dirLabel')} hint={<span className="font-mono">{t('shell.newPost.dirHint')}</span>}>
               <input
                 className="abs-input font-mono text-[11px]"
                 value={dir}
-                onChange={(event) => setDir(event.target.value)}
+                onChange={(event) => {
+                  setDir(event.target.value);
+                  setError(null);
+                }}
                 list="studio-folders"
               />
               <datalist id="studio-folders">
@@ -183,13 +197,22 @@ export function NewPostDialog({
             </Field>
             <Field
               label={t('shell.newPost.filenameLabel')}
-              hint={<span className="font-mono">{t('shell.newPost.filenameHint')}</span>}
+              hint={
+                <span className="font-mono">
+                  {showTitle ? t('shell.newPost.filenameHint') : t('shell.newPost.filenameHintRequired')}
+                </span>
+              }
             >
               <input
                 className="abs-input font-mono text-[11px]"
                 value={filename}
-                onChange={(event) => setFilename(event.target.value)}
+                onChange={(event) => {
+                  setFilename(event.target.value);
+                  setError(null);
+                }}
                 placeholder={safeName ? `${safeName}.md` : 'filename.md'}
+                aria-required={showTitle ? undefined : true}
+                ref={filenameRef}
               />
             </Field>
           </div>

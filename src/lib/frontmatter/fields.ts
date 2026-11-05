@@ -191,6 +191,14 @@ export function missingRequiredFieldNames(fields: readonly FrontmatterField[], d
     .map((field) => field.name);
 }
 
+/**
+ * 新建文章对话框只在 title 是可写入的必填 string 字段时显示标题输入框。
+ * 非 string 的 title 不会被 buildNewPostDocument 写入，按不可用处理。
+ */
+export function hasRequiredTitleField(fields: readonly FrontmatterField[]): boolean {
+  return fields.some((field) => field.name === 'title' && field.type === 'string' && field.required);
+}
+
 function validateFieldValue(field: FrontmatterField, value: FrontmatterFormValue): string | null {
   if (field.type === 'boolean') return null;
   const text = typeof value === 'string' ? value.trim() : '';

@@ -161,6 +161,7 @@ const editor: EditorMessages = {
     targetLabel: 'Target path',
     samePath: 'Enter a different target path',
     submit: 'Move and commit',
+    submitting: 'Moving and committing…',
   },
   delete: {
     button: 'Delete',

@@ -54,6 +54,7 @@ const shell: ShellMessages = {
     dirHint: 'Choose or type a path inside the blog root',
     filenameLabel: 'Filename',
     filenameHint: 'Defaults to the title when empty',
+    filenameHintRequired: 'Required; used for the post path',
     preview: 'Will be created · committed on save',
     commitMessage: 'Commit message:',
     start: 'Start drafting',

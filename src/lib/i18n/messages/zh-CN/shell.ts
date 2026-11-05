@@ -52,6 +52,7 @@ const shell = {
     dirHint: '在博客根目录内选择或输入',
     filenameLabel: '文件名',
     filenameHint: '留空时用标题',
+    filenameHintRequired: '必填，用于生成文章路径',
     preview: '将创建 · 保存时提交',
     commitMessage: '提交消息：',
     start: '开始起草',
