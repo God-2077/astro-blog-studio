@@ -1,20 +1,30 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, KeyRound, LockKeyhole, Plus, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Download, KeyRound, LockKeyhole, Plus, RefreshCw, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AddRepoDialog } from '@/components/add-repo-dialog';
 import { Collapse } from '@/components/collapse';
 import { confirmAction } from '@/components/confirm-toast';
+import { ExportConfigDialog, type ExportConfigMeta } from '@/components/export-config-dialog';
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
 import { RepoTokenDialog } from '@/components/repo-token-dialog';
 import { useResolvedTheme } from '@/components/theme-provider';
 import { Field, Spinner } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
 import { useContentActions } from '@/hooks/use-content-sync';
+import { useParkPendingDraft } from '@/hooks/use-pending-draft';
 import { useRepoManager } from '@/hooks/use-repo-manager';
 import { backupKeyPrefix } from '@/lib/backup/model';
 import { clearBackupsByPrefix } from '@/lib/backup/store';
+import {
+  buildConfigExport,
+  ConfigExportError,
+  collectExportTokens,
+  configExportFilename,
+  requiresExportPassword,
+} from '@/lib/config/export';
+import { ConfigImportError, parseConfigImport } from '@/lib/config/import';
 import { clampIndexConcurrency, INDEX_CONCURRENCY_MAX, INDEX_CONCURRENCY_MIN, type RepoProfile } from '@/lib/config/schema';
 import {
   cloneFrontmatterFields,
@@ -31,9 +41,14 @@ import { allRepoProfiles } from '@/lib/repos/profile';
 import { THEME_OPTIONS, type ThemePreference } from '@/lib/theme/theme';
 import { cn } from '@/lib/utils/cn';
 import { formatInTimeZone } from '@/lib/utils/date';
+import { downloadTextFile } from '@/lib/utils/download';
+import { VaultError, verifyVaultPassword } from '@/lib/vault/keystore';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode, vaultModeLabel } from '@/lib/vault/mode';
 import { vaultSession } from '@/lib/vault/session';
 import { useContent } from '@/stores/content';
+import { useDrafts } from '@/stores/drafts';
+import { useLastCommit } from '@/stores/last-commit';
+import { useRateLimit } from '@/stores/rate-limit';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
 
@@ -60,15 +75,16 @@ function stableSnapshot(value: unknown): string {
   });
 }
 
-/** Remount the whole form when the active repository changes. */
+/** Remount the whole form when the active repository changes or an import lands. */
 export function SettingsPage() {
   const mode = useGateway().mode;
   const activeRepo = useSettings((state) => state.repo);
-  const sessionKey = `${mode}:${activeRepo ? repoProfileKey(activeRepo) : 'none'}`;
-  return <SettingsSession key={sessionKey} />;
+  const [revision, setRevision] = useState(0);
+  const sessionKey = `${mode}:${activeRepo ? repoProfileKey(activeRepo) : 'none'}:${revision}`;
+  return <SettingsSession key={sessionKey} onImported={() => setRevision((value) => value + 1)} />;
 }
 
-function SettingsSession() {
+function SettingsSession({ onImported }: { onImported: () => void }) {
   const { mode, repo, config } = useGateway();
   const settings = useSettings();
   const vault = useVault();
@@ -109,7 +125,11 @@ function SettingsSession() {
   const [repoBusy, setRepoBusy] = useState(false);
   const [addRepoOpen, setAddRepoOpen] = useState(false);
   const [tokenEditing, setTokenEditing] = useState<RepoProfile | null>(null);
+  const [exportMeta, setExportMeta] = useState<ExportConfigMeta | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { switchRepo, addRepo, updateToken, removeRepo } = useRepoManager();
+  const parkPendingDraft = useParkPendingDraft();
 
   const isDemo = mode === 'demo';
   const repoProfiles = isDemo ? [] : allRepoProfiles(settings);
@@ -369,6 +389,136 @@ function SettingsSession() {
     if (!confirmed) return;
     setFields(cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS));
     setFieldError(null);
+  };
+
+  const openExport = (): void => {
+    if (isDemo) {
+      setExportMeta({ source: 'demo', repoCount: 0, tokenCount: 0, missing: [], requiresPassword: false });
+      return;
+    }
+    if (!vaultSession.has()) {
+      toast.error(t('settings.export.locked'));
+      return;
+    }
+    const latest = useSettings.getState();
+    const profiles = allRepoProfiles(latest);
+    const { tokens, missing } = collectExportTokens(
+      profiles,
+      latest.repo,
+      vaultSession.getRepoTokenEntries(),
+      vaultSession.getLegacyToken(),
+    );
+    setExportMeta({
+      source: 'live',
+      repoCount: new Set(profiles.map((profile) => repoTokenKey(profile))).size,
+      tokenCount: Object.keys(tokens).length,
+      missing,
+      requiresPassword: requiresExportPassword(useVault.getState().mode),
+    });
+  };
+
+  const handleExport = async (password?: string): Promise<void> => {
+    try {
+      const now = new Date();
+      if (isDemo) {
+        const document = buildConfigExport({
+          settings: useSettings.getState(),
+          tokens: {},
+          source: 'demo',
+          now,
+        });
+        downloadTextFile(configExportFilename(now), `${JSON.stringify(document, null, 2)}\n`);
+        toast.success(t('settings.toast.exported'));
+        return;
+      }
+
+      if (!vaultSession.has()) throw new ConfigExportError(t('settings.export.locked'));
+
+      let latest = useSettings.getState();
+      let profiles = allRepoProfiles(latest);
+      let collected = collectExportTokens(
+        profiles,
+        latest.repo,
+        vaultSession.getRepoTokenEntries(),
+        vaultSession.getLegacyToken(),
+      );
+      if (collected.missing.length > 0) {
+        throw new ConfigExportError(t('settings.export.missingPat', { repos: collected.missing.join(', ') }));
+      }
+
+      if (requiresExportPassword(useVault.getState().mode)) {
+        if (!password) throw new ConfigExportError(t('settings.export.passwordRequired'));
+        await verifyVaultPassword(password);
+        if (!vaultSession.has()) throw new ConfigExportError(t('settings.export.locked'));
+        // 校验期间可能发生自动锁定；重新读取会话令牌，避免导出旧快照。
+        latest = useSettings.getState();
+        profiles = allRepoProfiles(latest);
+        collected = collectExportTokens(
+          profiles,
+          latest.repo,
+          vaultSession.getRepoTokenEntries(),
+          vaultSession.getLegacyToken(),
+        );
+        if (collected.missing.length > 0) {
+          throw new ConfigExportError(t('settings.export.missingPat', { repos: collected.missing.join(', ') }));
+        }
+      }
+
+      const document = buildConfigExport({
+        settings: latest,
+        tokens: collected.tokens,
+        source: 'live',
+        now,
+      });
+      downloadTextFile(configExportFilename(now), `${JSON.stringify(document, null, 2)}\n`);
+      toast.success(t('settings.toast.exported'));
+    } catch (caught) {
+      if (caught instanceof ConfigExportError || caught instanceof VaultError) throw caught;
+      throw new ConfigExportError(t('settings.export.failed'));
+    }
+  };
+
+  const handleImportFile = async (file: File): Promise<void> => {
+    setImportBusy(true);
+    try {
+      const parsed = parseConfigImport(await file.text());
+      if (!vaultSession.has()) throw new Error(t('settings.transfer.locked'));
+      const confirmed = await confirmAction(t('settings.transfer.confirmTitle'), {
+        description: `${t('settings.transfer.confirmDescription')} ${t('settings.transfer.confirmSummary', {
+          repos: parsed.repoCount,
+          tokens: parsed.tokenCount,
+        })}`,
+        confirmLabel: t('settings.transfer.confirmLabel'),
+        danger: true,
+      });
+      if (!confirmed) return;
+
+      const parked = await parkPendingDraft();
+      if (parked === 'failed') throw new Error(t('errors.repo.parkFailed'));
+      await vault.replaceRepoTokens(parsed.tokens);
+      useSettings.getState().replaceFromImport(parsed.settings);
+      useContent.getState().reset();
+      useDrafts.getState().reset();
+      useLastCommit.getState().clear();
+      useRateLimit.getState().reset();
+      queryClient.clear();
+      toast.success(t('settings.toast.imported'));
+      onImported();
+    } catch (caught) {
+      if (caught instanceof ConfigImportError) {
+        if (caught.code === 'MISSING_PAT') {
+          toast.error(t('settings.transfer.missingPat', { repos: caught.missing.join(', ') }));
+        } else if (caught.code === 'DEMO_SOURCE') {
+          toast.error(t('settings.transfer.demoSource'));
+        } else {
+          toast.error(t('settings.transfer.invalidFile'));
+        }
+      } else {
+        toast.error(caught instanceof Error ? caught.message : t('settings.transfer.failed'));
+      }
+    } finally {
+      setImportBusy(false);
+    }
   };
 
   return (
@@ -786,6 +936,41 @@ function SettingsSession() {
               </select>
             </div>
           </Collapse>
+
+          <Collapse title={t('settings.transfer.title')} tape="mint" meta={t('settings.transfer.meta')}>
+            <div className="mt-0.5 rounded-xl border border-dashed border-line bg-paper-2 p-3">
+              <p className="text-[10.5px] leading-relaxed text-muted">{t('settings.transfer.exportDescription')}</p>
+              <button type="button" className="abs-btn abs-btn-ghost mt-2 h-8 text-[11px]" onClick={openExport}>
+                <Download aria-hidden className="size-3" />
+                {t('settings.export.button')}
+              </button>
+            </div>
+            <div className="mt-2 rounded-xl border border-dashed border-line bg-paper-2 p-3">
+              <p className="text-[10.5px] leading-relaxed text-muted">{t('settings.transfer.importDescription')}</p>
+              {isDemo ? <p className="mt-1 text-[10px] leading-relaxed text-muted">{t('settings.transfer.demoNote')}</p> : null}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  if (file) void handleImportFile(file);
+                }}
+              />
+              <button
+                type="button"
+                className="abs-btn abs-btn-ghost mt-2 h-8 text-[11px]"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isDemo || importBusy}
+                aria-busy={importBusy}
+              >
+                <Upload aria-hidden className="size-3" />
+                {importBusy ? t('settings.transfer.importing') : t('settings.transfer.importButton')}
+              </button>
+            </div>
+          </Collapse>
         </div>
 
         <aside className="space-y-3">
@@ -904,6 +1089,14 @@ function SettingsSession() {
           profile={tokenEditing}
           onClose={() => setTokenEditing(null)}
           onSubmit={(token) => handleUpdateToken(tokenEditing, token)}
+        />
+      ) : null}
+      {exportMeta ? (
+        <ExportConfigDialog
+          meta={exportMeta}
+          dirty={settingsDirty}
+          onClose={() => setExportMeta(null)}
+          onExport={handleExport}
         />
       ) : null}
     </div>

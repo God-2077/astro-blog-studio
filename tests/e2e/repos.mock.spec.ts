@@ -1,4 +1,5 @@
 import { expect, type Page, type Route, test } from '@playwright/test';
+import { readDownloadedJson } from './download';
 
 const password = process.env.E2E_PASSWORD ?? 'studio-e2e-password';
 const repoA = 'mock-owner/repo-a';
@@ -275,6 +276,110 @@ test.describe('multiple repositories (mocked GitHub)', () => {
       .poll(() => [...(state.authSeen.get(repoB) ?? new Set<string>())].some((value) => value.includes(newPatB)))
       .toBe(true);
 
+    // 导出全部已保存仓库及其 PAT；活动仓库 B 与非活动仓库 A 的配置不能串位，
+    // 密码错误时也不能产生下载。
+    let downloads = 0;
+    page.on('download', () => {
+      downloads += 1;
+    });
+    await page.getByRole('button', { name: '导出配置', exact: true }).click();
+    const exportDialog = page.getByRole('dialog');
+    await expect(exportDialog.getByText('文件包含明文 PAT', { exact: true })).toBeVisible();
+    await expect(exportDialog.getByText('2 个仓库 · 2 个 PAT', { exact: true })).toBeVisible();
+    await exportDialog.getByRole('button', { name: '继续导出' }).click();
+    await expect(exportDialog.getByRole('heading', { name: '确认密码' })).toBeVisible();
+
+    const passwordInput = exportDialog.locator('input[type="password"]');
+    await passwordInput.fill('wrong password');
+    await exportDialog.getByRole('button', { name: '验证并导出' }).click();
+    await expect(exportDialog.getByRole('alert')).toContainText('密码错误');
+    expect(downloads).toBe(0);
+
+    await passwordInput.fill(password);
+    const downloadPromise = page.waitForEvent('download');
+    await exportDialog.getByRole('button', { name: '验证并导出' }).click();
+    const download = await downloadPromise;
+    const exported = await readDownloadedJson<{
+      format: string;
+      version: number;
+      source: string;
+      tokens: Record<string, string>;
+      settings: {
+        content: { rootDir: string };
+        commit: { create: string };
+        repos: Array<{ content: { rootDir: string }; commit: { create: string } }>;
+        frontmatter: { fields: unknown[] };
+        appearance: Record<string, unknown>;
+      };
+    }>(download);
+
+    expect(exported.format).toBe('astro-blog-studio/config-export');
+    expect(exported.version).toBe(1);
+    expect(exported.source).toBe('live');
+    expect(exported.tokens).toEqual({ [repoA]: state.patA, [repoB]: newPatB });
+    expect(exported.settings.content.rootDir).toBe('content-b');
+    expect(exported.settings.commit.create).toBe('b: {title}');
+    expect(exported.settings.repos).toHaveLength(1);
+    expect(exported.settings.repos[0]?.content.rootDir).toBe('src');
+    expect(exported.settings.repos[0]?.commit.create).toBe('a: {title}');
+    expect(Array.isArray(exported.settings.frontmatter.fields)).toBe(true);
+    expect(Object.keys(exported.settings.appearance).length).toBeGreaterThan(0);
+
+    // The download carries plaintext PATs, but the browser store must not.
+    const stored = await page.evaluate(() => JSON.stringify(localStorage));
+    expect(stored).not.toContain(state.patA);
+    expect(stored).not.toContain(newPatB);
+    await expect(exportDialog).toBeHidden();
+    await expect(page.getByText('配置已导出', { exact: true })).toBeVisible();
+
+    // 导入整体替换配置与 PAT：改掉活动 B 的提交模板和两个仓库的 PAT，
+    // 再切到非活动 A，确认导入的仓库档案与令牌都已经生效。
+    const importedPatA = 'pat-a-imported';
+    const importedPatB = 'pat-b-imported';
+    const imported = structuredClone(exported);
+    imported.settings.commit.create = 'imported: {title}';
+    const importedInactive = imported.settings.repos[0];
+    if (!importedInactive) throw new Error('expected an inactive repository in the export');
+    importedInactive.commit.create = 'imported-a: {title}';
+    imported.tokens[repoA] = importedPatA;
+    imported.tokens[repoB] = importedPatB;
+
+    const transfer = page.locator('section.abs-paper').filter({ hasText: '配置导入与导出' });
+    await transfer.locator('input[type="file"]').setInputFiles({
+      name: 'config.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(imported)),
+    });
+    await answerConfirm(page, '导入并替换');
+    await expect(page.getByText('配置已导入', { exact: true })).toBeVisible();
+    await expect(rootDirInput()).toHaveValue('content-b');
+    await expect(createInput()).toHaveValue('imported: {title}');
+
+    await rowA.getByRole('button', { name: '切换' }).click();
+    await expect(page.locator('.abs-topbar')).toContainText(repoA);
+    await expect(createInput()).toHaveValue('imported-a: {title}');
+    await page.locator('.abs-brand').click();
+    await expect(page.getByText('A 文章')).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(() => [...(state.authSeen.get(repoA) ?? new Set<string>())].some((value) => value.includes(importedPatA)))
+      .toBe(true);
+
+    await page.locator('.abs-topbar').getByRole('link', { name: '设置', exact: true }).click();
+    await rowB.getByRole('button', { name: '切换' }).click();
+    await expect(page.locator('.abs-topbar')).toContainText(repoB);
+    await expect(createInput()).toHaveValue('imported: {title}');
+    await page.locator('.abs-brand').click();
+    await expect(page.getByText('B 文章')).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(() => [...(state.authSeen.get(repoB) ?? new Set<string>())].some((value) => value.includes(importedPatB)))
+      .toBe(true);
+
+    // 导入后的明文 PAT 也不能进入浏览器存储。
+    const importedStorage = await page.evaluate(() => JSON.stringify(localStorage));
+    expect(importedStorage).not.toContain(importedPatA);
+    expect(importedStorage).not.toContain(importedPatB);
+
+    await page.locator('.abs-topbar').getByRole('link', { name: '设置', exact: true }).click();
     // Removing the inactive A profile cleans its repository row.
     await rowA.getByRole('button', { name: '移除' }).click();
     await answerConfirm(page, '移除仓库');

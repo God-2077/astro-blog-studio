@@ -262,6 +262,42 @@ describe('multiple repository tokens', () => {
     expect(() => vault.removeRepoTokenFromVault(removed, repoKey)).toThrowError(/最后一个/);
   });
 
+  it('replaces every repository token in one write and drops the legacy token', async () => {
+    const vault = await freshVault();
+    const created = await vault.createVault({ repoKey, token, mode: 'password', password, iterations: 1000 });
+    const withSecond = await vault.addRepoTokenToVault(created.payload, created.dataKey, repoKeyB, tokenB);
+    const withLegacy: VaultPayload = {
+      ...withSecond,
+      token: { iv: 'legacy-iv', ciphertext: 'legacy-ciphertext' },
+    };
+
+    const replaced = await vault.replaceRepoTokensInVault(withLegacy, created.dataKey, {
+      [repoKey]: ' new-a ',
+      [repoKeyB]: 'new-b',
+    });
+
+    expect(replaced.token).toBeUndefined();
+    expect(Object.keys(replaced.tokens ?? {}).sort()).toEqual([repoKey, repoKeyB].sort());
+    await expect(vault.unlockWithPassword(replaced, password)).resolves.toMatchObject({
+      token: null,
+      tokens: { [repoKey]: 'new-a', [repoKeyB]: 'new-b' },
+    });
+    const persisted = localStorage.getItem(vault.VAULT_STORAGE_KEY) ?? '';
+    expect(persisted).not.toContain('new-a');
+    expect(persisted).not.toContain('new-b');
+    expect(persisted).not.toContain(token);
+    expect(persisted).not.toContain(tokenB);
+  });
+
+  it('refuses to replace the token map with an empty one', async () => {
+    const vault = await freshVault();
+    const created = await vault.createVault({ repoKey, token, mode: 'password', password, iterations: 1000 });
+
+    await expect(vault.replaceRepoTokensInVault(created.payload, created.dataKey, {})).rejects.toMatchObject({
+      code: 'INVALID_INPUT',
+    });
+  });
+
   it('migrates a legacy single token to the active repository', async () => {
     const crypto = await (async () => {
       vi.resetModules();
@@ -350,5 +386,53 @@ describe('vault rewrap while unlocked', () => {
     expect(vault.vaultModeOf(deviceOnly)).toBe('device');
     const secrets = await vault.unlockWithDevice(deviceOnly);
     expect(secrets.tokens[repoKey]).toBe(token);
+  });
+});
+
+describe('verify vault password', () => {
+  it('accepts the current password and leaves localStorage untouched', async () => {
+    const vault = await freshVault();
+    await vault.createVault({ repoKey, token, mode: 'password', password, iterations: 1000 });
+    const before = localStorage.getItem(vault.VAULT_STORAGE_KEY);
+
+    await expect(vault.verifyVaultPassword(password)).resolves.toBeUndefined();
+
+    expect(localStorage.getItem(vault.VAULT_STORAGE_KEY)).toBe(before);
+  });
+
+  it('rejects a wrong password', async () => {
+    const vault = await freshVault();
+    await vault.createVault({ repoKey, token, mode: 'password', password, iterations: 1000 });
+
+    await expect(vault.verifyVaultPassword('wrong password')).rejects.toMatchObject({ code: 'WRONG_PASSWORD' });
+  });
+
+  it('rejects device-only and missing vaults without a password envelope', async () => {
+    const vault = await freshVault();
+    await expect(vault.verifyVaultPassword(password)).rejects.toMatchObject({ code: 'NO_METHOD' });
+
+    await vault.createVault({ repoKey, token, mode: 'device', iterations: 1000 });
+    await expect(vault.verifyVaultPassword(password)).rejects.toMatchObject({ code: 'NO_METHOD' });
+  });
+
+  it('checks only the data key, so a corrupt PAT envelope does not block the confirmation', async () => {
+    const vault = await freshVault();
+    const { payload } = await vault.createVault({ repoKey, token, mode: 'password', password, iterations: 1000 });
+    const envelope = payload.tokens?.[repoKey];
+    expect(envelope).toBeDefined();
+    if (!envelope) return;
+    const tampered: VaultPayload = {
+      ...payload,
+      tokens: {
+        ...payload.tokens,
+        [repoKey]: { ...envelope, ciphertext: `${envelope.ciphertext.slice(0, -4)}AAAA` },
+      },
+    };
+    vault.saveVault(tampered);
+    const before = localStorage.getItem(vault.VAULT_STORAGE_KEY);
+
+    await expect(vault.verifyVaultPassword(password)).resolves.toBeUndefined();
+    expect(localStorage.getItem(vault.VAULT_STORAGE_KEY)).toBe(before);
+    await expect(vault.unlockWithPassword(tampered, password)).rejects.toMatchObject({ code: 'CORRUPT' });
   });
 });

@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { readDownloadedJson } from './download';
 
 /** 等 sonner 确认条出现，再点其中一个按钮（取代原生 confirm 的 accept）。 */
 async function answerConfirm(page: Page, label: string): Promise<void> {
@@ -121,14 +122,14 @@ test.describe('demo mode', () => {
     await page.goto('/?demo=1#/settings');
 
     const sections = page.locator('section.abs-paper');
-    await expect(sections).toHaveCount(8);
-    for (let index = 0; index < 8; index += 1) {
+    await expect(sections).toHaveCount(9);
+    for (let index = 0; index < 9; index += 1) {
       await expect(sections.nth(index)).toHaveAttribute('data-open', 'true');
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload();
-    await expect(page.locator('section.abs-paper[data-open="false"]')).toHaveCount(8);
+    await expect(page.locator('section.abs-paper[data-open="false"]')).toHaveCount(9);
 
     const contentSection = page.locator('section.abs-paper').filter({ hasText: '内容与排除' });
     const contentHeader = contentSection.getByRole('button', { name: /内容与排除/ });
@@ -667,5 +668,51 @@ test.describe('demo mode', () => {
       expect(token.ratio, `${token.color} on day paper`).toBeGreaterThanOrEqual(4.5);
     }
     expect(day.map((token) => token.color)).not.toEqual(night.map((token) => token.color));
+  });
+
+  test('exports demo configuration as a JSON download without PATs or a password prompt', async ({ page }) => {
+    await page.goto('/?demo=1#/settings');
+    const transfer = page.locator('section.abs-paper').filter({ hasText: '配置导入与导出' });
+    await expect(transfer).toContainText('演示模式不支持导入');
+    await expect(transfer.getByRole('button', { name: '导入配置', exact: true })).toBeDisabled();
+
+    await transfer.getByRole('button', { name: '导出配置', exact: true }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('演示模式没有 PAT；导出文件只包含演示配置。')).toBeVisible();
+    await expect(dialog.locator('input[type="password"]')).toHaveCount(0);
+
+    const downloadPromise = page.waitForEvent('download');
+    await dialog.getByRole('button', { name: '继续导出' }).click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toMatch(/^astro-blog-studio-config-\d{8}-\d{6}\.json$/);
+    const document = await readDownloadedJson<{
+      format: string;
+      version: number;
+      source: string;
+      tokens: Record<string, string>;
+      settings: {
+        content: { rootDir: string };
+        commit: { create: string };
+        frontmatter: { fields: unknown[] };
+        editor: Record<string, unknown>;
+        appearance: Record<string, unknown>;
+        security: Record<string, unknown>;
+      };
+    }>(download);
+
+    expect(document.format).toBe('astro-blog-studio/config-export');
+    expect(document.version).toBe(1);
+    expect(document.source).toBe('demo');
+    expect(document.tokens).toEqual({});
+    expect(document.settings.content.rootDir).toBe('src');
+    expect(document.settings.commit.create).toBeTruthy();
+    expect(Array.isArray(document.settings.frontmatter.fields)).toBe(true);
+    expect(Object.keys(document.settings.editor).length).toBeGreaterThan(0);
+    expect(Object.keys(document.settings.appearance).length).toBeGreaterThan(0);
+    expect(Object.keys(document.settings.security).length).toBeGreaterThan(0);
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText('配置已导出', { exact: true })).toBeVisible();
   });
 });

@@ -34,7 +34,8 @@
 - **外观 / 夜间模式**：默认跟随系统，也可固定为昼或夜；`<html data-theme>` 在首帧前由内联脚本应用，避免刷新白闪。夜间是暖墨纸与米白墨（不是反相、不用纯黑），CodeMirror、Markdown 预览、设置、解锁与移动端共用同一套 `--abs-*` token。
 - **界面语言**：支持简体中文、繁體中文、日本語、English。首次进入 Setup 会按浏览器语言自动选择（不在四语内回退英语），右上角可立即切换；之后可在设置「外观」卡切换。语言保存在本机设置里，即时生效并同步 `<html lang>`，刷新、锁定和解锁后保持；只影响 UI 文案，不改变文章内容、提交模板、frontmatter 字段或本机缓存。
 - **保险库**：PAT 以 AES-GCM-256 加密后写 localStorage；密钥由 PBKDF2-SHA256（600k 次）派生；三种解锁方式——设备指纹（FingerprintJS）自动解锁、密码、**密码 + 设备双因子**。双因子是严格 AND：密码 KEK 混入设备指纹，payload 里不存独立设备包装，设备单独无法解锁；内存会话保存令牌与数据密钥，锁定清空。
-- **设置**：覆盖仓库管理、内容、本机缓存、Frontmatter 字段、提交模板、编辑器、未保存备份、安全解锁、外观与界面语言；仓库相关配置按仓库独立保存，每个分区可折叠（手机 <768px 默认折叠、宽屏默认展开）。[设置项清单](architecture.md#设置项)
+- **设置**：覆盖仓库管理、内容、本机缓存、Frontmatter 字段、提交模板、编辑器、未保存备份、安全解锁、外观与界面语言、配置导入与导出；仓库相关配置按仓库独立保存，每个分区可折叠（手机 <768px 默认折叠、宽屏默认展开）。[设置项清单](architecture.md#设置项)
+- **配置导入与导出**：设置页「配置导入与导出」分区的「导出配置」把全部仓库（活动 + 非活动）的配置、Frontmatter 字段、提交模板、编辑器/外观/安全等全局设置，以及每个仓库的 PAT 明文写进一个 JSON；只导出上次保存到本机的配置，设置页未保存的改动不会进入文件。导出前明确提示明文 PAT；解锁方式为「密码」时需要再次输入密码校验，其他解锁方式与 demo 不要求密码，demo 文件不含 PAT。不导出本机草稿、未保存备份、文章缓存或保险库密钥；文件只在浏览器内存生成并直接下载，不写入 localStorage / CacheStorage。「导入配置」只在真实仓库且保险库已解锁时可用，读取同一 JSON 后整体替换全部仓库、全局设置与 PAT；导入前用确认条二次确认，文件里没有的旧仓库与旧 PAT 会被移除，且不会校验新 PAT 是否仍可访问；demo 只保留导出。
 - **响应式**：桌面双栏、移动端抽屉索引；`prefers-reduced-motion` 降级。
 - **PWA**：构建产物带 `manifest.webmanifest` 与 Service Worker，应用壳（HTML/JS/CSS/字体/图标）预缓存，第二次打开与弱网/断网打开都不等网络；检测到新部署时弹窗提示刷新（不自动刷新）；浏览器标签与 `apple-touch-icon` 统一使用 `/apple-touch-icon.png`。[PWA 与离线](architecture.md#pwa-与离线)
 
@@ -48,6 +49,7 @@
 - **真实仓库的草稿箱同样是密文**：草稿记录用独立的 HKDF 子密钥（`abs:draft:v1`）加密，AAD 绑定仓库/分支/路径、保存时间与大小；锁定即丢弃内存明文，重置保险库会清除真实仓库草稿。[完整行为](drafts.md)
 - **本机文章缓存也是密文**：索引 meta（tree sha + 路径/blob sha）和每篇文章（路径 + sha + 正文）分别用保险库数据密钥经 HKDF 派生的 AES-GCM 子密钥加密后写在本机 IndexedDB `abs-content`；AAD 绑定仓库/分支/路径/blob sha，换仓库或换 sha 都解不开。锁定会清空内存中的明文摘要，重置保险库会删除本机所有 `live:` 文章缓存；缓存不进 CacheStorage，也不含 PAT。请求层还强制 `cache: 'no-store'`，不使用浏览器 HTTP 缓存，避免 GitHub 的 60 秒缓存把旧内容当成最新。demo 仓库只在内存里缓存，刷新回到 fixture。[完整行为](content-cache.md)
 - **渲染、运行时与配置**：预览用 DOMPurify 白名单净化；外链自动 `rel="noreferrer noopener"`；不加载第三方脚本、字体或 iframe。`HashRouter` + 纯静态托管；无后端、无 Cookie、无服务端日志。`.env.local` 只给 Node 测试用，已在 `.gitignore` 中；不要把真实 PAT 写进任何会被提交的文件。建议部署时加 CSP（至少限制 `script-src 'self'`、`connect-src 'self' https://api.github.com`、`img-src 'self' data: https:`、`worker-src 'self'`、`manifest-src 'self'`），并保持依赖更新。
+- **导出文件包含明文 PAT**：设置页「配置导入与导出」的「导出配置」会生成包含所有仓库 PAT 明文的 JSON；该文件只作为内存 Blob 直接下载，不写 localStorage / CacheStorage，也不会进入日志或页面 DOM。请把文件当作密钥保管，不要上传到公开位置、提交到仓库或分享。密码模式会在下载前再次校验密码；双因子、设备指纹与 demo 不做二次校验（demo 本身没有 PAT）。导入只在已解锁的真实仓库可用，文件只在内存解析，不显示 PAT；成功后整体替换仓库、全局设置与 PAT。
 
 ## 已知限制
 
