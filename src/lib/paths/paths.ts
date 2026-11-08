@@ -44,9 +44,18 @@ export function createExclusionMatcher(entries: string[]): ExclusionMatcher {
   };
 }
 
-export function isMarkdownFile(path: string, extensions: string[]): boolean {
+/** Only these suffixes use the Markdown document model; every other visible file is plain text. */
+export const MARKDOWN_EXTENSIONS: readonly string[] = ['.md', '.mdx'];
+
+/** Matches any extension configured for the content index (not necessarily Markdown). */
+export function isMarkdownFile(path: string, extensions: readonly string[]): boolean {
   const lower = path.toLowerCase();
   return extensions.some((extension) => lower.endsWith(extension.toLowerCase()));
+}
+
+/** True only for `.md` / `.mdx`, case-insensitively. */
+export function isMarkdownDocument(path: string): boolean {
+  return isMarkdownFile(path, MARKDOWN_EXTENSIONS);
 }
 
 export function isUnderRoot(path: string, rootDir: string): boolean {

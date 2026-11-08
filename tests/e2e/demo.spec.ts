@@ -315,6 +315,14 @@ test.describe('demo mode', () => {
     await expect(page).not.toHaveURL(/note\.txt\.md/);
     await expect(page.locator('.cm-editor')).toBeVisible();
 
+    // 非 .md/.mdx 按纯文本编辑：没有 frontmatter 纸、预览或表单/源文件切换。
+    await expect(page.getByText('plain · 纯文本')).toBeVisible();
+    await expect(page.locator('.cm-content')).not.toContainText('title:');
+    await expect(page.locator('.cm-content')).not.toContainText('---');
+    await expect(page.getByText('预览 · 实时')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '源文件', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '表单', exact: true })).toHaveCount(0);
+
     // 真正保存一次，确认落盘路径就是 note.txt，而不是补成 note.txt.md。
     await page.locator('.abs-stamp').click();
     await page.getByRole('button', { name: '确认创建' }).click();

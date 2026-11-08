@@ -53,7 +53,7 @@ const shell: ShellMessages = {
     filenameLabel: '檔名',
     filenameHint: '留空時使用標題；無後綴自動補 .md，其他後綴保留原名並提示',
     filenameHintRequired: '必填；無後綴自動補 .md，其他後綴保留原名並提示',
-    filenameExtensionHint: '後綴 {suffix} 不是 .md / .mdx，將建立為 {name}',
+    filenameExtensionHint: '後綴 {suffix} 不是 .md / .mdx，將以純文字建立 {name}',
     preview: '將建立 · 儲存時提交',
     commitMessage: '提交訊息：',
     start: '開始起草',

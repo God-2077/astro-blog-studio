@@ -4,7 +4,7 @@ import { defaultHighlightStyle, highlightingFor, syntaxHighlighting } from '@cod
 import { EditorState } from '@codemirror/state';
 import { tags } from '@lezer/highlight';
 import { describe, expect, it } from 'vitest';
-import { markdownHighlightStyle } from '@/lib/markdown/editor-theme';
+import { markdownHighlightStyle, plainTextEditorExtensions } from '@/lib/markdown/editor-theme';
 
 const SAMPLE = [
   '## heading',
@@ -68,6 +68,13 @@ describe('markdownHighlightStyle', () => {
     // The default style colors keywords, but Markdown has no keyword; a non-null
     // result here would mean CodeMirror's light fallback is still active.
     expect(highlightingFor(state, [tags.keyword])).toBeNull();
+  });
+
+  it('leaves plain-text buffers without Markdown syntax colors', () => {
+    const plainState = EditorState.create({ doc: SAMPLE, extensions: plainTextEditorExtensions });
+    expect(highlightingFor(plainState, [tags.heading])).toBeNull();
+    expect(highlightingFor(plainState, [tags.monospace])).toBeNull();
+    expect(highlightingFor(plainState, [tags.link])).toBeNull();
   });
 });
 

@@ -80,7 +80,7 @@ const dashboard = {
     emptyTitle: '草稿箱是空的',
     emptyBody:
       '在编辑器里点「保存草稿」，或让未保存的编辑自动备份；只要还没盖章，它们都会出现在这里。真实仓库的副本使用保险库密钥加密。',
-    badges: { new: '新稿', existing: '已有文章', backup: '自动备份', source: '源文件' },
+    badges: { new: '新稿', existing: '已有文章', backup: '自动备份', source: '源文件', plain: '纯文本' },
     removeAria: '从草稿箱删除：{title}',
     removeAction: '从草稿箱删除',
   },

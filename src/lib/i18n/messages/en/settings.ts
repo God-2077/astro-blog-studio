@@ -31,7 +31,7 @@ const settings: SettingsMessages = {
     rootDir: 'Root directory',
     rootDirHint: 'Relative to the repository root',
     extensions: 'File extensions',
-    extensionsHint: 'Comma separated',
+    extensionsHint: 'Comma separated; non .md / .mdx files are edited as plain text',
     timezone: 'Time zone',
     timezoneHint: 'Used for the date template and updated',
     visible: 'Currently visible',

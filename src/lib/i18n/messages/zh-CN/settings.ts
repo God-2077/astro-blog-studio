@@ -30,7 +30,7 @@ const settings = {
     rootDir: '根目录',
     rootDirHint: '相对仓库根',
     extensions: '文件扩展名',
-    extensionsHint: '逗号分隔',
+    extensionsHint: '逗号分隔；非 .md / .mdx 按纯文本编辑',
     timezone: '时区',
     timezoneHint: '用于 date 模板与 updated',
     visible: '当前可见',

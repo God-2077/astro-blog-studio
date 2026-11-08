@@ -30,7 +30,7 @@ const settings: SettingsMessages = {
     rootDir: '根目錄',
     rootDirHint: '相對於儲存庫根目錄',
     extensions: '檔案副檔名',
-    extensionsHint: '逗號分隔',
+    extensionsHint: '逗號分隔；非 .md / .mdx 以純文字編輯',
     timezone: '時區',
     timezoneHint: '用於 date 範本與 updated',
     visible: '目前可見',

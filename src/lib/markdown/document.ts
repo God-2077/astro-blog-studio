@@ -85,6 +85,21 @@ export function parseDocument(input: string): ParsedDocument {
   };
 }
 
+/**
+ * Plain-text files keep the whole buffer as the body: no frontmatter fence is
+ * recognized, so a leading `---` is just text. Only BOM/EOL metadata is read so
+ * the source-mode writer can restore the original bytes.
+ */
+export function parsePlainDocument(input: string, meta: DocumentMeta = detectMeta(input)): ParsedDocument {
+  return {
+    meta,
+    hasFrontmatter: false,
+    frontmatterRaw: '',
+    data: {},
+    body: toEditingText(input),
+  };
+}
+
 export interface ComposeInput {
   meta: DocumentMeta;
   frontmatterRaw: string;

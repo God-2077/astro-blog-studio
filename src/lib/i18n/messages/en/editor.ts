@@ -119,6 +119,10 @@ const editor: EditorMessages = {
     source: 'Source',
     sourceTitle: 'Edit the whole file, frontmatter included; it is written back as-is on save',
     sourceSheetLabel: 'source · whole file',
+    plainSheetLabel: 'plain · plain text',
+  },
+  plain: {
+    hint: 'Plain-text file: frontmatter is not parsed and no preview is shown; saving only restores the original line endings and BOM.',
   },
   preview: {
     live: 'Preview · live',

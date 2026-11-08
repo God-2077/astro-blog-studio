@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { type PostSummary, pickRecent, planIndex, postRecencyMs, RECENT_PAGE_SIZE, sortPosts } from '@/lib/posts/summary';
+import {
+  type PostSummary,
+  pickRecent,
+  planIndex,
+  postRecencyMs,
+  RECENT_PAGE_SIZE,
+  sortPosts,
+  summarize,
+} from '@/lib/posts/summary';
 
 function makePost(path: string, date: string, updated?: string): PostSummary {
   return {
@@ -20,6 +28,35 @@ function makePost(path: string, date: string, updated?: string): PostSummary {
 function isoDay(offset: number): string {
   return new Date(Date.UTC(2026, 0, 1 + offset)).toISOString().slice(0, 10);
 }
+
+describe('summarize', () => {
+  it('reads frontmatter only for Markdown paths', () => {
+    const text = '---\ntitle: 真标题\ndate: 2026-01-01\ndraft: true\npassword: x\n---\n\n正文\n';
+    const markdown = summarize(text, 'src/notes/a.md');
+    expect(markdown.title).toBe('真标题');
+    expect(markdown.date).toBe('2026-01-01');
+    expect(markdown.draft).toBe(true);
+    expect(markdown.encrypted).toBe(true);
+    expect(markdown.bodyLength).toBe('\n正文\n'.length);
+
+    const plain = summarize(text, 'src/notes/a.txt');
+    expect(plain.title).toBe('a');
+    expect(plain.date).toBe('');
+    expect(plain.updated).toBeUndefined();
+    expect(plain.draft).toBe(false);
+    expect(plain.encrypted).toBe(false);
+    expect(plain.frontmatterError).toBe(false);
+    expect(plain.bodyLength).toBe(text.length);
+  });
+
+  it('treats a TypeScript file as plain text even when it starts with a fence', () => {
+    const text = '---\nconst a = 1;\n---\n';
+    const summary = summarize(text, 'src/scripts/a.ts');
+    expect(summary.title).toBe('a');
+    expect(summary.frontmatterError).toBe(false);
+    expect(summary.bodyLength).toBe(text.length);
+  });
+});
 
 describe('postRecencyMs', () => {
   it('parses the formats the studio writes', () => {

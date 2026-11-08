@@ -104,6 +104,57 @@ describe('draft record model', () => {
     expect(draft.size).toBe(draft.text.length);
   });
 
+  it('snapshots non-Markdown files as plain source without parsing YAML', () => {
+    const text = '---\ntitle: 假标题\n---\n\nbody\n';
+    const draft = draftFromText({
+      repoKey: REPO_KEY,
+      path: 'src/notes/a.txt',
+      text,
+      fields,
+      isNew: true,
+      baseSha: '',
+      savedAt: 43,
+    });
+    expect(draft.title).toBe('a');
+    expect(draft.mode).toBe('source');
+    expect(draft.state.hasFrontmatter).toBe(false);
+    expect(draft.state.rawInner).toBe('');
+    expect(draft.state.form).toEqual({});
+    expect(draft.state.sourceText).toBe(text);
+    expect(draft.state.body).toBe(text);
+
+    const restored = restoreToEditorState(draftToBackup(draft), text, { plainText: true });
+    expect(restored.mode).toBe('source');
+    expect(restored.sourceText).toBe(text);
+  });
+
+  it('promotes a plain backup with a filename title and source mode', () => {
+    const text = '---\ntitle: 假标题\n---\n\nbody\n';
+    const backup: BackupRecord = {
+      version: 1,
+      repoKey: REPO_KEY,
+      path: 'src/notes/readme.txt',
+      isNew: true,
+      baseSha: '',
+      mode: 'form',
+      savedAt: 100,
+      size: text.length,
+      text,
+      state: {
+        body: '\nbody\n',
+        rawInner: 'title: 假标题',
+        hasFrontmatter: true,
+        fmError: null,
+        form: { title: '假标题' },
+        sourceText: text,
+      },
+    };
+    const draft = draftFromBackup(backup);
+    expect(draft.title).toBe('readme');
+    expect(draft.mode).toBe('source');
+    expect(draft.title).not.toBe('假标题');
+  });
+
   it('promotes a backup without losing its restore state', () => {
     const text = '---\ntitle: 备份标题\n---\n\n备份正文\n';
     const backup: BackupRecord = {

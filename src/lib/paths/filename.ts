@@ -1,7 +1,6 @@
-import { isMarkdownFile } from './paths';
+import { isMarkdownDocument } from './paths';
 
-/** 新稿只接受这两种扩展名；是否进入索引仍由当前仓库的 content.extensions 决定。 */
-const POST_EXTENSIONS = ['.md', '.mdx'];
+/** 新稿只把这几种后缀当 Markdown；是否进入索引仍由当前仓库的 content.extensions 决定。 */
 const POST_EXTENSION_RE = /\.(?:md|mdx)$/i;
 const SEPARATOR_RE = /[/\\]/;
 const ILLEGAL_RE = /[<>:"|?*]/g;
@@ -89,8 +88,7 @@ export function resolveManualFilename(input: string): FilenameResolution {
   // 先拒绝结尾点，避免补 .md 后变成 note..md。
   if (name.endsWith('.')) return { filename: '', issue: { code: 'trailingDot' }, unsupportedSuffix: null };
 
-  const supported = isMarkdownFile(name, POST_EXTENSIONS);
-  if (supported) return finalize(name, null);
+  if (isMarkdownDocument(name)) return finalize(name, null);
 
   const dot = name.lastIndexOf('.');
   // 没有后缀（或以点开头的隐藏名）仍补 .md；显式写了别的后缀则保留原名，仅做提示。

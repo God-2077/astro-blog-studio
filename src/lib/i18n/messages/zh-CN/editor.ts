@@ -111,6 +111,10 @@ const editor = {
     source: '源文件',
     sourceTitle: '直接编辑整份文件（含 frontmatter），保存时原样写回',
     sourceSheetLabel: 'source · 整份文件',
+    plainSheetLabel: 'plain · 纯文本',
+  },
+  plain: {
+    hint: '纯文本文件：不解析 frontmatter、不显示预览；保存时只还原原有的换行与 BOM。',
   },
   preview: {
     live: '预览 · 实时',

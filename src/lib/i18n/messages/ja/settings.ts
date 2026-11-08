@@ -31,7 +31,7 @@ const settings: SettingsMessages = {
     rootDir: 'ルートディレクトリ',
     rootDirHint: 'リポジトリのルートからの相対パス',
     extensions: 'ファイル拡張子',
-    extensionsHint: 'カンマ区切り',
+    extensionsHint: 'カンマ区切り。.md / .mdx 以外はプレーンテキストとして編集',
     timezone: 'タイムゾーン',
     timezoneHint: 'date テンプレートと updated に使用',
     visible: '現在表示中',

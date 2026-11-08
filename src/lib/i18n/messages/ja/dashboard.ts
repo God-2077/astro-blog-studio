@@ -83,7 +83,13 @@ const dashboard: DashboardMessages = {
     emptyTitle: '下書きは空です',
     emptyBody:
       'エディターで「下書きを保存」を押すか、未保存の編集を自動バックアップさせてください。スタンプを押すまでは、ここに表示されます。実際のリポジトリのコピーは保管庫の鍵で暗号化されます。',
-    badges: { new: '新規', existing: '既存記事', backup: '自動バックアップ', source: 'ソースファイル' },
+    badges: {
+      new: '新規',
+      existing: '既存記事',
+      backup: '自動バックアップ',
+      source: 'ソースファイル',
+      plain: 'プレーンテキスト',
+    },
     removeAria: '下書きから削除：{title}',
     removeAction: '下書きから削除',
   },

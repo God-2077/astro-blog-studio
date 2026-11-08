@@ -159,12 +159,35 @@ export interface RestoredEditorState {
   loadedSha: string;
 }
 
+export interface RestoreOptions {
+  /** Non Markdown files always restore as whole-file source text; no YAML is read. */
+  plainText?: boolean;
+}
+
 /**
  * Restore an existing file's draft. The diff baseline is the *current* remote
  * document, while `loadedSha` stays on the backup's base sha so a changed remote
  * still surfaces as the usual 409 conflict instead of being overwritten.
  */
-export function restoreToEditorState(backup: BackupRecord, remoteText: string): RestoredEditorState {
+export function restoreToEditorState(
+  backup: BackupRecord,
+  remoteText: string,
+  options: RestoreOptions = {},
+): RestoredEditorState {
+  if (options.plainText) {
+    const text = toEditingText(backup.text);
+    return {
+      mode: 'source',
+      body: text,
+      rawInner: '',
+      hasFrontmatter: false,
+      fmError: null,
+      form: {},
+      sourceText: text,
+      originalData: {},
+      loadedSha: backup.baseSha,
+    };
+  }
   return {
     mode: backup.mode,
     body: backup.state.body,

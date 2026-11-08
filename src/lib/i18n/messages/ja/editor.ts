@@ -121,6 +121,10 @@ const editor: EditorMessages = {
     source: 'ソースファイル',
     sourceTitle: 'ファイル全体（frontmatter を含む）を直接編集し、保存時にそのまま書き戻します',
     sourceSheetLabel: 'source · ファイル全体',
+    plainSheetLabel: 'plain · プレーンテキスト',
+  },
+  plain: {
+    hint: 'プレーンテキストファイル：frontmatter を解析せず、プレビューも表示しません。保存時は元の改行と BOM だけを復元します。',
   },
   preview: {
     live: 'プレビュー · リアルタイム',

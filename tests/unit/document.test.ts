@@ -4,6 +4,7 @@ import {
   composeSourceDocument,
   detectMeta,
   parseDocument,
+  parsePlainDocument,
   toEditingText,
   updateFrontmatterRaw,
 } from '@/lib/markdown/document';
@@ -70,6 +71,27 @@ describe('frontmatter document handling', () => {
     expect(next).toContain('# keep this');
     expect(next).toContain('legacy: keep');
     expect(updateFrontmatterRaw(raw, { missing: null })).toBe(raw);
+  });
+});
+
+describe('plain text document handling', () => {
+  it('never treats a leading fence as frontmatter', () => {
+    const input = '---\ntitle: not frontmatter\n---\n\nbody\n';
+    const parsed = parsePlainDocument(input);
+    expect(parsed.hasFrontmatter).toBe(false);
+    expect(parsed.frontmatterRaw).toBe('');
+    expect(parsed.data).toEqual({});
+    expect(parsed.body).toBe(input);
+    expect(parsed.frontmatterError).toBeUndefined();
+  });
+
+  it('detects BOM and EOL but normalizes only the editing buffer', () => {
+    const input = '\uFEFF---\r\ntitle: x\r\n---\r\nbody\r\n';
+    const parsed = parsePlainDocument(input);
+    expect(parsed.meta.bom).toBe(true);
+    expect(parsed.meta.eol).toBe('\r\n');
+    expect(parsed.body).not.toContain('\r');
+    expect(parsed.body.startsWith('\uFEFF')).toBe(false);
   });
 });
 

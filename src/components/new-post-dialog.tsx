@@ -10,7 +10,7 @@ import { useGateway } from '@/lib/gateway/context';
 import { type TFunction, useT } from '@/lib/i18n/react';
 import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
 import { type FilenameIssue, resolveManualFilename, resolveTitleFilename } from '@/lib/paths/filename';
-import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
+import { isMarkdownDocument, joinPath, normalizeRepoPath } from '@/lib/paths/paths';
 import { collectFolders, type TreeModel } from '@/lib/tree/model';
 import { formatInTimeZone } from '@/lib/utils/date';
 import { usePendingPost } from '@/stores/pending-post';
@@ -73,13 +73,15 @@ export function NewPostDialog({
   }, [open, settings.editor.defaultDir, config.rootDir, folders]);
 
   const showTitle = hasRequiredTitleField(settings.frontmatter.fields);
-  useEffect(() => {
-    if (open && !showTitle) filenameRef.current?.focus();
-  }, [open, showTitle]);
   const usesTitle = showTitle && filename.trim().length === 0;
   const resolution = usesTitle ? resolveTitleFilename(title) : resolveManualFilename(filename);
   const finalFile = resolution.filename;
   const unsupportedSuffix = resolution.unsupportedSuffix;
+  /** Explicit non-Markdown suffix: create an empty plain-text file, not a frontmatter draft. */
+  const plainText = Boolean(finalFile) && !isMarkdownDocument(finalFile);
+  useEffect(() => {
+    if (open && (!showTitle || plainText)) filenameRef.current?.focus();
+  }, [open, showTitle, plainText]);
   // 手动输入的文件名一旦不合法就立即提示；空值留到「开始起草」时再报必填，避免刚打开就标红。
   const liveIssue = !usesTitle && filename.trim().length > 0 ? resolution.issue : null;
   const liveError = liveIssue ? filenameIssueMessage(liveIssue, t) : null;
@@ -91,7 +93,8 @@ export function NewPostDialog({
       : normalizedDir || config.rootDir;
   const path = joinPath(fullDir, finalFile);
   const date = formatInTimeZone(new Date(), settings.content.timezone);
-  const messageTitle = showTitle ? title.trim() || undefined : finalFile ? resolveCommitTitle('', path) : undefined;
+  const messageTitle =
+    showTitle && !plainText ? title.trim() || undefined : finalFile ? resolveCommitTitle('', path) : undefined;
   const message = renderCommitMessage(settings.commit.create, {
     path,
     action: 'create',
@@ -102,7 +105,7 @@ export function NewPostDialog({
 
   const handleCreate = async (): Promise<void> => {
     if (parking || confirming) return;
-    if (showTitle && !title.trim()) {
+    if (showTitle && !title.trim() && !plainText) {
       setError(t('shell.newPost.errors.titleRequired'));
       return;
     }
@@ -133,7 +136,9 @@ export function NewPostDialog({
       }
     }
 
-    const text = buildNewPostDocument(settings.frontmatter.fields, { title: showTitle ? title.trim() : '', date });
+    const text = plainText
+      ? ''
+      : buildNewPostDocument(settings.frontmatter.fields, { title: showTitle ? title.trim() : '', date });
     setPendingDraft({ path, text });
     onOpenChange(false);
     navigate(`/edit?path=${encodeURIComponent(path)}&new=1`);
@@ -176,7 +181,7 @@ export function NewPostDialog({
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {showTitle ? (
+            {showTitle && !plainText ? (
               <Field label={t('shell.newPost.titleLabel')} className="sm:col-span-2">
                 <input
                   className="abs-input"

@@ -53,7 +53,7 @@ const shell = {
     filenameLabel: '文件名',
     filenameHint: '留空时用标题；无后缀自动补 .md，其他后缀保留原名并提示',
     filenameHintRequired: '必填；无后缀自动补 .md，其他后缀保留原名并提示',
-    filenameExtensionHint: '后缀 {suffix} 不是 .md / .mdx，将创建为 {name}',
+    filenameExtensionHint: '后缀 {suffix} 不是 .md / .mdx，将按纯文本创建 {name}',
     preview: '将创建 · 保存时提交',
     commitMessage: '提交消息：',
     start: '开始起草',

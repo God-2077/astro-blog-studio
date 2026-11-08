@@ -1,4 +1,5 @@
 import { parseDocument } from '@/lib/markdown/document';
+import { isMarkdownDocument } from '@/lib/paths/paths';
 
 export interface PostSummary {
   path: string;
@@ -74,8 +75,11 @@ function flattenTags(value: unknown): string[] {
 }
 
 export function summarize(text: string, path: string): PostSummary {
-  const parsed = parseDocument(text);
-  const data = parsed.data;
+  const markdown = isMarkdownDocument(path);
+  // Plain-text files never read YAML: a leading `---` is just content, and the
+  // title always falls back to the filename.
+  const parsed = markdown ? parseDocument(text) : null;
+  const data = parsed?.data ?? {};
   const title = asString(data.title) ?? path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');
   return {
     path,
@@ -87,8 +91,8 @@ export function summarize(text: string, path: string): PostSummary {
     draft: data.draft === true,
     sticky: data.sticky === true,
     encrypted: Boolean(data.password),
-    frontmatterError: Boolean(parsed.frontmatterError),
-    bodyLength: parsed.body.length,
+    frontmatterError: Boolean(parsed?.frontmatterError),
+    bodyLength: parsed ? parsed.body.length : text.length,
   };
 }
 
