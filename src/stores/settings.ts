@@ -19,6 +19,8 @@ interface SettingsState extends Settings {
   /** Disconnect every repository but keep the active config as setup defaults. */
   clearRepos: () => void;
   patch: (patch: SettingsPatch) => void;
+  /** Replace every repository and global field with an imported snapshot. */
+  replaceFromImport: (imported: Settings) => void;
   reset: () => void;
 }
 
@@ -78,6 +80,10 @@ export const useSettings = create<SettingsState>()(
       },
       clearRepos: () => set({ repo: null, repos: [] }),
       patch: (patch) => set((state) => ({ ...state, ...patch })),
+      replaceFromImport: (imported) => {
+        const next = structuredClone(imported);
+        set({ ...next, repos: sanitizeRepos(next.repo, next.repos) });
+      },
       reset: () => set({ ...defaultSettings, repos: [] }),
     }),
     {

@@ -137,6 +137,50 @@ const settings: SettingsMessages = {
       'Demo repository content lives only in memory; unsaved backups are stored under the local demo key (unencrypted).',
     liveNote: 'Backups are encrypted, written only to local IndexedDB, and never uploaded.',
   },
+  export: {
+    button: 'Export configuration',
+    title: 'Export configuration',
+    description:
+      'Export all repositories and global settings as a single JSON file; the file is generated only in browser memory and is never uploaded.',
+    warningTitle: 'The file contains plaintext PATs',
+    warningBody:
+      'The exported file includes the plaintext PAT of every repository. Keep it safe: do not upload it to a public location, commit it to a repository, or share it with anyone.',
+    counts: '{repos} repositories · {tokens} PATs',
+    demoNote: 'Demo mode has no PATs; the exported file contains only the demo configuration.',
+    dirtyNote: 'The Settings page has unsaved changes; only the configuration already saved on this device is exported.',
+    missingPat: 'These repositories are missing PATs, so a complete export is not possible: {repos}',
+    locked: 'The vault is locked. Unlock it again before exporting the configuration.',
+    continue: 'Continue export',
+    passwordTitle: 'Confirm password',
+    passwordDescription: 'Your current unlock method is a password. Enter the vault password to confirm, then export.',
+    passwordLabel: 'Vault password',
+    passwordHint: 'Used only for this check; it does not change the unlock method or re-encrypt PATs.',
+    passwordPlaceholder: 'Enter the current password',
+    passwordRequired: 'Enter the vault password.',
+    verify: 'Verify and export',
+    busy: 'Exporting…',
+    failed: 'Export failed. Try again later.',
+  },
+  transfer: {
+    title: 'Import and export configuration',
+    meta: 'Backup / restore',
+    exportDescription:
+      'Export all repositories and global settings as a single JSON file; the file contains plaintext PATs, so keep it safe.',
+    importDescription: 'Replace all repositories, global settings, and PATs at once from an exported JSON file.',
+    importButton: 'Import configuration',
+    demoNote: 'Demo mode does not support importing; connect a real repository first.',
+    locked: 'The vault is locked. Unlock it before importing the configuration.',
+    invalidFile: 'This configuration file could not be read, or its format is not supported.',
+    demoSource: 'Files exported from demo mode contain no PATs and cannot be imported into real repositories.',
+    missingPat: 'These repositories are missing PATs: {repos}',
+    confirmTitle: 'Import and replace the current configuration?',
+    confirmDescription:
+      'The file will replace all current repositories, global settings, and PATs; unsaved changes will be lost, and old PATs not present in the file will be removed.',
+    confirmSummary: 'The file contains {repos} repositories and {tokens} PATs.',
+    confirmLabel: 'Import and replace',
+    importing: 'Importing…',
+    failed: 'Import failed. Try again later.',
+  },
   confirm: {
     discardDescription:
       'Switching or adding a repository does not save changes on the current Settings page; choosing “Continue” discards those unsaved changes.',
@@ -175,6 +219,8 @@ const settings: SettingsMessages = {
     addedAndSwitched: 'Repository added and switched',
     tokenUpdated: 'Updated the token for {repo}',
     removed: 'Repository removed',
+    exported: 'Configuration exported',
+    imported: 'Configuration imported',
   },
 };
 

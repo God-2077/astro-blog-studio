@@ -19,12 +19,12 @@ astro-blog-studio/
 ├─ public/                 # robots.txt + PWA 图标（pnpm pwa:icons 生成）
 ├─ scripts/                # 设计台构建、静态预览、PWA 图标生成、测试仓库 seed/clean
 ├─ src/
-│  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、备份恢复弹窗、PWA 更新弹窗、LocaleSync、UI 原子
+│  ├─ components/          # AppShell、文件树、新建对话框、动态 frontmatter 表单、备份恢复弹窗、导出配置对话框、PWA 更新弹窗、LocaleSync、UI 原子
 │  ├─ hooks/               # 数据查询、本机文章缓存同步、自动锁定、未保存备份
 │  ├─ lib/
 │  │  ├─ backup/           # 备份记录校验、整文件快照、AES-GCM 信封、IndexedDB 存放/清理/迁移
 │  │  ├─ content/          # 本机文章缓存：model/diff/envelope/同步/IndexedDB 加密存储
-│  │  ├─ config/           # zod 设置 schema、默认值
+│  │  ├─ config/           # zod 设置 schema、默认值、配置导入/导出文档
 │  │  ├─ demo/             # 演示数据
 │  │  ├─ frontmatter/      # 字段定义/默认集/校验/新稿初始文档
 │  │  ├─ gateway/          # GatewayProvider（live/demo）
@@ -35,7 +35,7 @@ astro-blog-studio/
 │  │  ├─ pwa/              # 版本检测（节流/可见性/在线状态）
 │  │  ├─ repos/            # 仓库身份、仓库级配置档案、活动配置快照
 │  │  ├─ tree/             # 文件树模型
-│  │  ├─ utils/            # 日期、编码、cn
+│  │  ├─ utils/            # 日期、编码、cn、文件下载
 │  │  └─ vault/            # WebCrypto 加解密、HKDF 备份子密钥、设备指纹（稳定熵源 + 旧指纹迁移）、会话、三种解锁模式的 keystore
 │  ├─ pages/               # 工作台、编辑器、设置、Setup、Unlock
 │  ├─ stores/              # settings / vault / content / ui / rate-limit / editor guard / pending-post / pwa
@@ -70,6 +70,7 @@ astro-blog-studio/
 - **Frontmatter 字段（按仓库）**：字段列表、类型、必填；编辑器、新稿初始 frontmatter 与保存校验从当前仓库配置派生。
 - **提交消息（按仓库）**：create/update/delete/move 模板与提交前确认。
 - **全局**：字号/行号、保存时更新 `updated`、未保存备份开关与清除、自动锁定、解锁方式（模式 + 密码）、重置保险库、外观（跟随系统 / 昼 / 夜）与界面语言（简体中文 / 繁體中文 / 日本語 / English；默认跟随浏览器，非四语回退英语）。
+- **配置导入与导出（独立分区）**：把全部仓库档案（活动 + 非活动）、每个仓库的内容/提交/Frontmatter 配置、编辑器/外观/安全等全局设置，以及每个仓库的 PAT 明文导出为一个自描述 JSON（`format` + `version` + `exportedAt` + `app` + `source` + `settings` + `tokens`）。只读取上次保存到本机的设置，不读取设置页未保存的表单值。live 导出前警告明文 PAT；解锁方式为「密码」时复核密码，其他模式与 demo 不要求；demo 的 `tokens` 为空。缺少任一仓库 PAT 时阻止导出，不生成不完整文件。不导出草稿、未保存备份、文章缓存或保险库 KDF/密钥；JSON 只在内存生成并直接下载，不写入 localStorage / CacheStorage。导入仅 live 且保险库已解锁；文件必须匹配 format/version 并通过 settings/token 校验，确认后整体替换全部仓库、全局设置与 PAT，文件里没有的旧仓库与旧 PAT 会被移除；不导入草稿/备份/文章缓存/保险库 KDF/密钥，也不校验 PAT 的 GitHub 权限。
 - 切换仓库只重置内存视图与 React Query 缓存，不删除 IndexedDB 中的文章缓存、草稿或备份；切回时只拉 HEAD tree，文件树与配置未变则 0 次文章正文读取。
 - 每个分区是可折叠面板：手机竖屏（<768px）首次进入全部折叠，平板/桌面（≥768px）首次进入全部展开；折叠时标题行仍显示摘要（仓库数、缓存篇数、字段数与校验错误、当前主题、令牌状态）。展开状态只在会话内，刷新后重新按视口决定。
 

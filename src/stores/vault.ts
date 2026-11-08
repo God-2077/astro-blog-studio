@@ -12,6 +12,7 @@ import {
   loadVault,
   migrateLegacyTokenToRepo,
   removeRepoTokenFromVault,
+  replaceRepoTokensInVault,
   rewrapVault,
   unlockWithDevice,
   unlockWithPassword,
@@ -44,6 +45,8 @@ interface VaultState {
   changeUnlock: (input: { mode: VaultMode; password?: string }) => Promise<void>;
   addRepoToken: (repoKey: string, token: string) => Promise<void>;
   removeRepoToken: (repoKey: string) => Promise<void>;
+  /** Replace every repository PAT in one vault write, dropping the legacy slot. */
+  replaceRepoTokens: (tokens: Record<string, string>) => Promise<void>;
   lock: () => Promise<void>;
   reset: () => Promise<void>;
   clearError: () => void;
@@ -207,6 +210,20 @@ export const useVault = create<VaultState>()((set, get) => ({
     if (!payload) throw new Error(t('errors.vault.notFound'));
     removeRepoTokenFromVault(payload, repoKey);
     vaultSession.removeRepoToken(repoKey);
+    set((state) => ({ tokenRevision: state.tokenRevision + 1 }));
+  },
+
+  replaceRepoTokens: async (tokens) => {
+    const payload = loadVault();
+    const dataKey = vaultSession.getDataKey();
+    if (!payload || !dataKey) throw new Error(t('errors.vault.lockedForToken'));
+    const normalized = Object.fromEntries(
+      Object.entries(tokens)
+        .map(([repoKey, token]) => [repoKey.trim(), token.trim()] as const)
+        .filter(([repoKey, token]) => Boolean(repoKey && token)),
+    );
+    await replaceRepoTokensInVault(payload, dataKey, normalized);
+    vaultSession.set(null, dataKey, normalized);
     set((state) => ({ tokenRevision: state.tokenRevision + 1 }));
   },
 

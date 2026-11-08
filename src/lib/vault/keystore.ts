@@ -377,7 +377,15 @@ async function migrationTarget(
   return payload.device ? getDeviceId() : undefined;
 }
 
-export async function unlockWithPassword(payload: VaultPayload, password: string): Promise<VaultSecrets> {
+interface PasswordUnwrap {
+  dataKey: Uint8Array;
+  matched?: DeviceId;
+  candidates: DeviceId[];
+  requireDevice: boolean;
+}
+
+/** 只从密码信封解包保险库数据密钥；PAT 信封保持原样。 */
+async function unwrapPasswordDataKey(payload: VaultPayload, password: string): Promise<PasswordUnwrap> {
   const wrap = payload.password;
   if (!wrap) throw new VaultError('NO_METHOD', t('errors.vault.noPassword'));
   const candidates = wrap.requireDevice ? await getAllDeviceIdCandidates() : [];
@@ -408,10 +416,26 @@ export async function unlockWithPassword(payload: VaultPayload, password: string
       t(wrap.requireDevice ? 'errors.vault.wrongPasswordTwoFactor' : 'errors.vault.wrongPassword'),
     );
   }
+  return { dataKey, matched, candidates, requireDevice: wrap.requireDevice };
+}
+
+export async function unlockWithPassword(payload: VaultPayload, password: string): Promise<VaultSecrets> {
+  const { dataKey, matched, candidates, requireDevice } = await unwrapPasswordDataKey(payload, password);
   const secrets = await secretsFromDataKey(payload, dataKey);
   const target = await migrationTarget(payload, matched, candidates);
-  if (target) await migrateWraps(payload, dataKey, target, wrap.requireDevice ? password : undefined);
+  if (target) await migrateWraps(payload, dataKey, target, requireDevice ? password : undefined);
   return secrets;
+}
+
+/**
+ * 校验保险库密码：不解密仓库 PAT、不迁移解锁方式包装，也不写 localStorage。
+ * 供导出配置前的密码复核使用。
+ */
+export async function verifyVaultPassword(password: string): Promise<void> {
+  const payload = loadVault();
+  if (!payload) throw new VaultError('NO_METHOD', t('errors.vault.notFound'));
+  if (!payload.password) throw new VaultError('NO_METHOD', t('errors.vault.noPassword'));
+  await unwrapPasswordDataKey(payload, password);
 }
 
 export async function unlockWithDevice(payload: VaultPayload): Promise<VaultSecrets> {
@@ -455,6 +479,25 @@ export async function addRepoTokenToVault(
     ...payload,
     tokens: { ...(payload.tokens ?? {}), [key]: await encryptToken(dataKey, key, value) },
   };
+  saveVault(next);
+  return next;
+}
+
+/** Replace the entire repository PAT map in one write and drop the legacy slot. */
+export async function replaceRepoTokensInVault(
+  payload: VaultPayload,
+  dataKey: Uint8Array,
+  tokens: Readonly<Record<string, string>>,
+): Promise<VaultPayload> {
+  const entries = normalizeTokens({ ...tokens });
+  if (entries.length === 0) throw new VaultError('INVALID_INPUT', t('errors.vault.needsToken'));
+  const encrypted: Record<string, EncryptedToken> = {};
+  for (const [repoKey, token] of entries) {
+    if (RESERVED_TOKEN_KEYS.has(repoKey)) throw new VaultError('INVALID_INPUT', t('errors.vault.repoTokenEmpty'));
+    encrypted[repoKey] = await encryptToken(dataKey, repoKey, token);
+  }
+  const next: VaultPayload = { ...payload, tokens: encrypted };
+  delete next.token;
   saveVault(next);
   return next;
 }

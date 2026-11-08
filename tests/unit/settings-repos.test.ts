@@ -83,6 +83,38 @@ describe('settings repository actions', () => {
     expect(useSettings.getState().repo).toEqual(repoA);
   });
 
+  it('replaces the whole snapshot on import and drops duplicate active profiles', () => {
+    useSettings.getState().startWorkspace(profileOf(repoA, { rootDir: 'old-a', create: 'old: {title}' }));
+    useSettings.getState().addRepo(profileOf(repoB));
+
+    const imported = {
+      ...structuredClone(defaultSettings),
+      repo: repoA,
+      repos: [
+        profileOf(repoB, { rootDir: 'imported-b', create: 'imported-b: {title}' }),
+        profileOf({ ...repoA, branch: 'dev' }, { rootDir: 'imported-a-dev' }),
+        profileOf(repoA),
+      ],
+      content: { ...structuredClone(defaultSettings.content), rootDir: 'imported-a' },
+      commit: { ...structuredClone(defaultSettings.commit), create: 'imported-a: {title}' },
+      appearance: { ...structuredClone(defaultSettings.appearance), locale: 'ja' as const },
+    };
+
+    useSettings.getState().replaceFromImport(imported);
+
+    const state = useSettings.getState();
+    expect(state.repo).toEqual(repoA);
+    expect(state.content.rootDir).toBe('imported-a');
+    expect(state.commit.create).toBe('imported-a: {title}');
+    expect(state.appearance.locale).toBe('ja');
+    expect(state.repos.map((item) => `${item.name}@${item.branch}`)).toEqual([
+      'astro-blog-content-notes@main',
+      'astro-blog-content@dev',
+    ]);
+    expect(state.repos[0]?.content.rootDir).toBe('imported-b');
+    expect(typeof state.patch).toBe('function');
+  });
+
   it('clears the repository list while keeping the active config as setup defaults', () => {
     useSettings.getState().startWorkspace(profileOf(repoA, { rootDir: 'kept-root', create: 'kept: {title}' }));
     useSettings.getState().addRepo(profileOf(repoB));
