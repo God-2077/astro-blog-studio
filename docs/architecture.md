@@ -14,6 +14,7 @@ astro-blog-studio/
 │  ├─ backup.md            # 未保存备份的完整行为
 │  ├─ content-cache.md     # 本机文章缓存与增量同步
 │  ├─ testing.md           # 测试覆盖、手动 E2E、测试仓库
+│  ├─ termux-build.md      # Termux/Android 构建失败的原因与修复
 │  └─ screenshots/         # 成品截图（demo fixture）
 ├─ public/                 # robots.txt + PWA 图标（pnpm pwa:icons 生成）
 ├─ scripts/                # 设计台构建、静态预览、PWA 图标生成、测试仓库 seed/clean

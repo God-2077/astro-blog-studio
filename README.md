@@ -51,6 +51,8 @@ pnpm preview   # http://localhost:4174
 STUDIO_BASE=/studio/ pnpm build
 ```
 
+> **Termux / Android**：部分 Node 构建里 `os.cpus()` 会返回空数组，使 `@rollup/plugin-terser` 的 worker 数为 0，workbox 生成 Service Worker 时报 `Unexpected early exit ... (terser) renderChunk`。`vite.config.ts` 已通过 `scripts/patch-empty-cpus.ts` 用 `os.availableParallelism()` 兜底，Termux 下直接 `pnpm build` 即可，不需要改配置。
+
 > 项目已验证到 `dist` 构建与 `vite preview` 产物；生产域名的 DNS/TLS/CSP 由部署平台负责。构建会额外产出 `dist/sw.js`、`dist/manifest.webmanifest` 与 `dist/icon-*.png`（PWA），部署时把它们和 `dist/index.html` 一起发布即可；缓存与 CSP 头的要求见 [PWA 与离线](docs/architecture.md#pwa-与离线)。
 
 ## License 与文档索引
@@ -66,6 +68,7 @@ GNU Affero General Public License v3.0（`AGPL-3.0-only`），见 [LICENSE](LICE
 - [草稿箱](docs/drafts.md)：多篇显式草稿、加密、从草稿箱打开、提交后清理、与自动备份的区别。
 - [本机文章缓存与增量同步](docs/content-cache.md)：GraphQL 批量、diff 规则、AAD、并发、降级。
 - [测试](docs/testing.md)：测试覆盖清单、手动 E2E、测试仓库与 Playwright 说明。
+- [Termux 构建](docs/termux-build.md)：`pnpm build` 在 Termux/Android 下 workbox terser 卡死的原因与修复。
 - [架构](docs/architecture.md)：目录结构、内容与提交规则、设置项、PWA 与离线/更新提醒。
 - [DESIGN.md](DESIGN.md)：视觉/交互实现规范。
 - [PRODUCT.md](PRODUCT.md)：产品事实与目标。
