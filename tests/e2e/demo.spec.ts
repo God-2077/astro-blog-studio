@@ -269,6 +269,88 @@ test.describe('demo mode', () => {
     await expect(page.locator('.cm-content')).toContainText('draft: true');
   });
 
+  test('accepts .mdx and preserves manually typed filename characters', async ({ page }) => {
+    await page.goto('/?demo=1');
+    await page.getByRole('button', { name: '新建文章' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await dialog.locator('input.abs-input').first().fill('手动命名');
+    const filename = dialog.locator('label.abs-field').filter({ hasText: '文件名' }).locator('input');
+
+    await filename.fill('我的 笔记.mdx');
+    await expect(dialog.getByText('src/我的 笔记.mdx', { exact: true })).toBeVisible();
+    await expect(dialog.getByRole('status')).toHaveCount(0);
+
+    await dialog.getByRole('button', { name: '开始起草' }).click();
+    await expect(page).toHaveURL(/new=1/);
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    await page.locator('.abs-stamp').click();
+    await page.getByRole('button', { name: '确认创建' }).click();
+    await expect(page.getByText('已创建并提交 · 1 个提交')).toBeVisible();
+
+    await page.locator('.abs-brand').click();
+    await expect(page.locator('.abs-receipt')).toContainText('create: src/我的 笔记.mdx');
+    await expect(page.locator('.abs-tree-row').filter({ hasText: '我的 笔记.mdx' })).toBeVisible();
+  });
+
+  test('keeps unsupported suffixes, warns, and still creates the typed name', async ({ page }) => {
+    await page.goto('/?demo=1');
+    await page.getByRole('button', { name: '新建文章' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await dialog.locator('input.abs-input').first().fill('后缀测试');
+    const filename = dialog.locator('label.abs-field').filter({ hasText: '文件名' }).locator('input');
+
+    await filename.fill('note.txt');
+    await expect(dialog.getByText('src/note.txt', { exact: true })).toBeVisible();
+    await expect(dialog.getByRole('status')).toContainText('note.txt');
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+
+    await filename.fill('note.md');
+    await expect(dialog.getByRole('status')).toHaveCount(0);
+
+    await filename.fill('note.txt');
+    await dialog.getByRole('button', { name: '开始起草' }).click();
+    await expect(page).toHaveURL(/new=1/);
+    await expect(page).toHaveURL(/note\.txt(?:&|$)/);
+    await expect(page).not.toHaveURL(/note\.txt\.md/);
+    await expect(page.locator('.cm-editor')).toBeVisible();
+
+    // 真正保存一次，确认落盘路径就是 note.txt，而不是补成 note.txt.md。
+    await page.locator('.abs-stamp').click();
+    await page.getByRole('button', { name: '确认创建' }).click();
+    await expect(page.getByText('已创建并提交 · 1 个提交')).toBeVisible();
+    await page.locator('.abs-brand').click();
+    await expect(page.locator('.abs-receipt')).toContainText('create: src/note.txt');
+    await expect(page.locator('.abs-receipt')).not.toContainText('note.txt.md');
+  });
+
+  test('rejects invalid manual filenames and keeps the dialog open', async ({ page }) => {
+    await page.goto('/?demo=1');
+    await page.getByRole('button', { name: '新建文章' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await dialog.locator('input.abs-input').first().fill('非法名测试');
+    const filename = dialog.locator('label.abs-field').filter({ hasText: '文件名' }).locator('input');
+
+    const invalidNames = [
+      ['a/b.md', '目录'],
+      ['CON.md', '保留名称'],
+      ['note?.md', '不能包含这些字符'],
+      ['note.', '不能以点'],
+    ] as const;
+    for (const [value, message] of invalidNames) {
+      await filename.fill(value);
+      // 不再等点击「开始起草」：输入非法名称时立即显示 alert。
+      await expect(dialog.getByRole('alert')).toContainText(message);
+      await dialog.getByRole('button', { name: '开始起草' }).click();
+      await expect(dialog).toBeVisible();
+      await expect(page).not.toHaveURL(/new=1/);
+    }
+
+    await filename.fill('合法 名字.md');
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(dialog.getByText('src/合法 名字.md', { exact: true })).toBeVisible();
+  });
+
   test('moves directly with toast feedback and keeps errors inside the dialog', async ({ page }) => {
     await page.goto(
       '/?demo=1#/edit?path=src%2Fcontent%2Fblog%2Fnote%2F%E4%BE%BF%E7%AC%BA-Markdown-%E5%A4%87%E5%BF%98%E5%8D%95.md',

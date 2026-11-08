@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { FilePlus2, X } from 'lucide-react';
+import { FilePlus2, FileWarning, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { confirmAction, dismissConfirm } from '@/components/confirm-toast';
@@ -7,27 +7,31 @@ import { Field } from '@/components/ui';
 import { useParkPendingDraft } from '@/hooks/use-pending-draft';
 import { buildNewPostDocument, hasRequiredTitleField } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
-import { useT } from '@/lib/i18n/react';
+import { type TFunction, useT } from '@/lib/i18n/react';
 import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
+import { type FilenameIssue, resolveManualFilename, resolveTitleFilename } from '@/lib/paths/filename';
 import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
 import { collectFolders, type TreeModel } from '@/lib/tree/model';
 import { formatInTimeZone } from '@/lib/utils/date';
 import { usePendingPost } from '@/stores/pending-post';
 import { useSettings } from '@/stores/settings';
 
-function sanitizeFilePart(value: string): string {
-  const trimmed = value.trim();
-  // 先摘出 .md 扩展名，避免被后面的标点替换吃掉
-  const mdMatch = trimmed.match(/^(.*?)(\.md)$/i);
-  const base = mdMatch?.[1] ?? trimmed;
-  const ext = mdMatch?.[2] ?? '';
-
-  const cleaned = base
-    .replace(/[\p{P}\p{S}\s]+/gu, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  return cleaned ? `${cleaned}${ext}` : '';
+function filenameIssueMessage(issue: FilenameIssue, t: TFunction): string {
+  switch (issue.code) {
+    case 'empty':
+      return t('shell.newPost.errors.filenameRequired');
+    case 'pathSeparator':
+      return t('shell.newPost.errors.filenameSeparator');
+    case 'control':
+      return t('shell.newPost.errors.filenameControl');
+    case 'illegalChars':
+      return t('shell.newPost.errors.filenameIllegalChars', { chars: issue.chars });
+    case 'reserved':
+      return t('shell.newPost.errors.filenameReserved', { name: issue.name });
+    case 'trailingDot':
+      return t('shell.newPost.errors.filenameTrailingDot');
+  }
+  return t('shell.newPost.errors.filenameRequired');
 }
 
 export function NewPostDialog({
@@ -72,8 +76,14 @@ export function NewPostDialog({
   useEffect(() => {
     if (open && !showTitle) filenameRef.current?.focus();
   }, [open, showTitle]);
-  const safeName = sanitizeFilePart(showTitle ? filename || title : filename);
-  const finalFile = safeName ? (safeName.toLowerCase().endsWith('.md') ? safeName : `${safeName}.md`) : '';
+  const usesTitle = showTitle && filename.trim().length === 0;
+  const resolution = usesTitle ? resolveTitleFilename(title) : resolveManualFilename(filename);
+  const finalFile = resolution.filename;
+  const unsupportedSuffix = resolution.unsupportedSuffix;
+  // 手动输入的文件名一旦不合法就立即提示；空值留到「开始起草」时再报必填，避免刚打开就标红。
+  const liveIssue = !usesTitle && filename.trim().length > 0 ? resolution.issue : null;
+  const liveError = liveIssue ? filenameIssueMessage(liveIssue, t) : null;
+  const shownError = error ?? liveError;
   const normalizedDir = normalizeRepoPath(dir);
   const fullDir =
     config.rootDir && normalizedDir && !normalizedDir.startsWith(config.rootDir)
@@ -96,8 +106,8 @@ export function NewPostDialog({
       setError(t('shell.newPost.errors.titleRequired'));
       return;
     }
-    if (!finalFile) {
-      setError(t('shell.newPost.errors.filenameRequired'));
+    if (resolution.issue) {
+      setError(filenameIssueMessage(resolution.issue, t));
       return;
     }
     if (collision) {
@@ -198,9 +208,20 @@ export function NewPostDialog({
             <Field
               label={t('shell.newPost.filenameLabel')}
               hint={
-                <span className="font-mono">
-                  {showTitle ? t('shell.newPost.filenameHint') : t('shell.newPost.filenameHintRequired')}
-                </span>
+                <>
+                  <span className="font-mono">
+                    {showTitle ? t('shell.newPost.filenameHint') : t('shell.newPost.filenameHintRequired')}
+                  </span>
+                  {unsupportedSuffix ? (
+                    <span className="mt-1 flex items-start gap-1.5 text-warning" role="status">
+                      <FileWarning aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+                      {t('shell.newPost.filenameExtensionHint', {
+                        suffix: unsupportedSuffix,
+                        name: finalFile,
+                      })}
+                    </span>
+                  ) : null}
+                </>
               }
             >
               <input
@@ -210,7 +231,7 @@ export function NewPostDialog({
                   setFilename(event.target.value);
                   setError(null);
                 }}
-                placeholder={safeName ? `${safeName}.md` : 'filename.md'}
+                placeholder={finalFile || 'filename.md'}
                 aria-required={showTitle ? undefined : true}
                 ref={filenameRef}
               />
@@ -226,12 +247,12 @@ export function NewPostDialog({
             </p>
           </div>
 
-          {error ? (
+          {shownError ? (
             <p
               className="mt-3 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[11px] text-danger"
               role="alert"
             >
-              {error}
+              {shownError}
             </p>
           ) : null}
 

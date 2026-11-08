@@ -53,8 +53,9 @@ const shell: ShellMessages = {
     dirLabel: 'Directory',
     dirHint: 'Choose or type a path inside the blog root',
     filenameLabel: 'Filename',
-    filenameHint: 'Defaults to the title when empty',
-    filenameHintRequired: 'Required; used for the post path',
+    filenameHint: 'Defaults to the title when empty; no extension gets .md, other suffixes are kept with a warning',
+    filenameHintRequired: 'Required; no extension gets .md, other suffixes are kept with a warning',
+    filenameExtensionHint: 'The suffix {suffix} is not .md / .mdx; it will be created as {name}',
     preview: 'Will be created · committed on save',
     commitMessage: 'Commit message:',
     start: 'Start drafting',
@@ -62,6 +63,11 @@ const shell: ShellMessages = {
     errors: {
       titleRequired: 'The title cannot be empty',
       filenameRequired: 'The filename cannot be empty',
+      filenameSeparator: 'The filename cannot contain / or backslashes; put the directory in the Directory field',
+      filenameControl: 'The filename cannot contain control characters',
+      filenameIllegalChars: 'The filename cannot contain these characters: {chars}',
+      filenameReserved: '“{name}” is a reserved system name; choose another filename',
+      filenameTrailingDot: 'The filename cannot end with a dot (.)',
       pathTaken: 'A file already exists at this path',
       parkFailed:
         'The previous new draft could not be saved to Drafts. Free up local storage, or return to that draft and handle it before trying again.',

@@ -53,8 +53,9 @@ const shell: ShellMessages = {
     dirLabel: 'ディレクトリ',
     dirHint: 'ブログのルートディレクトリ内で選択または入力',
     filenameLabel: 'ファイル名',
-    filenameHint: '空欄の場合はタイトルを使用',
-    filenameHintRequired: '必須です。記事のパスに使われます',
+    filenameHint: '空欄の場合はタイトルを使用。拡張子なしは .md を補い、それ以外の拡張子はそのままで注意を表示します',
+    filenameHintRequired: '必須です。拡張子なしは .md を補い、それ以外の拡張子はそのままで注意を表示します',
+    filenameExtensionHint: '拡張子 {suffix} は .md / .mdx ではありません。{name} として作成します',
     preview: '作成予定 · 保存時にコミット',
     commitMessage: 'コミットメッセージ：',
     start: '下書きを始める',
@@ -62,6 +63,11 @@ const shell: ShellMessages = {
     errors: {
       titleRequired: 'タイトルを空にはできません',
       filenameRequired: 'ファイル名を空にはできません',
+      filenameSeparator: 'ファイル名に / やバックスラッシュは使用できません。「ディレクトリ」欄に入力してください',
+      filenameControl: 'ファイル名に制御文字は使用できません',
+      filenameIllegalChars: 'ファイル名に次の文字は使用できません：{chars}',
+      filenameReserved: '「{name}」はシステムの予約名です。別のファイル名にしてください',
+      filenameTrailingDot: 'ファイル名の末尾をピリオド（.）にすることはできません',
       pathTaken: 'このパスには既にファイルがあります',
       parkFailed:
         '前の新規記事を下書きに保存できませんでした。このデバイスのストレージを空けるか、その新規記事に戻って処理してからもう一度お試しください。',
