@@ -52,6 +52,9 @@ export const markdownEditorExtensions: Extension[] = [
   syntaxHighlighting(markdownHighlightStyle),
 ];
 
+/** 非 .md/.mdx 文件：只保留软换行，不加载 Markdown 语言与语法高亮。 */
+export const plainTextEditorExtensions: Extension[] = [EditorView.lineWrapping];
+
 export function createEditorTheme(fontSize: number, dark: boolean): Extension {
   return EditorView.theme(
     {

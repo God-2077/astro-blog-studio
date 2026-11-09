@@ -32,12 +32,12 @@ pnpm dev
 
 完整内容见 [docs/guide.md](docs/guide.md)：
 - **首次连接**：创建 fine-grained PAT、填写仓库/分支/根目录、选择解锁方式（设备指纹 / 密码 / 密码 + 设备双因子）。首次进入 Setup 会按浏览器语言自动选择界面语言（简体中文 / 繁體中文 / 日本語 / English，其他语言回退英语），之后可在设置的外观卡切换。之后可在设置里添加更多仓库，每个仓库用自己的 PAT。
-- **功能**：多仓库（设置里添加 / 切换 / 更新令牌 / 移除；共用同一套解锁方式；内容与排除、Frontmatter 字段、提交消息按仓库保存；切回时复用本机加密缓存）、文件索引、CodeMirror 编辑 + 实时预览（代码块高亮）、frontmatter 表单、写操作与冲突处理、格式保真、提交模板、本机加密草稿箱（显式草稿 + 自动备份，多篇并存）、本机加密文章缓存 + 增量同步、真实/演示双模式、夜间外观、四语界面（简体中文 / 繁體中文 / 日本語 / English）、保险库、设置、响应式、PWA、设置页「配置导入与导出」（导出全部仓库与全局设置为一个 JSON，密码模式二次校验，demo 不含 PAT；live 可从导出的 JSON 整体恢复全部仓库、全局设置与 PAT，导入前二次确认）。
+- **功能**：多仓库（设置里添加 / 切换 / 更新令牌 / 移除；共用同一套解锁方式；内容与排除、Frontmatter 字段、提交消息按仓库保存；切回时复用本机加密缓存）、文件索引、CodeMirror 编辑 + Markdown 实时预览（代码块高亮）、非 `.md` / `.mdx` 扩展名按纯文本编辑（不解析 frontmatter、无预览、无语法高亮）、frontmatter 表单、写操作与冲突处理、格式保真、提交模板、本机加密草稿箱（显式草稿 + 自动备份，多篇并存）、本机加密文章缓存 + 增量同步、真实/演示双模式、夜间外观、四语界面（简体中文 / 繁體中文 / 日本語 / English）、保险库、设置、响应式、PWA、设置页「配置导入与导出」（导出全部仓库与全局设置为一个 JSON，密码模式二次校验，demo 不含 PAT；live 可从导出的 JSON 整体恢复全部仓库、全局设置与 PAT，导入前二次确认）。
 - **安全模型**：每个仓库的 PAT 在浏览器内分别用 AES-GCM 加密保存，共用同一个数据密钥与解锁方式（设备指纹 / 密码 / 密码 + 设备双因子）；密码才是安全边界；锁定会清空全部仓库令牌的内存副本；真实仓库的未保存备份、草稿箱与文章缓存均为密文；设备指纹只使用与窗口/屏幕尺寸无关的稳定特征，旧版单令牌保险库首次解锁后自动迁移。导出文件包含明文 PAT，只在浏览器内存中生成并直接下载，不写入 localStorage / CacheStorage，请妥善保管。导入文件只在内存解析、不显示 PAT；仅已解锁的真实仓库可导入，成功后整体替换现有仓库、全局设置与 PAT，文件里没有的旧 PAT 会被移除。
 
 ## 已知限制
 
-完整内容见 [docs/guide.md#已知限制](docs/guide.md#已知限制)：界面四语只覆盖 UI（demo 示例文章与文档仍为中文，PWA manifest 的 `lang` 固定 `zh-CN`）；单文件编辑（无图片上传、无跨文件搜索、无版本历史、无 PR 流程）；冲突无逐行 merge；只支持 UTF-8 Markdown/MDX；GitHub Contents API 单文件约 1 MB 限制；每个仓库需要自己的 PAT（同一仓库不同分支共用一个）；设备指纹非安全边界；未保存备份、草稿箱与文章缓存仅限本机、跨设备不同步；离线只缓存前端壳，无离线保存队列；Service Worker 更新不强制刷新。
+完整内容见 [docs/guide.md#已知限制](docs/guide.md#已知限制)：界面四语只覆盖 UI（demo 示例文章与文档仍为中文，PWA manifest 的 `lang` 固定 `zh-CN`）；单文件编辑（无图片上传、无跨文件搜索、无版本历史、无 PR 流程）；冲突无逐行 merge；只支持 UTF-8 文本，`.md` / `.mdx` 按 Markdown 编辑，其他配置的扩展名按纯文本编辑（不解析 frontmatter、无预览）；GitHub Contents API 单文件约 1 MB 限制；每个仓库需要自己的 PAT（同一仓库不同分支共用一个）；设备指纹非安全边界；未保存备份、草稿箱与文章缓存仅限本机、跨设备不同步；离线只缓存前端壳，无离线保存队列；Service Worker 更新不强制刷新。
 
 ## 构建与部署
 
@@ -51,6 +51,8 @@ pnpm preview   # http://localhost:4174
 ```bash
 STUDIO_BASE=/studio/ pnpm build
 ```
+
+> **Termux / Android**：部分 Node 构建里 `os.cpus()` 会返回空数组，使 `@rollup/plugin-terser` 的 worker 数为 0，workbox 生成 Service Worker 时报 `Unexpected early exit ... (terser) renderChunk`。`vite.config.ts` 已通过 `scripts/patch-empty-cpus.ts` 用 `os.availableParallelism()` 兜底，Termux 下直接 `pnpm build` 即可，不需要改配置。
 
 > 项目已验证到 `dist` 构建与 `vite preview` 产物；生产域名的 DNS/TLS/CSP 由部署平台负责。构建会额外产出 `dist/sw.js`、`dist/manifest.webmanifest` 与 `dist/icon-*.png`（PWA），部署时把它们和 `dist/index.html` 一起发布即可；缓存与 CSP 头的要求见 [PWA 与离线](docs/architecture.md#pwa-与离线)。
 
@@ -67,6 +69,7 @@ GNU Affero General Public License v3.0（`AGPL-3.0-only`），见 [LICENSE](LICE
 - [草稿箱](docs/drafts.md)：多篇显式草稿、加密、从草稿箱打开、提交后清理、与自动备份的区别。
 - [本机文章缓存与增量同步](docs/content-cache.md)：GraphQL 批量、diff 规则、AAD、并发、降级。
 - [测试](docs/testing.md)：测试覆盖清单、手动 E2E、测试仓库与 Playwright 说明。
+- [Termux 构建](docs/termux-build.md)：`pnpm build` 在 Termux/Android 下 workbox terser 卡死的原因与修复。
 - [架构](docs/architecture.md)：目录结构、内容与提交规则、设置项、PWA 与离线/更新提醒。
 - [DESIGN.md](DESIGN.md)：视觉/交互实现规范。
 - [PRODUCT.md](PRODUCT.md)：产品事实与目标。

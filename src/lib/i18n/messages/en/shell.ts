@@ -55,7 +55,7 @@ const shell: ShellMessages = {
     filenameLabel: 'Filename',
     filenameHint: 'Defaults to the title when empty; no extension gets .md, other suffixes are kept with a warning',
     filenameHintRequired: 'Required; no extension gets .md, other suffixes are kept with a warning',
-    filenameExtensionHint: 'The suffix {suffix} is not .md / .mdx; it will be created as {name}',
+    filenameExtensionHint: 'The suffix {suffix} is not .md / .mdx; {name} will be created as plain text',
     preview: 'Will be created · committed on save',
     commitMessage: 'Commit message:',
     start: 'Start drafting',

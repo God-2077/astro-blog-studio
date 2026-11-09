@@ -80,7 +80,7 @@ const dashboard: DashboardMessages = {
     emptyTitle: '草稿匣是空的',
     emptyBody:
       '在編輯器裡點「儲存草稿」，或讓未儲存的編輯自動備份；只要還沒蓋章，它們都會出現在這裡。真實儲存庫的副本使用保險庫金鑰加密。',
-    badges: { new: '新稿', existing: '已有文章', backup: '自動備份', source: '原始檔' },
+    badges: { new: '新稿', existing: '已有文章', backup: '自動備份', source: '原始檔', plain: '純文字' },
     removeAria: '從草稿匣刪除：{title}',
     removeAction: '從草稿匣刪除',
   },

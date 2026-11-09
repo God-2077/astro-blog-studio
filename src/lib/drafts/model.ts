@@ -2,7 +2,7 @@ import { BACKUP_VERSION, type BackupRecord, type BackupState, type EditorBackupM
 import { type FrontmatterField, formValuesFromData } from '@/lib/frontmatter/fields';
 import { t } from '@/lib/i18n';
 import { parseDocument, toEditingText } from '@/lib/markdown/document';
-import { normalizeRepoPath } from '@/lib/paths/paths';
+import { isMarkdownDocument, normalizeRepoPath } from '@/lib/paths/paths';
 
 export const DRAFT_VERSION = 1;
 export const MAX_DRAFT_CHARS = 1_000_000;
@@ -67,47 +67,60 @@ export interface DraftFromTextInput {
 }
 
 /**
- * Snapshot a plain document (e.g. a new post that only lived in memory) as a
- * draft. The diff baseline is the document itself, so restoring it and saving
- * again patches only the fields the user changes afterwards.
+ * Snapshot a document (e.g. a new post that only lived in memory) as a draft.
+ * The diff baseline is the document itself, so restoring it and saving again
+ * patches only the fields the user changes afterwards. Non-Markdown paths are
+ * stored as whole-file source text instead of being parsed as frontmatter.
  */
 export function draftFromText(input: DraftFromTextInput): DraftRecord {
-  const parsed = parseDocument(input.text);
+  const markdown = isMarkdownDocument(input.path);
+  const parsed = markdown ? parseDocument(input.text) : null;
+  const sourceText = toEditingText(input.text);
   const savedAt = input.savedAt ?? Date.now();
   return {
     version: DRAFT_VERSION,
     repoKey: input.repoKey,
     path: normalizeRepoPath(input.path),
-    title: draftTitle(parsed.data.title, input.path),
+    title: draftTitle(parsed?.data.title, input.path),
     // A record without a base sha has no remote file yet; default it to a new
     // draft so it can never be written in an invalid shape.
     isNew: input.isNew ?? !input.baseSha,
     baseSha: input.baseSha ?? '',
-    mode: 'form',
+    mode: markdown ? 'form' : 'source',
     savedAt,
     size: input.text.length,
     text: input.text,
-    state: {
-      body: parsed.body.replace(/\r\n?/g, '\n'),
-      rawInner: parsed.frontmatterRaw,
-      hasFrontmatter: parsed.hasFrontmatter,
-      fmError: parsed.frontmatterError ?? null,
-      form: formValuesFromData(input.fields, parsed.data),
-      sourceText: toEditingText(input.text),
-    },
+    state: markdown
+      ? {
+          body: parsed?.body.replace(/\r\n?/g, '\n') ?? '',
+          rawInner: parsed?.frontmatterRaw ?? '',
+          hasFrontmatter: parsed?.hasFrontmatter ?? false,
+          fmError: parsed?.frontmatterError ?? null,
+          form: formValuesFromData(input.fields, parsed?.data ?? {}),
+          sourceText,
+        }
+      : {
+          body: sourceText,
+          rawInner: '',
+          hasFrontmatter: false,
+          fmError: null,
+          form: {},
+          sourceText,
+        },
   };
 }
 
 /** Promote a crash backup (which may be newer than the memory draft) to a draft. */
 export function draftFromBackup(backup: BackupRecord): DraftRecord {
+  const markdown = isMarkdownDocument(backup.path);
   return {
     version: DRAFT_VERSION,
     repoKey: backup.repoKey,
     path: normalizeRepoPath(backup.path),
-    title: draftTitle(parseDocument(backup.text).data.title, backup.path),
+    title: draftTitle(markdown ? parseDocument(backup.text).data.title : undefined, backup.path),
     isNew: backup.isNew,
     baseSha: backup.baseSha,
-    mode: backup.mode,
+    mode: markdown ? backup.mode : 'source',
     savedAt: backup.savedAt,
     size: backup.size,
     text: backup.text,

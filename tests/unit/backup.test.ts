@@ -186,6 +186,21 @@ describe('restoreToEditorState', () => {
     expect(restored.form).toEqual(backup.state.form);
   });
 
+  it('restores plain text as whole-file source without reading YAML', () => {
+    const text = '---\ntitle: 假标题\n---\n\nbody\n';
+    const backup = makeRecord({ path: 'src/notes/a.txt', text, size: text.length });
+    const restored = restoreToEditorState(backup, '---\ntitle: remote\n---\n', { plainText: true });
+    expect(restored.mode).toBe('source');
+    expect(restored.body).toBe(text);
+    expect(restored.sourceText).toBe(text);
+    expect(restored.hasFrontmatter).toBe(false);
+    expect(restored.rawInner).toBe('');
+    expect(restored.fmError).toBeNull();
+    expect(restored.form).toEqual({});
+    expect(restored.originalData).toEqual({});
+    expect(restored.loadedSha).toBe('sha-old');
+  });
+
   it('counts non-whitespace characters for the dialog', () => {
     expect(backupCharCount(' a b\n c ')).toBe(3);
   });

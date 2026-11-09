@@ -15,6 +15,11 @@ const files: Record<string, MockFile[]> = {
       sha: 'blob-a',
       text: "---\ntitle: 'A 文章'\ndate: '2026-01-01'\n---\n仓库 A 的正文\n",
     },
+    {
+      path: 'src/notes/plain.txt',
+      sha: 'blob-plain',
+      text: "---\ntitle: 'not frontmatter'\n---\n\nplain body\n",
+    },
   ],
   [repoB]: [
     {
@@ -385,6 +390,52 @@ test.describe('multiple repositories (mocked GitHub)', () => {
     await answerConfirm(page, '移除仓库');
     await expect(page.getByText('已移除仓库')).toBeVisible();
     await expect(rowA).toHaveCount(0);
+  });
+});
+
+test.describe('plain text files (mocked GitHub)', () => {
+  test('opens configured non-Markdown files without frontmatter, preview, or mode switch', async ({ page }) => {
+    const state: RepoMockState = {
+      patA: 'pat-plain',
+      patB: '',
+      authSeen: new Map(),
+      graphqlCalls: new Map(),
+    };
+    await page.route('https://api.github.com/**', installGitHubMock(state));
+
+    await page.goto('/');
+    await expect(page).toHaveURL(/#\/setup/, { timeout: 30_000 });
+    await page.locator('input[placeholder="github_pat_…"]').fill(state.patA);
+    await page.locator('input[placeholder*="God-2077"]').fill(repoA);
+    await page.getByRole('radio', { name: '密码', exact: true }).check();
+    await page.locator('input[placeholder="设置一个密码"]').fill(password);
+    await page.getByRole('button', { name: /连接仓库/ }).click();
+    await expect(page.getByText('今天写点什么？')).toBeVisible({ timeout: 30_000 });
+
+    await page.locator('.abs-topbar').getByRole('link', { name: '设置', exact: true }).click();
+    const extensions = page.locator('label.abs-field').filter({ hasText: '文件扩展名' }).locator('input');
+    await extensions.fill('.md, .mdx, .txt');
+    await page.getByRole('button', { name: '保存设置' }).click();
+    await expect(page.getByText('设置已保存').last()).toBeVisible();
+
+    await page.locator('.abs-brand').click();
+    const tree = page.locator('aside');
+    const plain = tree.getByRole('button', { name: 'plain.txt', exact: true });
+    await expect(plain).toBeVisible({ timeout: 30_000 });
+    await plain.click();
+
+    await expect(page).toHaveURL(/plain\.txt/);
+    await expect(page.locator('.cm-editor')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('plain · 纯文本')).toBeVisible();
+    await expect(page.locator('.cm-content')).toContainText("title: 'not frontmatter'");
+    await expect(page.locator('.cm-content')).toContainText('plain body');
+
+    // No frontmatter paper, preview column, or form/source switch.
+    await expect(page.getByText('frontmatter', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.abs-preview')).toHaveCount(0);
+    await expect(page.getByText('预览 · 实时')).toHaveCount(0);
+    await expect(page.locator('.abs-seg')).toHaveCount(0);
+    await expect(page.locator('.abs-field').filter({ hasText: 'title' })).toHaveCount(0);
   });
 });
 

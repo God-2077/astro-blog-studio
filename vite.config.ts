@@ -3,6 +3,10 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { patchEmptyOsCpus } from './scripts/patch-empty-cpus';
+
+// Termux/Android 的 os.cpus() 可能为空，会让 workbox 的 terser 阶段卡死；必须在插件运行前执行。
+patchEmptyOsCpus();
 
 const base = process.env.STUDIO_BASE ?? '/';
 

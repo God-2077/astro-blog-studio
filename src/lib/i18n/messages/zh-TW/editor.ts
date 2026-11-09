@@ -111,6 +111,10 @@ const editor: EditorMessages = {
     source: '原始檔',
     sourceTitle: '直接編輯整份檔案（含 frontmatter），儲存時原樣寫回',
     sourceSheetLabel: 'source · 整份檔案',
+    plainSheetLabel: 'plain · 純文字',
+  },
+  plain: {
+    hint: '純文字檔案：不解析 frontmatter、不顯示預覽；儲存時只還原原有的換行與 BOM。',
   },
   preview: {
     live: '預覽 · 即時',

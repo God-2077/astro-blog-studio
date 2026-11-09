@@ -112,6 +112,7 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
 3. **内容保真**
    - 保存/移动要保留 CRLF/LF/BOM/结尾换行（`parseDocument` + `composeDocument`）。
    - 源文件模式（编辑器「表单 / 源文件」）直接写整份文件：只还原原文件的 EOL/BOM（`toEditingText` + `composeSourceDocument`），不解析 frontmatter 重写、不校验字段、不自动补 `updated`、不折叠结尾空行。
+   - 非 `.md` / `.mdx` 可见文件（如 `.txt`、`.ts`，按 `content.extensions` 匹配）按纯文本处理：不解析 frontmatter/字段配置、无预览/表单切换/Markdown 高亮；保存、草稿、自动备份、移动走 source 整份写入路径，工作台摘要也不解析 YAML。
    - frontmatter 只改变化的 key；未知字段、注释行尽量原样保留。
    - 更新/删除/移动写操作必须带 sha；409 映射为 CONFLICT，不得静默覆盖。新建的首次创建是唯一例外（见提交协议）。
    - 路径一律经 `normalizeRepoPath`；排除规则支持前缀/glob；不信任用户输入。

@@ -14,7 +14,7 @@ import type { DraftBoxItem } from '@/lib/drafts/box';
 import { draftCharCount } from '@/lib/drafts/model';
 import { useGateway } from '@/lib/gateway/context';
 import { useActiveLocale, useT } from '@/lib/i18n/react';
-import { normalizeRepoPath } from '@/lib/paths/paths';
+import { isMarkdownDocument, normalizeRepoPath } from '@/lib/paths/paths';
 import { type PostSortKey, postSortValue, RECENT_PAGE_SIZE, sortPosts } from '@/lib/posts/summary';
 import { cn } from '@/lib/utils/cn';
 import { displayDate, formatInTimeZone } from '@/lib/utils/date';
@@ -571,7 +571,11 @@ function DraftsList({
                 <Badge tone="ghost">{t('dashboard.drafts.badges.existing')}</Badge>
               )}
               {draft.origin === 'backup' ? <Badge tone="ghost">{t('dashboard.drafts.badges.backup')}</Badge> : null}
-              {draft.mode === 'source' ? <Badge tone="ghost">{t('dashboard.drafts.badges.source')}</Badge> : null}
+              {draft.mode === 'source' ? (
+                <Badge tone="ghost">
+                  {isMarkdownDocument(draft.path) ? t('dashboard.drafts.badges.source') : t('dashboard.drafts.badges.plain')}
+                </Badge>
+              ) : null}
               <span className="font-mono text-[9px] text-muted">
                 {t('common.units.words', { count: draftCharCount(draft.text).toLocaleString(locale) })}
               </span>

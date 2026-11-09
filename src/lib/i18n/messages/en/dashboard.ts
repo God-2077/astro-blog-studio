@@ -83,7 +83,13 @@ const dashboard: DashboardMessages = {
     emptyTitle: 'Drafts is empty',
     emptyBody:
       'Click “Save draft” in the editor, or let unsaved edits auto-backup; anything not stamped yet shows up here. Copies for live repositories are encrypted with the vault key.',
-    badges: { new: 'New post', existing: 'Existing post', backup: 'Auto-backup', source: 'Source file' },
+    badges: {
+      new: 'New post',
+      existing: 'Existing post',
+      backup: 'Auto-backup',
+      source: 'Source file',
+      plain: 'Plain text',
+    },
     removeAria: 'Delete from Drafts: {title}',
     removeAction: 'Delete from Drafts',
   },

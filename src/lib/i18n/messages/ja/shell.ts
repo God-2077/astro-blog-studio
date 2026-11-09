@@ -55,7 +55,7 @@ const shell: ShellMessages = {
     filenameLabel: 'ファイル名',
     filenameHint: '空欄の場合はタイトルを使用。拡張子なしは .md を補い、それ以外の拡張子はそのままで注意を表示します',
     filenameHintRequired: '必須です。拡張子なしは .md を補い、それ以外の拡張子はそのままで注意を表示します',
-    filenameExtensionHint: '拡張子 {suffix} は .md / .mdx ではありません。{name} として作成します',
+    filenameExtensionHint: '拡張子 {suffix} は .md / .mdx ではありません。{name} をプレーンテキストとして作成します',
     preview: '作成予定 · 保存時にコミット',
     commitMessage: 'コミットメッセージ：',
     start: '下書きを始める',

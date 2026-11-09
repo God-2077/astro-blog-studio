@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findUnknownPlaceholders, renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
-import { createExclusionMatcher, isMarkdownFile, isUnderRoot, normalizeRepoPath } from '@/lib/paths/paths';
+import { createExclusionMatcher, isMarkdownDocument, isMarkdownFile, isUnderRoot, normalizeRepoPath } from '@/lib/paths/paths';
 import { buildTreeModel } from '@/lib/tree/model';
 
 describe('paths and exclusions', () => {
@@ -22,6 +22,11 @@ describe('paths and exclusions', () => {
     expect(isMarkdownFile('a/b.md', ['.md', '.mdx'])).toBe(true);
     expect(isMarkdownFile('a/b.mdx', ['.md', '.mdx'])).toBe(true);
     expect(isMarkdownFile('a/b.txt', ['.md'])).toBe(false);
+    expect(isMarkdownDocument('a/b.md')).toBe(true);
+    expect(isMarkdownDocument('a/b.MDX')).toBe(true);
+    expect(isMarkdownDocument('a/b.txt')).toBe(false);
+    expect(isMarkdownDocument('a/b.ts')).toBe(false);
+    expect(isMarkdownDocument('a/b.md.txt')).toBe(false);
     expect(isUnderRoot('src/content/blog/a.md', 'src')).toBe(true);
     expect(isUnderRoot('src', 'src')).toBe(true);
     expect(isUnderRoot('public/a.md', 'src')).toBe(false);

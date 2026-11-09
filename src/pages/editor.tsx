@@ -39,14 +39,16 @@ import {
   composeDocument,
   composeSourceDocument,
   type DocumentMeta,
+  type ParsedDocument,
   parseDocument,
+  parsePlainDocument,
   toEditingText,
   updateFrontmatterRaw,
 } from '@/lib/markdown/document';
-import { createEditorTheme, markdownEditorExtensions } from '@/lib/markdown/editor-theme';
+import { createEditorTheme, markdownEditorExtensions, plainTextEditorExtensions } from '@/lib/markdown/editor-theme';
 import { renderMarkdown } from '@/lib/markdown/render';
 import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
-import { joinPath, normalizeRepoPath } from '@/lib/paths/paths';
+import { isMarkdownDocument, joinPath, normalizeRepoPath } from '@/lib/paths/paths';
 import { formatInTimeZone } from '@/lib/utils/date';
 import { useDrafts } from '@/stores/drafts';
 import { useEditorGuard } from '@/stores/editor';
@@ -88,6 +90,8 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const setLastCommit = useLastCommit((state) => state.setCommit);
   const pendingDraft = usePendingPost((state) => state.draft);
   const file = useFile(isNew ? null : path);
+  /** Non .md/.mdx files are edited as one plain-text buffer, never as a document. */
+  const plainText = path ? !isMarkdownDocument(path) : false;
 
   const [body, setBody] = useState('');
   const [rawInner, setRawInner] = useState('');
@@ -114,7 +118,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const movingRef = useRef(false);
   const moveTargetInputRef = useRef<HTMLInputElement>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editorMode, setEditorMode] = useState<EditorMode>('form');
+  const [editorMode, setEditorMode] = useState<EditorMode>(plainText ? 'source' : 'form');
   const [sourceText, setSourceText] = useState('');
   const [originalText, setOriginalText] = useState('');
   const [pristine, setPristine] = useState(false);
@@ -143,15 +147,15 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     }
     if (!source) return;
 
-    const parsed = parseDocument(source.text);
+    const parsed = plainText ? parsePlainDocument(source.text) : parseDocument(source.text);
     setDraftLost(false);
-    setRawInner(parsed.frontmatterRaw);
+    setRawInner(plainText ? '' : parsed.frontmatterRaw);
     setHasFrontmatter(parsed.hasFrontmatter);
     setMeta(parsed.meta);
     setBody(parsed.body.replace(/\r\n?/g, '\n'));
-    setForm(formValuesFromData(fields, parsed.data));
-    setOriginalData(parsed.data);
-    setFmError(parsed.frontmatterError ?? null);
+    setForm(plainText ? {} : formValuesFromData(fields, parsed.data));
+    setOriginalData(plainText ? {} : parsed.data);
+    setFmError(plainText ? null : (parsed.frontmatterError ?? null));
     setFieldErrors({});
     setLoadedSha(isNew ? '' : (file.data?.sha ?? ''));
     setDirty(isNew);
@@ -170,14 +174,14 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     const openedDraft = openedDraftRef.current;
     if (openedDraft && openedDraft.isNew === isNew && normalizeRepoPath(openedDraft.path) === normalizeRepoPath(path)) {
       openedDraftRef.current = null;
-      const restored = restoreToEditorState(draftToBackup(openedDraft), source.text);
+      const restored = restoreToEditorState(draftToBackup(openedDraft), source.text, { plainText });
       setRawInner(restored.rawInner);
       setHasFrontmatter(restored.hasFrontmatter);
       setBody(restored.body);
       setForm({ ...restored.form });
       setFmError(restored.fmError);
       setSourceText(restored.sourceText);
-      setOriginalData(isNew ? parsed.data : restored.originalData);
+      setOriginalData(plainText ? {} : isNew ? parsed.data : restored.originalData);
       setLoadedSha(isNew ? '' : restored.loadedSha);
       setEditorMode(restored.mode);
       setDirty(true);
@@ -185,21 +189,26 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       setDraftSavedAt(openedDraft.savedAt);
       draftLoadedRef.current = true;
     }
-  }, [isNew, pendingDraft, file.data, path, fields, draftReady]);
+  }, [isNew, pendingDraft, file.data, path, fields, draftReady, plainText]);
 
-  const sourceActive = editorMode === 'source';
-  const sourceParsed = useMemo(() => parseDocument(sourceText), [sourceText]);
+  const sourceActive = plainText || editorMode === 'source';
+  const sourceParsed: ParsedDocument = useMemo(
+    () => (plainText ? parsePlainDocument(sourceText, meta) : parseDocument(sourceText)),
+    [plainText, sourceText, meta],
+  );
   const frontmatterData = sourceActive ? sourceParsed.data : originalData;
   const effectiveBody = sourceActive ? sourceParsed.body : body;
-  const yamlBroken = sourceActive ? Boolean(sourceParsed.frontmatterError) : Boolean(fmError);
-  const missingRequired = sourceActive ? missingRequiredFieldNames(fields, sourceParsed.data) : [];
+  const yamlBroken = plainText ? false : sourceActive ? Boolean(sourceParsed.frontmatterError) : Boolean(fmError);
+  const missingRequired = plainText ? [] : sourceActive ? missingRequiredFieldNames(fields, sourceParsed.data) : [];
 
-  const currentTitle = sourceActive
-    ? typeof sourceParsed.data.title === 'string'
-      ? sourceParsed.data.title.trim()
-      : ''
-    : (typeof form.title === 'string' ? form.title.trim() : '') ||
-      (typeof originalData.title === 'string' ? originalData.title.trim() : '');
+  const currentTitle = plainText
+    ? ''
+    : sourceActive
+      ? typeof sourceParsed.data.title === 'string'
+        ? sourceParsed.data.title.trim()
+        : ''
+      : (typeof form.title === 'string' ? form.title.trim() : '') ||
+        (typeof originalData.title === 'string' ? originalData.title.trim() : '');
   const messageSourceKey = `${path ?? ''}|${isNew}|${settings.commit.create}|${settings.commit.update}|${config.timezone}`;
   const defaultMessage = useMemo(() => {
     if (!path) return '';
@@ -399,7 +408,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   };
 
   const switchToSource = (): void => {
-    if (sourceActive) return;
+    if (plainText || sourceActive) return;
     let text = originalText;
     if (!pristine) {
       const built = buildText({ autoUpdatedAt: false });
@@ -415,7 +424,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   };
 
   const switchToForm = (): void => {
-    if (!sourceActive) return;
+    if (plainText || !sourceActive) return;
     const parsed = parseDocument(sourceText);
     setRawInner(parsed.frontmatterRaw);
     setHasFrontmatter(parsed.hasFrontmatter);
@@ -429,8 +438,13 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
 
   const handleRestoreBackup = (record: BackupRecord): void => {
     if (record.isNew) {
+      const pendingSourceText = plainText
+        ? toEditingText(record.text)
+        : record.mode === 'source'
+          ? record.state.sourceText
+          : null;
       pendingNewRestoreRef.current =
-        record.mode === 'source' ? { path: path ?? record.path, sourceText: record.state.sourceText } : null;
+        pendingSourceText !== null ? { path: path ?? record.path, sourceText: pendingSourceText } : null;
       usePendingPost.getState().setDraft({ path: path ?? record.path, text: record.text });
       setDraftLost(false);
       backup.acknowledgeRestored();
@@ -439,7 +453,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     }
 
     const remoteText = file.data?.text ?? originalText;
-    const restored = restoreToEditorState(record, remoteText);
+    const restored = restoreToEditorState(record, remoteText, { plainText });
     setBody(restored.body);
     setRawInner(restored.rawInner);
     setHasFrontmatter(restored.hasFrontmatter);
@@ -481,7 +495,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     setDraftSaving(true);
     try {
       const text = buildBackupText({
-        mode: editorMode,
+        mode: plainText ? 'source' : editorMode,
         sourceText,
         meta,
         rawInner,
@@ -498,7 +512,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         title: currentTitle || path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '') || t('editor.draft.noTitle'),
         isNew,
         baseSha: isNew ? '' : loadedSha,
-        mode: editorMode,
+        mode: plainText ? 'source' : editorMode,
         savedAt: Date.now(),
         size: text.length,
         text,
@@ -795,7 +809,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     );
   }
 
-  const rendered = renderMarkdown(effectiveBody);
+  const rendered = plainText ? null : renderMarkdown(effectiveBody);
   const words = effectiveBody.replace(/\s+/g, '').length;
   const fileName = path.slice(path.lastIndexOf('/') + 1);
   const githubUrl = isNew
@@ -810,7 +824,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       : t('editor.frontmatter.updatedManualHint');
 
   return (
-    <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className={plainText ? 'grid min-w-0 gap-3' : 'grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]'}>
       <div className="min-w-0 space-y-3">
         <header className="abs-paper min-w-0 p-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -953,35 +967,50 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         <section className="abs-sheet min-w-0 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft px-3 py-2">
             <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
-              {sourceActive ? t('editor.editorMode.sourceSheetLabel') : 'markdown'}
+              {plainText
+                ? t('editor.editorMode.plainSheetLabel')
+                : sourceActive
+                  ? t('editor.editorMode.sourceSheetLabel')
+                  : 'markdown'}
             </span>
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-[9px] text-muted">
                 {t('common.units.words', { count: words.toLocaleString(locale) })}
-                {' · '}
-                {t('editor.readingTime', { count: Math.max(1, Math.round(words / 300)) })}
+                {plainText ? null : (
+                  <>
+                    {' · '}
+                    {t('editor.readingTime', { count: Math.max(1, Math.round(words / 300)) })}
+                  </>
+                )}
               </span>
-              <fieldset className="abs-seg" aria-label={t('editor.editorMode.label')}>
-                <legend className="sr-only">{t('editor.editorMode.label')}</legend>
-                <button
-                  type="button"
-                  aria-pressed={!sourceActive}
-                  title={t('editor.editorMode.formTitle')}
-                  onClick={switchToForm}
-                >
-                  {t('editor.editorMode.form')}
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={sourceActive}
-                  title={t('editor.editorMode.sourceTitle')}
-                  onClick={switchToSource}
-                >
-                  {t('editor.editorMode.source')}
-                </button>
-              </fieldset>
+              {plainText ? null : (
+                <fieldset className="abs-seg" aria-label={t('editor.editorMode.label')}>
+                  <legend className="sr-only">{t('editor.editorMode.label')}</legend>
+                  <button
+                    type="button"
+                    aria-pressed={!sourceActive}
+                    title={t('editor.editorMode.formTitle')}
+                    onClick={switchToForm}
+                  >
+                    {t('editor.editorMode.form')}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={sourceActive}
+                    title={t('editor.editorMode.sourceTitle')}
+                    onClick={switchToSource}
+                  >
+                    {t('editor.editorMode.source')}
+                  </button>
+                </fieldset>
+              )}
             </div>
           </div>
+          {plainText ? (
+            <p className="border-b border-line-soft bg-paper-2 px-3 py-1.5 text-[10px] leading-relaxed text-muted">
+              {t('editor.plain.hint')}
+            </p>
+          ) : null}
           {sourceActive && sourceParsed.frontmatterError ? (
             <p className="flex items-start gap-1.5 border-b border-line-soft bg-butter/50 px-3 py-1.5 text-[10px] leading-relaxed text-warning">
               <FileWarning aria-hidden className="mt-0.5 size-3.5 shrink-0" />
@@ -990,18 +1019,18 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
           ) : null}
           <div className="min-w-0 px-2">
             <CodeMirror
-              key={editorMode}
+              key={plainText ? 'plain' : editorMode}
               value={sourceActive ? sourceText : body}
               height="520px"
               theme={createEditorTheme(settings.editor.fontSize, resolvedTheme === 'night')}
-              extensions={markdownEditorExtensions}
+              extensions={plainText ? plainTextEditorExtensions : markdownEditorExtensions}
               basicSetup={{
                 lineNumbers: settings.editor.showLineNumbers,
                 foldGutter: false,
                 highlightActiveLine: true,
-                autocompletion: true,
-                bracketMatching: true,
-                closeBrackets: true,
+                autocompletion: !plainText,
+                bracketMatching: !plainText,
+                closeBrackets: !plainText,
                 syntaxHighlighting: false,
               }}
               onChange={(value) => {
@@ -1041,27 +1070,31 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
               {sourceActive ? (
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[9px] text-muted">
                   <span>{t('editor.frontmatter.eolKept', { eol: meta.eol === '\r\n' ? 'CRLF' : 'LF' })}</span>
-                  {sourceParsed.frontmatterError ? null : (
-                    <span>
-                      {sourceParsed.hasFrontmatter
-                        ? t('editor.frontmatter.fieldsCount', { count: Object.keys(sourceParsed.data).length })
-                        : t('editor.frontmatter.noFrontmatter')}
-                    </span>
+                  {plainText ? null : (
+                    <>
+                      {sourceParsed.frontmatterError ? null : (
+                        <span>
+                          {sourceParsed.hasFrontmatter
+                            ? t('editor.frontmatter.fieldsCount', { count: Object.keys(sourceParsed.data).length })
+                            : t('editor.frontmatter.noFrontmatter')}
+                        </span>
+                      )}
+                      {extraFields.length ? (
+                        <span>{t('editor.frontmatter.unknownKept', { count: extraFields.length })}</span>
+                      ) : null}
+                      {missingRequired.length ? (
+                        <span className="text-warning">
+                          {t('editor.frontmatter.missingRequired', {
+                            names: missingRequired.join(t('editor.frontmatter.listSeparator')),
+                          })}
+                        </span>
+                      ) : null}
+                      {settings.editor.updateUpdatedAt && hasUpdatedField ? (
+                        <span>{t('editor.frontmatter.sourceNoUpdated')}</span>
+                      ) : null}
+                      {isNew ? <span className="text-sakura">{t('editor.frontmatter.firstSaveOnce')}</span> : null}
+                    </>
                   )}
-                  {extraFields.length ? (
-                    <span>{t('editor.frontmatter.unknownKept', { count: extraFields.length })}</span>
-                  ) : null}
-                  {missingRequired.length ? (
-                    <span className="text-warning">
-                      {t('editor.frontmatter.missingRequired', {
-                        names: missingRequired.join(t('editor.frontmatter.listSeparator')),
-                      })}
-                    </span>
-                  ) : null}
-                  {settings.editor.updateUpdatedAt && hasUpdatedField ? (
-                    <span>{t('editor.frontmatter.sourceNoUpdated')}</span>
-                  ) : null}
-                  {isNew ? <span className="text-sakura">{t('editor.frontmatter.firstSaveOnce')}</span> : null}
                 </p>
               ) : null}
             </div>
@@ -1121,7 +1154,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
                         commits: isNew ? t('editor.commit.createCommits') : t('editor.commit.oneCommit'),
                         change: dirty ? t('editor.commit.dirty') : t('editor.commit.clean'),
                       })}
-                      {sourceActive ? t('editor.commit.sourceSuffix') : ''}
+                      {sourceActive && !plainText ? t('editor.commit.sourceSuffix') : ''}
                     </p>
                     <button
                       type="button"
@@ -1144,25 +1177,27 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         </section>
       </div>
 
-      <aside className="min-w-0 xl:sticky xl:top-[76px] xl:self-start">
-        <div className="abs-paper flex max-h-[calc(100vh-96px)] min-h-0 flex-col overflow-hidden">
-          <div className="flex items-center justify-between gap-2 border-b border-line-soft px-3 py-2">
-            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">{t('editor.preview.live')}</span>
-            <span className="flex items-center gap-1 font-mono text-[9px] text-success">
-              <span className="size-1.5 rounded-full bg-success" />
-              {rendered.warnings.length ? t('editor.preview.warnings', { count: rendered.warnings.length }) : 'OK'}
-            </span>
+      {plainText || !rendered ? null : (
+        <aside className="min-w-0 xl:sticky xl:top-[76px] xl:self-start">
+          <div className="abs-paper flex max-h-[calc(100vh-96px)] min-h-0 flex-col overflow-hidden">
+            <div className="flex items-center justify-between gap-2 border-b border-line-soft px-3 py-2">
+              <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">{t('editor.preview.live')}</span>
+              <span className="flex items-center gap-1 font-mono text-[9px] text-success">
+                <span className="size-1.5 rounded-full bg-success" />
+                {rendered.warnings.length ? t('editor.preview.warnings', { count: rendered.warnings.length }) : 'OK'}
+              </span>
+            </div>
+            {rendered.warnings.length ? (
+              <p className="border-b border-line-soft bg-butter/50 px-3 py-1.5 text-[9.5px] leading-relaxed text-warning">
+                {rendered.warnings.join(' · ')}
+              </p>
+            ) : null}
+            <div className="min-h-0 flex-1 overflow-auto p-4">
+              <div className="abs-preview" dangerouslySetInnerHTML={{ __html: rendered.html }} />
+            </div>
           </div>
-          {rendered.warnings.length ? (
-            <p className="border-b border-line-soft bg-butter/50 px-3 py-1.5 text-[9.5px] leading-relaxed text-warning">
-              {rendered.warnings.join(' · ')}
-            </p>
-          ) : null}
-          <div className="min-h-0 flex-1 overflow-auto p-4">
-            <div className="abs-preview" dangerouslySetInnerHTML={{ __html: rendered.html }} />
-          </div>
-        </div>
-      </aside>
+        </aside>
+      )}
 
       <Dialog.Root open={conflictOpen} onOpenChange={setConflictOpen}>
         <Dialog.Portal>
