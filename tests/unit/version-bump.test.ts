@@ -145,6 +145,28 @@ describe('version bump scripts', () => {
     expect(readVersion(dir)).toBe('1.0.0');
   });
 
+  it.skipIf(!hasGit)('ignores a leftover REBASE_HEAD file', () => {
+    const dir = createRepo('1.0.0');
+    writeFileSync(join(dir, '.git', 'REBASE_HEAD'), `${git(dir, ['rev-parse', 'HEAD'])}\n`, 'utf8');
+
+    const result = runScript(dir, bumpScript, ['--stage']);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('1.0.0 → 1.0.1');
+    expect(readVersion(dir)).toBe('1.0.1');
+  });
+
+  it.skipIf(!hasGit)('skips while a rebase is in progress', () => {
+    const dir = createRepo('1.0.0');
+    mkdirSync(join(dir, '.git', 'rebase-merge'), { recursive: true });
+
+    const result = runScript(dir, bumpScript, ['--stage']);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('REBASE');
+    expect(readVersion(dir)).toBe('1.0.0');
+  });
+
   it.skipIf(!hasGit)('supports minor and major bumps', () => {
     const dir = createRepo('1.2.3');
 

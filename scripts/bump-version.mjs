@@ -16,8 +16,8 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 const KINDS = ['patch', 'minor', 'major'];
 const PACKAGE_JSON = 'package.json';
@@ -47,6 +47,29 @@ function tryGit(args) {
   } catch {
     return null;
   }
+}
+
+/** 取 git 内部路径（可能是相对 cwd 的路径）；拿不到时返回 null。 */
+function gitPath(name) {
+  const result = tryGit(['rev-parse', '--git-path', name]);
+  if (result === null) return null;
+  const value = result.trim();
+  return value ? resolve(process.cwd(), value) : null;
+}
+
+/**
+ * 判断是否处在合并/变基/拣选/回滚中。
+ * REBASE_HEAD 在变基结束后可能残留，不能单独作为「变基中」的依据，只认 rebase-merge / rebase-apply 目录。
+ */
+function operationInProgress() {
+  for (const dir of ['rebase-merge', 'rebase-apply']) {
+    const path = gitPath(dir);
+    if (path && existsSync(path)) return 'REBASE';
+  }
+  for (const ref of ['CHERRY_PICK_HEAD', 'REVERT_HEAD', 'MERGE_HEAD']) {
+    if (tryGit(['rev-parse', '-q', '--verify', ref])) return ref.replace('_HEAD', '');
+  }
+  return null;
 }
 
 function bump(version, target) {
@@ -95,9 +118,8 @@ function main() {
 
   if (stage) {
     if (process.env.SKIP_VERSION_BUMP) skip('SKIP_VERSION_BUMP 已设置，跳过自动升版。');
-    for (const ref of ['REBASE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'MERGE_HEAD']) {
-      if (tryGit(['rev-parse', '-q', '--verify', ref])) skip(`正在进行 ${ref.replace('_HEAD', '')}，跳过自动升版。`);
-    }
+    const operation = operationInProgress();
+    if (operation) skip(`正在进行 ${operation}，跳过自动升版。`);
     if (!tryGit(['rev-parse', '-q', '--verify', 'HEAD'])) skip('还没有任何提交，跳过自动升版。');
   }
 
