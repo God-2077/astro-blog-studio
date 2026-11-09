@@ -24,6 +24,7 @@ pnpm dev
 - 单元测试：`pnpm test`
 - 类型检查 / 静态检查 / 构建：`pnpm typecheck`、`pnpm lint`、`pnpm build`
 - 完整测试命令、覆盖清单与测试仓库：[docs/testing.md](docs/testing.md)
+- 版本号：`package.json` 的 `version` 是唯一来源（顶栏与配置导出都读它）。`pnpm install` 会通过 `prepare` 把 `core.hooksPath` 指向 `.githooks/`，之后每次 `git commit` 自动把修订号 +1 并加入本次提交；手工升版用 `pnpm version:bump minor|major`（那次提交不会再次 +1）。合并/变基/拣选/回滚中的提交不升版；`SKIP_VERSION_BUMP=1 git commit` 或 `git commit --no-verify` 可跳过。已有克隆可执行 `pnpm hooks:install` 启用。
 
 > 自动测试使用 `astro-blog-content-test` 专用测试仓库；真实的 `astro-blog-content` 请单独创建一个只授权它的 fine-grained token；测试 token 不要用于生产。
 

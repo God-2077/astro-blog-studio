@@ -21,12 +21,16 @@ pnpm test:clean       # 兜底清理 src/_e2e/*
 pnpm test:e2e         # Playwright：setup + demo + live + pwa（默认用系统 Edge；live 需要 .env.local）
 pnpm test:e2e:pwa     # 只跑 PWA 组：会先 vite build 再 vite preview 验证真实产物
 pnpm pwa:icons        # 重新生成 public/icon-*.png（scripts/generate-pwa-icons.mjs，零依赖）
+pnpm version:bump     # 手工升版（patch|minor|major）；提交时钩子会自动 patch +1
+pnpm hooks:install    # 把 core.hooksPath 指向 .githooks（pnpm install 的 prepare 已自动执行）
 pnpm verify           # typecheck + lint + test + build
 ```
 
 > `pnpm dev` 不注册 Service Worker（`devOptions.enabled:false`，虚拟模块是 no-op stub）；PWA 只能在 `pnpm build` + `vite preview` 或线上验证。
 
 **pnpm only。** Node ≥ 20.19。
+
+**版本号**：`package.json` 的 `version` 是唯一来源（顶栏与配置导出都读它）。`.githooks/pre-commit` 在每次 `git commit` 时调用 `scripts/bump-version.mjs --stage`，把修订号 +1 并加入同一提交；安装逻辑在 `scripts/install-git-hooks.mjs`（幂等，不覆盖自定义 `core.hooksPath`）。手工升版用 `pnpm version:bump patch|minor|major`，该次提交不会再次 +1；合并/变基/拣选/回滚中的提交、首次提交、`package.json` 未跟踪或未暂存时跳过；需要强制跳过时用 `SKIP_VERSION_BUMP=1 git commit` 或 `git commit --no-verify`。不要手改 `.git/hooks`。
 
 ## 架构地图
 
@@ -87,7 +91,7 @@ src/
   vite-env.d.ts             virtual:pwa-register/react 的类型引用
 tests/unit | live | e2e
 public/                     robots.txt + PWA 图标（由 pnpm pwa:icons 生成并提交）
-scripts/                    seed/clean/test-env、design build/serve、generate-pwa-icons
+scripts/                    seed/clean/test-env、design build/serve、generate-pwa-icons、bump-version/install-git-hooks
 ```
 
 

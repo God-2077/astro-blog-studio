@@ -24,6 +24,9 @@
     "test:e2e": "playwright test",
     "test:e2e:pwa": "playwright test --project=pwa",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
+    "version:bump": "node scripts/bump-version.mjs",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs",
     "design:build": "node scripts/build-directions.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
   },

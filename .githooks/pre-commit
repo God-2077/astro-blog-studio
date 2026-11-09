@@ -1,0 +1,8 @@
+#!/bin/sh
+# 每次 git commit 自动把 package.json 的修订号 +1，并把改动加入本次提交。
+# 跳过：SKIP_VERSION_BUMP=1、git commit --no-verify、首次提交、
+#       合并/变基/拣选/回滚中的提交，以及暂存区版本已高于 HEAD（手工升版）。
+# 逻辑与边界见 scripts/bump-version.mjs。
+
+root="$(git rev-parse --show-toplevel)" || exit 0
+exec node "$root/scripts/bump-version.mjs" --stage
