@@ -384,29 +384,45 @@ test.describe('demo mode', () => {
     await expect(page).toHaveURL(/path=src%2Fcontent%2Fblog%2Fnote%2FE2E-/);
   });
 
-  test('keeps several drafts in the local draft box and retires one after commit', async ({ page }) => {
+  test('switches an invalid form to source without blocking and leaves invalid fields empty', async ({ page }) => {
+    await page.goto(
+      '/?demo=1#/edit?path=src%2Fcontent%2Fblog%2Fnote%2F%E4%BE%BF%E7%AC%BA-Markdown-%E5%A4%87%E5%BF%98%E5%8D%95.md',
+    );
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
+    const title = frontmatter.locator('input.abs-input').first();
+    await title.fill('');
+
+    await page.getByRole('button', { name: '源文件' }).click();
+    await expect(page.getByRole('button', { name: '源文件' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-sonner-toast]').filter({ hasText: '表单里有无效字段' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: '表单' }).click();
+    await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('');
+  });
+
+  test('keeps several autosaved drafts and suppresses the leave prompt after an explicit save', async ({ page }) => {
     await page.goto('/?demo=1');
 
-    const saveNewDraft = async (title: string, marker: string, carriesPrevious = false): Promise<void> => {
+    const autosaveNewDraft = async (title: string, marker: string): Promise<void> => {
       await page.getByRole('button', { name: '新建文章' }).first().click();
       const dialog = page.getByRole('dialog');
       await dialog.locator('input.abs-input').first().fill(title);
       await dialog.getByRole('button', { name: '开始起草' }).click();
-      // 第二篇起：上一篇还在内存里，确认后会先存入草稿箱再开新稿。
-      if (carriesPrevious) await answerConfirm(page, '存入草稿箱并继续');
       await expect(page.locator('.cm-editor')).toBeVisible();
       await page.locator('.cm-content').click();
       await page.keyboard.press('Control+End');
       await page.keyboard.type(marker);
-      await page.getByRole('button', { name: '保存草稿' }).click();
-      await expect(page.getByText('已存入本机草稿箱').first()).toBeVisible();
+      // 新稿没有「保存草稿」按钮，草稿由自动保存写入。
+      await expect(page.getByText('本机草稿已保存', { exact: false })).toBeVisible({ timeout: 10_000 });
       await page.locator('.abs-brand').click();
       await answerConfirm(page, '离开');
       await expect(page.getByText('今天写点什么？')).toBeVisible();
     };
 
-    await saveNewDraft('草稿甲', '正文甲');
-    await saveNewDraft('草稿乙', '正文乙', true);
+    await autosaveNewDraft('草稿甲', '正文甲');
+    // 第二篇直接开始：上一篇会自动存入草稿箱，不再弹 existingDraft 确认。
+    await autosaveNewDraft('草稿乙', '正文乙');
 
     // 「最近动过」切换成草稿箱，两篇新稿都在。
     await page
@@ -419,7 +435,23 @@ test.describe('demo mode', () => {
     await expect(sheet.getByText('草稿乙', { exact: true })).toBeVisible();
     await expect(sheet.locator('ul li')).toHaveCount(2);
 
-    // 打开甲：恢复正文，再盖章提交。
+    // 从草稿箱打开时保留「保存草稿」；保存后离开不再确认。
+    await sheet.getByText('草稿甲', { exact: true }).click();
+    await expect(page).toHaveURL(/draft=1/);
+    await expect(page.locator('.cm-editor')).toBeVisible();
+    const saveDraft = page.getByRole('button', { name: '保存草稿' });
+    await expect(saveDraft).toBeVisible();
+    await saveDraft.click();
+    await expect(page.getByText('已存入本机草稿箱').first()).toBeVisible();
+    await page.locator('.abs-brand').click();
+    await expect(page.getByText('今天写点什么？')).toBeVisible();
+    await expect(page.locator('[data-abs-confirm]')).toHaveCount(0);
+
+    // 重新打开甲：恢复正文，再盖章提交。
+    await page
+      .getByRole('button', { name: /草稿箱/ })
+      .first()
+      .click();
     await sheet.getByText('草稿甲', { exact: true }).click();
     await expect(page).toHaveURL(/draft=1/);
     await expect(page.locator('.cm-editor')).toBeVisible();
@@ -454,15 +486,15 @@ test.describe('demo mode', () => {
     await expect(page.getByText('草稿箱是空的')).toBeVisible();
   });
 
-  test('lists an autosave backup in the draft box', async ({ page }) => {
+  test('lists an autosave draft in the draft box', async ({ page }) => {
     await page.goto('/?demo=1');
     await page.locator('.abs-tree-row').filter({ hasText: 'note' }).first().click();
     await page.locator('.abs-tree-row').filter({ hasText: '便笺-Markdown-备忘单.md' }).click();
     await expect(page.locator('.cm-editor')).toBeVisible();
 
     const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
-    await frontmatter.locator('input.abs-input').first().fill('备份也是草稿');
-    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+    await frontmatter.locator('input.abs-input').first().fill('自动保存也是草稿');
+    await expect(page.getByText('本机草稿已保存', { exact: false })).toBeVisible({ timeout: 10_000 });
 
     await page.locator('.abs-brand').click();
     await answerConfirm(page, '离开');
@@ -473,18 +505,18 @@ test.describe('demo mode', () => {
       .click();
 
     const sheet = page.locator('.abs-sheet');
-    await expect(sheet.getByText('备份也是草稿', { exact: true })).toBeVisible();
-    await expect(sheet.getByText('自动备份', { exact: true })).toBeVisible();
+    await expect(sheet.getByText('自动保存也是草稿', { exact: true })).toBeVisible();
+    await expect(sheet.getByText('自动保存', { exact: true })).toBeVisible();
 
-    // 点进草稿箱条目等于从备份恢复，而不是打开远端旧内容。
-    await sheet.getByText('备份也是草稿', { exact: true }).click();
+    // 点进草稿箱条目等于恢复本机草稿，而不是打开远端旧内容。
+    await sheet.getByText('自动保存也是草稿', { exact: true }).click();
     await expect(page).toHaveURL(/draft=1/);
     const restoredTitle = page
       .locator('section.abs-paper')
       .filter({ hasText: 'FRONTMATTER' })
       .locator('input.abs-input')
       .first();
-    await expect(restoredTitle).toHaveValue('备份也是草稿');
+    await expect(restoredTitle).toHaveValue('自动保存也是草稿');
   });
 
   test('renders {title} in create and update commit templates', async ({ page }) => {
@@ -530,7 +562,7 @@ test.describe('demo mode', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
   });
 
-  test('restores a form backup after reload, then clears it on save', async ({ page }) => {
+  test('restores a form draft after reload, then clears it on save', async ({ page }) => {
     page.on('dialog', (dialog) => void dialog.accept());
 
     await page.goto('/?demo=1');
@@ -540,17 +572,17 @@ test.describe('demo mode', () => {
 
     const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
     const title = frontmatter.locator('input.abs-input').first();
-    await title.fill('本机备份标题');
-    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+    await title.fill('本机草稿标题');
+    await expect(page.getByText('本机草稿已保存', { exact: false })).toBeVisible({ timeout: 10_000 });
 
     await page.reload();
     const dialog = page.getByRole('alertdialog');
-    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
+    await expect(dialog.getByText('发现未保存的草稿')).toBeVisible({ timeout: 15_000 });
     await dialog.getByRole('button', { name: '稍后' }).click();
-    await expect(page.getByText('本机有一份未保存的备份', { exact: false }).first()).toBeVisible();
+    await expect(page.getByText('本机有一份未保存的草稿', { exact: false }).first()).toBeVisible();
     await page.getByRole('button', { name: '恢复', exact: true }).click();
 
-    await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('本机备份标题');
+    await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('本机草稿标题');
     await expect(page.getByText('未保存').first()).toBeVisible();
 
     await page.locator('.abs-stamp').click();
@@ -563,7 +595,7 @@ test.describe('demo mode', () => {
     await expect(page.getByRole('alertdialog')).toHaveCount(0);
   });
 
-  test('restores a source-mode backup and keeps the source view', async ({ page }) => {
+  test('restores a source-mode draft and keeps the source view', async ({ page }) => {
     page.on('dialog', (dialog) => void dialog.accept());
 
     await page.goto('/?demo=1');
@@ -575,22 +607,22 @@ test.describe('demo mode', () => {
     await expect(page.getByRole('button', { name: '源文件' })).toHaveAttribute('aria-pressed', 'true');
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+End');
-    await page.keyboard.type('\n\n源文件备份标记');
-    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+    await page.keyboard.type('\n\n源文件草稿标记');
+    await expect(page.getByText('本机草稿已保存', { exact: false })).toBeVisible({ timeout: 10_000 });
 
     await page.reload();
     const dialog = page.getByRole('alertdialog');
-    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
-    await dialog.getByRole('button', { name: '恢复备份' }).click();
+    await expect(dialog.getByText('发现未保存的草稿')).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: '恢复草稿' }).click();
 
     await expect(page.getByRole('button', { name: '源文件' })).toHaveAttribute('aria-pressed', 'true');
     // CodeMirror 只渲染可见行；跳到文末让打字标记进入 DOM 再断言。
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+End');
-    await expect(page.locator('.cm-content')).toContainText('源文件备份标记');
+    await expect(page.locator('.cm-content')).toContainText('源文件草稿标记');
   });
 
-  test('discards a local backup and does not ask again', async ({ page }) => {
+  test('discards a local draft and does not ask again', async ({ page }) => {
     page.on('dialog', (dialog) => void dialog.accept());
 
     await page.goto('/?demo=1');
@@ -602,47 +634,55 @@ test.describe('demo mode', () => {
     const title = frontmatter.locator('input.abs-input').first();
     const originalTitle = await title.inputValue();
     await title.fill('会被丢弃的标题');
-    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('本机草稿已保存', { exact: false })).toBeVisible({ timeout: 10_000 });
 
     await page.reload();
     const dialog = page.getByRole('alertdialog');
-    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
-    await dialog.getByRole('button', { name: '丢弃备份' }).click();
+    await expect(dialog.getByText('发现未保存的草稿')).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: '丢弃草稿' }).click();
     await expect(page.getByRole('alertdialog')).toHaveCount(0);
     await expect(title).toHaveValue(originalTitle);
-    await expect(page.getByText('已丢弃本机备份')).toBeVisible();
+    await expect(page.getByText('已丢弃本机草稿')).toBeVisible();
 
     await page.reload();
     await expect(page.locator('.cm-editor')).toBeVisible();
     await expect(page.getByRole('alertdialog')).toHaveCount(0);
+
+    // 丢弃会同时删掉草稿箱里的对应草稿。
+    await page.locator('.abs-brand').click();
+    await page
+      .getByRole('button', { name: /草稿箱/ })
+      .first()
+      .click();
+    await expect(page.getByText('草稿箱是空的')).toBeVisible();
   });
 
-  test('restores a new-post draft from a local backup after a reload', async ({ page }) => {
+  test('restores a new-post draft from a local autosave after a reload', async ({ page }) => {
     page.on('dialog', (dialog) => void dialog.accept());
 
     await page.goto('/?demo=1');
     await page.getByRole('button', { name: '新建文章' }).first().click();
     const newPostDialog = page.getByRole('dialog');
-    await newPostDialog.locator('input.abs-input').first().fill('E2E 备份新稿');
+    await newPostDialog.locator('input.abs-input').first().fill('E2E 草稿新稿');
     await newPostDialog.getByRole('button', { name: '开始起草' }).click();
     await expect(page).toHaveURL(/new=1/);
     await expect(page.locator('.cm-editor')).toBeVisible();
 
     await page.locator('.cm-content').click();
     await page.keyboard.press('Control+End');
-    await page.keyboard.type('\n\n新稿备份正文');
-    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 10_000 });
+    await page.keyboard.type('\n\n新稿草稿正文');
+    await expect(page.getByText('本机草稿已保存', { exact: false })).toBeVisible({ timeout: 10_000 });
 
     await page.reload();
     await expect(page).toHaveURL(/new=1/);
     const dialog = page.getByRole('alertdialog');
-    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
-    await dialog.getByRole('button', { name: '恢复备份' }).click();
+    await expect(dialog.getByText('发现未保存的草稿')).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: '恢复草稿' }).click();
 
     await expect(page.getByText('未提交').first()).toBeVisible();
     const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
-    await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('E2E 备份新稿');
-    await expect(page.locator('.cm-content')).toContainText('新稿备份正文');
+    await expect(frontmatter.locator('input.abs-input').first()).toHaveValue('E2E 草稿新稿');
+    await expect(page.locator('.cm-content')).toContainText('新稿草稿正文');
   });
 
   test('keeps markdown syntax readable in both night and day themes', async ({ page }) => {

@@ -82,7 +82,7 @@ export function ExportConfigDialog({
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">
+              <p className="relative -top-2.5 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] text-sakura">
                 <Download aria-hidden className="size-3.5" />
                 export config
               </p>

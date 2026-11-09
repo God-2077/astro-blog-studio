@@ -99,6 +99,33 @@ describe('frontmatter form mapping', () => {
     expect(requiredBoolean.patch).toEqual({ draft: false });
   });
 
+  it('treats invalid fields as empty when switching to source mode', () => {
+    const fields: FrontmatterField[] = [
+      { name: 'title', type: 'string', required: true },
+      { name: 'date', type: 'date', required: true },
+      { name: 'description', type: 'string', required: false },
+    ];
+    const result = buildFrontmatterPatch(
+      fields,
+      { title: '   ', date: '2024/01/01', description: '仍然保留' },
+      { title: '旧标题', date: '2024-01-01 00:00:00', description: '旧描述' },
+      { invalidAsEmpty: true },
+    );
+    expect(result.errors).toEqual({});
+    expect(result.patch).toEqual({ title: null, date: null, description: '仍然保留' });
+  });
+
+  it('does not add invalid optional fields that were not in the original file', () => {
+    const result = buildFrontmatterPatch(
+      [{ name: 'date', type: 'date', required: false }],
+      { date: 'not a date' },
+      {},
+      { invalidAsEmpty: true },
+    );
+    expect(result.errors).toEqual({});
+    expect(result.patch).toEqual({});
+  });
+
   it('validates numbers and dates', () => {
     const numberError = buildFrontmatterPatch([{ name: 'order', type: 'number', required: false }], { order: 'NaN-ish' }, {});
     expect(numberError.errors.order).toBeTruthy();

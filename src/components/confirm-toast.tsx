@@ -57,7 +57,7 @@ function ConfirmCard({
         onChoose(false);
       }}
     >
-      <legend className="font-display block text-[13px] font-bold leading-relaxed text-ink">{message}</legend>
+      <legend className="pt-2.5 font-display block text-[13px] font-bold leading-relaxed text-ink">{message}</legend>
       {description ? (
         <p id={descriptionId} className="mt-1 text-[11px] leading-relaxed text-muted">
           {description}

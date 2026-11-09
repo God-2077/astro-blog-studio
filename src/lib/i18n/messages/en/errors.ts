@@ -64,10 +64,6 @@ const errors: ErrorMessages = {
     removeMissing: 'Repository to remove was not found.',
   },
   hooks: {
-    autoLockMessage: 'There are unsaved changes; an encrypted local backup will be written before locking. Lock anyway?',
-    autoLockDescription: 'Choosing “Keep editing” restarts the timer and keeps your changes.',
-    autoLockConfirm: 'Lock anyway',
-    autoLockCancel: 'Keep editing',
     loadingFull: 'Re-reading all posts…',
     loadingCheck: 'Checking for remote updates…',
     treeFailed: 'Failed to read the file tree. Try again',

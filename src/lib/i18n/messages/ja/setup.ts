@@ -5,7 +5,6 @@ const setup: SetupMessages = {
   title: 'リポジトリをつなぐ',
   intro:
     'トークンはこのデバイスに暗号化して保存されるだけです。設定が終わると、このワークスペースはリポジトリ内の Markdown を直接読み書きします。あとから設定でリポジトリを追加でき、それぞれ独自の PAT を使い、ロック解除方法は共通です。',
-  badge: '01 桜飴手帳',
   pat: {
     label: 'GitHub PAT',
     hint: 'Fine-grained: Contents の読み書き + Metadata の読み取り',

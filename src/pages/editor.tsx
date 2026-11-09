@@ -104,6 +104,8 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [draftLost, setDraftLost] = useState(false);
   const [dirty, setDirty] = useState(false);
+  /** Set only by an explicit "save draft" action; suppresses the leave prompt until the next edit. */
+  const [draftSaved, setDraftSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [stamping, setStamping] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -131,6 +133,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const openedDraftRef = useRef<DraftRecord | null>(null);
   /** This session's content came from the draft box, so committing retires it. */
   const draftLoadedRef = useRef(false);
+  const effectiveDirty = dirty && !draftSaved;
 
   useEffect(() => {
     if (!moveOpen) return;
@@ -232,19 +235,19 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   }, [messageSourceKey, defaultMessage, messageEdited]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!effectiveDirty) return;
     const handler = (event: BeforeUnloadEvent): void => {
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [dirty]);
+  }, [effectiveDirty]);
 
   useEffect(() => {
-    useEditorGuard.getState().setDirty(dirty);
+    useEditorGuard.getState().setDirty(effectiveDirty);
     return () => useEditorGuard.getState().setDirty(false);
-  }, [dirty]);
+  }, [effectiveDirty]);
 
   const backupEnabled = settings.editor.backupUnsaved;
   const repoKey = backupRepoKey(mode, repo);
@@ -350,12 +353,13 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
 
   const markDirty = (): void => {
     setDirty(true);
+    setDraftSaved(false);
     setPristine(false);
     setSaveOpen(false);
   };
 
   const leaveEditor = async (): Promise<void> => {
-    if (dirty) {
+    if (effectiveDirty) {
       const leave = await confirmAction(t('editor.leave.title'), {
         description: t('editor.leave.description'),
         confirmLabel: t('editor.leave.confirm'),
@@ -378,7 +382,12 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     markDirty();
   };
 
-  const buildText = (options: { autoUpdatedAt?: boolean } = {}): { text: string; errors: Record<string, string> } => {
+  const buildText = (
+    options: { autoUpdatedAt?: boolean; invalidAsEmpty?: boolean } = {},
+  ): {
+    text: string;
+    errors: Record<string, string>;
+  } => {
     if (sourceActive) {
       // Source mode writes the whole file back, byte for byte apart from BOM/EOL.
       return { text: composeSourceDocument({ text: sourceText, meta }), errors: {} };
@@ -393,7 +402,10 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       options.autoUpdatedAt !== false && settings.editor.updateUpdatedAt && dirty
         ? formatInTimeZone(new Date(), config.timezone)
         : undefined;
-    const { patch, errors } = buildFrontmatterPatch(fields, form, originalData, { autoUpdatedAt });
+    const { patch, errors } = buildFrontmatterPatch(fields, form, originalData, {
+      autoUpdatedAt,
+      invalidAsEmpty: options.invalidAsEmpty,
+    });
     if (Object.keys(errors).length) return { text: '', errors };
     const raw = updateFrontmatterRaw(rawInner, patch);
     return {
@@ -411,13 +423,10 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     if (plainText || sourceActive) return;
     let text = originalText;
     if (!pristine) {
-      const built = buildText({ autoUpdatedAt: false });
-      if (Object.keys(built.errors).length) {
-        setFieldErrors(built.errors);
-        toast.error(t('editor.form.invalidTitle'), { description: t('editor.form.invalidDescription') });
-        return;
-      }
-      text = built.text;
+      // Source mode is a whole-file buffer: invalid fields are written as empty
+      // instead of blocking the switch and surfacing a form error.
+      text = buildText({ autoUpdatedAt: false, invalidAsEmpty: true }).text;
+      setFieldErrors({});
     }
     setSourceText(toEditingText(text));
     setEditorMode('source');
@@ -437,6 +446,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   };
 
   const handleRestoreBackup = (record: BackupRecord): void => {
+    setDraftSaved(false);
     if (record.isNew) {
       const pendingSourceText = plainText
         ? toEditingText(record.text)
@@ -473,8 +483,15 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     toast.success(t('editor.backup.restoredTitle'), { description: t('editor.backup.restoredDescription') });
   };
 
-  const handleDiscardBackup = (): void => {
-    void backup.discard().then(() => toast.success(t('editor.backup.discarded')));
+  const handleDiscardBackup = async (): Promise<void> => {
+    const targetPath = backup.candidate?.path ?? path;
+    await backup.discard();
+    if (targetPath) await useDrafts.getState().remove(repoKey, targetPath);
+    setDraftSavedAt(null);
+    setDraftSaved(false);
+    draftLoadedRef.current = false;
+    openedDraftRef.current = null;
+    toast.success(t('editor.backup.discarded'));
   };
 
   const handleDeferBackup = (): void => {
@@ -521,6 +538,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       const result = await writeDraft(record);
       if (result === 'saved') {
         setDraftSavedAt(record.savedAt);
+        setDraftSaved(true);
         draftLoadedRef.current = true;
         useDrafts.getState().remember(record);
         toast.success(t('editor.draft.savedTitle'), {
@@ -545,6 +563,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const applySaved = async (result: { sha: string; contentSha?: string; htmlUrl?: string }, text: string): Promise<void> => {
     const wasNew = isNew;
     setDirty(false);
+    setDraftSaved(false);
     setPristine(true);
     setOriginalText(text);
     setSourceText(toEditingText(text));
@@ -855,17 +874,19 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                className="abs-btn abs-btn-ghost h-8 text-[10.5px]"
-                onClick={() => void handleSaveDraft()}
-                disabled={draftSaving || saving}
-                aria-busy={draftSaving}
-                title={t('editor.draft.saveTooltip')}
-              >
-                <Save aria-hidden className="size-3" />
-                {draftSaving ? t('editor.draft.saving') : t('editor.draft.save')}
-              </button>
+              {draftRequested ? (
+                <button
+                  type="button"
+                  className="abs-btn abs-btn-ghost h-8 text-[10.5px]"
+                  onClick={() => void handleSaveDraft()}
+                  disabled={draftSaving || saving}
+                  aria-busy={draftSaving}
+                  title={t('editor.draft.saveTooltip')}
+                >
+                  <Save aria-hidden className="size-3" />
+                  {draftSaving ? t('editor.draft.saving') : t('editor.draft.save')}
+                </button>
+              ) : null}
               {githubUrl ? (
                 <a
                   className="abs-btn abs-btn-ghost h-8 text-[10.5px]"
@@ -1202,7 +1223,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       <Dialog.Root open={conflictOpen} onOpenChange={setConflictOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(520px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-24px)] w-[min(520px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
             <Dialog.Title className="font-display text-[20px] font-bold">{t('editor.conflict.title')}</Dialog.Title>
             <Dialog.Description className="mt-1 text-[11px] leading-relaxed text-muted">
               {t('editor.conflict.description')}
@@ -1287,7 +1308,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
       <AlarmDialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlarmDialog.Portal>
           <AlarmDialog.Overlay className="fixed inset-0 z-50 bg-[var(--abs-overlay)] backdrop-blur-[2px]" />
-          <AlarmDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(480px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
+          <AlarmDialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-24px)] w-[min(480px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border-[1.5px] border-edge bg-paper p-5 shadow-pop">
             <AlarmDialog.Title className="font-display text-[20px] font-bold text-danger">
               {t('editor.delete.title')}
             </AlarmDialog.Title>

@@ -25,7 +25,7 @@ const unlock: UnlockMessages = {
   },
   legacyDeviceUnlock: 'Legacy: unlock with device fingerprint',
   twoFactorNote:
-    'Two-factor needs the fingerprint of the same device. After changing devices, or if the fingerprint changes, there is no recovery — the vault must be reset, and local backups for live repositories are cleared too.',
+    'Two-factor needs the fingerprint of the same device. After changing devices, or if the fingerprint changes, there is no recovery — the vault must be reset, and local drafts for live repositories are cleared too.',
   footer: {
     line1: 'Tokens decrypt only on this device · locking clears memory and caches',
     line2: 'Forgot password = re-enter the PAT',
@@ -33,7 +33,7 @@ const unlock: UnlockMessages = {
   reset: 'Reset vault',
   resetConfirm: {
     message:
-      'Resetting the vault deletes all repository PATs and the repository list on this device, and clears all local unsaved backups, drafts, and post caches for live repositories. The current content/fields/commit template are kept as defaults for the next setup. You will need to re-enter the PATs. Continue?',
+      'Resetting the vault deletes all repository PATs and the repository list on this device, and clears all local drafts (including autosave) and post caches for live repositories. The current content/fields/commit template are kept as defaults for the next setup. You will need to re-enter the PATs. Continue?',
     description: 'Posts on GitHub are unaffected; local content that was never committed cannot be recovered.',
   },
   aside: {
@@ -54,7 +54,7 @@ const unlock: UnlockMessages = {
   modePicker: {
     legend: 'Unlock method',
     twoFactorWarning:
-      'Both the password and this device fingerprint are required. After changing devices, clearing browser data, or if the fingerprint changes, unlocking becomes impossible — the only option is to reset the vault and re-enter the PAT, which also clears unsaved backups for live repositories on this device.',
+      'Both the password and this device fingerprint are required. After changing devices, clearing browser data, or if the fingerprint changes, unlocking becomes impossible — the only option is to reset the vault and re-enter the PAT, which also clears unsaved drafts for live repositories on this device.',
   },
 };
 

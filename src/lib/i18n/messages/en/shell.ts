@@ -15,7 +15,7 @@ const shell: ShellMessages = {
   demo: {
     badge: 'Demo mode',
     banner:
-      'Demo mode: the sample repository lives only in memory and never connects to GitHub; unsaved backups use the local demo key. Refreshing restores the initial samples.',
+      'Demo mode: the sample repository lives only in memory and never connects to GitHub; unsaved drafts use the local demo key. Refreshing restores the initial samples.',
     settings: 'View settings',
     exit: 'Exit demo / connect a live repository',
   },
@@ -71,12 +71,6 @@ const shell: ShellMessages = {
       pathTaken: 'A file already exists at this path',
       parkFailed:
         'The previous new draft could not be saved to Drafts. Free up local storage, or return to that draft and handle it before trying again.',
-    },
-    existingDraft: {
-      title: 'There is already an uncommitted new-post draft.',
-      description: 'Continuing saves the previous draft to local Drafts and starts blank; you can reopen it from Drafts later.',
-      confirm: 'Save to Drafts and continue',
-      cancel: 'Not now',
     },
   },
 };

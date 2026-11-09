@@ -256,6 +256,37 @@ export interface CreatedVault {
   dataKey: Uint8Array;
 }
 
+export interface CreateVaultWithTokensInput {
+  tokens: Record<string, string>;
+  mode: VaultMode;
+  password?: string;
+  iterations?: number;
+}
+
+export interface CreatedVaultWithTokens extends CreatedVault {
+  /** Trimmed tokens that were actually encrypted, for this session's PAT map. */
+  tokens: Record<string, string>;
+}
+
+/** Create a first vault from an imported configuration (one PAT per repository). */
+export async function createVaultWithTokens(input: CreateVaultWithTokensInput): Promise<CreatedVaultWithTokens> {
+  const entries = normalizeTokens(input.tokens);
+  if (entries.length === 0) {
+    throw new VaultError('INVALID_INPUT', t('errors.vault.needsToken'));
+  }
+  const dataKey = randomBytes(32);
+  const tokens = Object.fromEntries(entries);
+  const payload = await buildPayload({
+    tokens,
+    dataKey,
+    mode: input.mode,
+    ...(input.password ? { password: input.password } : {}),
+    iterations: input.iterations ?? DEFAULT_ITERATIONS,
+  });
+  saveVault(payload);
+  return { payload, dataKey, tokens };
+}
+
 export async function createVault(input: CreateVaultInput): Promise<CreatedVault> {
   if (!input.repoKey.trim() || !input.token.trim()) {
     throw new VaultError('INVALID_INPUT', t('errors.vault.repoTokenEmpty'));

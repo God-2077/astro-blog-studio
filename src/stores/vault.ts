@@ -9,6 +9,7 @@ import {
   addRepoTokenToVault,
   clearVault,
   createVault,
+  createVaultWithTokens,
   loadVault,
   migrateLegacyTokenToRepo,
   removeRepoTokenFromVault,
@@ -40,6 +41,8 @@ interface VaultState {
   tokenRevision: number;
   initialize: () => void;
   setup: (input: { repoKey: string; token: string; mode: VaultMode; password?: string }) => Promise<void>;
+  /** First-run setup from an exported config: create the vault with every imported PAT. */
+  setupFromImport: (input: { tokens: Record<string, string>; mode: VaultMode; password?: string }) => Promise<void>;
   unlockPassword: (password: string) => Promise<void>;
   unlockDevice: () => Promise<void>;
   changeUnlock: (input: { mode: VaultMode; password?: string }) => Promise<void>;
@@ -111,6 +114,24 @@ export const useVault = create<VaultState>()((set, get) => ({
     try {
       const created = await createVault(input);
       unlockedSecrets({ token: null, tokens: { [input.repoKey]: input.token }, dataKey: created.dataKey });
+      set((state) => ({
+        status: 'unlocked',
+        busy: false,
+        mode: modeOf(created.payload),
+        tokenRevision: state.tokenRevision + 1,
+      }));
+      void migrateBackups();
+    } catch (error) {
+      set({ busy: false, error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  },
+
+  setupFromImport: async (input) => {
+    set({ busy: true, error: null });
+    try {
+      const created = await createVaultWithTokens(input);
+      unlockedSecrets({ token: null, tokens: created.tokens, dataKey: created.dataKey });
       set((state) => ({
         status: 'unlocked',
         busy: false,

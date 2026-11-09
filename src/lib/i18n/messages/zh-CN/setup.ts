@@ -5,7 +5,6 @@ const setup = {
   title: '把仓库接进来',
   intro:
     '令牌只会在这台设备上加密保存。配置成功后，这个工作台会直接读写仓库里的 Markdown；之后可在设置里添加更多仓库，每个仓库用自己的 PAT，共用同一套解锁方式。',
-  badge: '01 樱糖手帐',
   pat: {
     label: 'GitHub PAT',
     hint: 'Fine-grained: Contents 读写 + Metadata 读',

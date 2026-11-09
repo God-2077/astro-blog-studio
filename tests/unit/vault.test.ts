@@ -74,6 +74,29 @@ describe('vault unlock modes', () => {
     await expect(vault.unlockWithDevice(payload)).rejects.toMatchObject({ code: 'NO_METHOD' });
   });
 
+  it('creates a vault with every token from an imported configuration', async () => {
+    const vault = await freshVault();
+    const created = await vault.createVaultWithTokens({
+      tokens: { [repoKey]: token, [repoKeyB]: tokenB },
+      mode: 'password',
+      password,
+      iterations: 1000,
+    });
+
+    expect(created.tokens).toEqual({ [repoKey]: token, [repoKeyB]: tokenB });
+    expect(created.payload.token).toBeUndefined();
+    expect(JSON.stringify(created.payload)).not.toContain(token);
+    const secrets = await vault.unlockWithPassword(created.payload, password);
+    expect(secrets.tokens).toEqual({ [repoKey]: token, [repoKeyB]: tokenB });
+  });
+
+  it('rejects an imported configuration without usable tokens', async () => {
+    const vault = await freshVault();
+    await expect(
+      vault.createVaultWithTokens({ tokens: { [repoKey]: '   ' }, mode: 'device', iterations: 1000 }),
+    ).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+  });
+
   it('unlocks device mode with the fingerprint only', async () => {
     const vault = await freshVault();
     const { payload } = await vault.createVault({ repoKey, token, mode: 'device', iterations: 1000 });

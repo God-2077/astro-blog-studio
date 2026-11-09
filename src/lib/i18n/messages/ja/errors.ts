@@ -65,10 +65,6 @@ const errors: ErrorMessages = {
     removeMissing: '削除するリポジトリが見つかりません。',
   },
   hooks: {
-    autoLockMessage: '未保存の変更があります。ロックする前に、このデバイスへ暗号化してバックアップします。ロックを続けますか？',
-    autoLockDescription: '「編集を続ける」を選ぶとタイマーが再スタートし、現在の変更は失われません。',
-    autoLockConfirm: 'ロックを続ける',
-    autoLockCancel: '編集を続ける',
     loadingFull: 'すべての記事を読み直しています…',
     loadingCheck: 'リモートの更新を確認しています…',
     treeFailed: 'ファイルツリーの読み込みに失敗しました。再試行してください',

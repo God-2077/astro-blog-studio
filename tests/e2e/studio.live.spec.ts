@@ -127,12 +127,12 @@ test.describe('live studio', () => {
     await expect(page.locator('.cm-editor')).toBeVisible({ timeout: 30_000 });
 
     const title = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' }).locator('input.abs-input').first();
-    await title.fill('E2E 加密备份标题');
-    await expect(page.getByText('本机已备份', { exact: false })).toBeVisible({ timeout: 15_000 });
+    await title.fill('E2E 加密草稿标题');
+    await expect(page.getByText('本机草稿已保存', { exact: false })).toBeVisible({ timeout: 15_000 });
 
     const beforeLock = await readRawBackups(page);
     expect(beforeLock.length).toBeGreaterThan(0);
-    expect(JSON.stringify(beforeLock)).not.toContain('E2E 加密备份标题');
+    expect(JSON.stringify(beforeLock)).not.toContain('E2E 加密草稿标题');
     for (const row of beforeLock) {
       expect(row.v).toBe(2);
       expect(row.alg).toBe('AES-GCM');
@@ -141,7 +141,7 @@ test.describe('live studio', () => {
 
     await page.getByRole('button', { name: '锁定' }).click();
     await expect(page).toHaveURL(/#\/unlock/, { timeout: 15_000 });
-    expect(JSON.stringify(await readRawBackups(page))).not.toContain('E2E 加密备份标题');
+    expect(JSON.stringify(await readRawBackups(page))).not.toContain('E2E 加密草稿标题');
 
     await page.locator('input[type="password"]').fill(password);
     await page.getByRole('button', { name: /揭开封印/ }).click();
@@ -149,8 +149,8 @@ test.describe('live studio', () => {
 
     await page.goto(`/#/edit?path=${encodeURIComponent(filePath)}`);
     const dialog = page.getByRole('alertdialog');
-    await expect(dialog.getByText('发现未保存的备份')).toBeVisible({ timeout: 15_000 });
-    await dialog.getByRole('button', { name: '恢复备份' }).click();
-    await expect(title).toHaveValue('E2E 加密备份标题');
+    await expect(dialog.getByText('发现未保存的草稿')).toBeVisible({ timeout: 15_000 });
+    await dialog.getByRole('button', { name: '恢复草稿' }).click();
+    await expect(title).toHaveValue('E2E 加密草稿标题');
   });
 });

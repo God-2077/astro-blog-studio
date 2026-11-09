@@ -1,10 +1,13 @@
-import { ArrowRight, ArrowUpRight, Github, KeyRound, NotebookPen, ShieldCheck, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { ArrowRight, ArrowUpRight, Github, KeyRound, NotebookPen, ShieldCheck, Sparkles, Upload } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Field, Spinner } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
 import { APP_NAME, APP_URL, APP_URL_LABEL } from '@/lib/config/app-meta';
 import { SUGGESTED_EXCLUDES } from '@/lib/config/defaults';
+import { ConfigImportError, parseConfigImport } from '@/lib/config/import';
 import { mapError } from '@/lib/github/errors';
 import { LiveGateway } from '@/lib/github/live';
 import { parseRepoInput } from '@/lib/github/repo-input';
@@ -13,6 +16,10 @@ import { useActiveLocale, useT } from '@/lib/i18n/react';
 import { repoTokenKey } from '@/lib/repos/identity';
 import { profileFromSettings } from '@/lib/repos/profile';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode } from '@/lib/vault/mode';
+import { useContent } from '@/stores/content';
+import { useDrafts } from '@/stores/drafts';
+import { useLastCommit } from '@/stores/last-commit';
+import { useRateLimit } from '@/stores/rate-limit';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
 
@@ -22,6 +29,8 @@ export function SetupPage() {
   const vault = useVault();
   const t = useT();
   const activeLocale = useActiveLocale();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [token, setToken] = useState('');
   const [repoInput, setRepoInput] = useState('');
   const [branch, setBranch] = useState('');
@@ -32,6 +41,7 @@ export function SetupPage() {
   const [password, setPassword] = useState('');
   const [unlockMode, setUnlockMode] = useState<VaultMode>('device');
   const [busy, setBusy] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,6 +50,46 @@ export function SetupPage() {
 
   if (vault.status === 'locked') return <Navigate to="/unlock" replace />;
   if (vault.status === 'unlocked' && settings.repo) return <Navigate to="/" replace />;
+
+  const handleImportFile = async (file: File): Promise<void> => {
+    setError(null);
+    setImportBusy(true);
+    try {
+      const parsed = parseConfigImport(await file.text());
+      if (modeNeedsPassword(unlockMode) && password.length < MIN_VAULT_PASSWORD_LENGTH) {
+        setError(t('setup.error.passwordTooShort', { count: MIN_VAULT_PASSWORD_LENGTH }));
+        return;
+      }
+      await vault.setupFromImport({
+        tokens: parsed.tokens,
+        mode: unlockMode,
+        ...(modeNeedsPassword(unlockMode) ? { password } : {}),
+      });
+      useSettings.getState().replaceFromImport(parsed.settings);
+      useContent.getState().reset();
+      useDrafts.getState().reset();
+      useLastCommit.getState().clear();
+      useRateLimit.getState().reset();
+      queryClient.clear();
+      toast.success(t('settings.toast.imported'));
+      navigate('/', { replace: true });
+    } catch (caught) {
+      if (caught instanceof ConfigImportError) {
+        if (caught.code === 'MISSING_PAT') {
+          setError(t('settings.transfer.missingPat', { repos: caught.missing.join(', ') }));
+        } else if (caught.code === 'DEMO_SOURCE') {
+          setError(t('settings.transfer.demoSource'));
+        } else {
+          setError(t('settings.transfer.invalidFile'));
+        }
+      } else {
+        setError(caught instanceof Error ? caught.message : t('settings.transfer.failed'));
+      }
+    } finally {
+      setImportBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (): Promise<void> => {
     setError(null);
@@ -114,7 +164,6 @@ export function SetupPage() {
                   </option>
                 ))}
               </select>
-              <span className="abs-badge abs-badge-blush">{t('setup.badge')}</span>
             </div>
           </div>
 
@@ -214,6 +263,36 @@ export function SetupPage() {
                 </>
               )}
             </button>
+            {vault.status === 'empty' ? (
+              <>
+                <button
+                  type="button"
+                  className="abs-btn abs-btn-ghost"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={busy || importBusy}
+                  aria-busy={importBusy}
+                >
+                  {importBusy ? (
+                    <Spinner label={t('settings.transfer.importing')} />
+                  ) : (
+                    <>
+                      <Upload aria-hidden className="size-3.5" />
+                      {t('settings.transfer.importButton')}
+                    </>
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void handleImportFile(file);
+                  }}
+                />
+              </>
+            ) : null}
             <Link to="/?demo=1" className="abs-btn abs-btn-ghost">
               <Sparkles aria-hidden className="size-3.5" />
               {t('setup.demo')}

@@ -97,11 +97,11 @@ const settings: SettingsMessages = {
     updateUpdatedAt: 'Update updated on save',
     previewHint:
       'Preview supports GFM, code, math, spoilers, ruby, and ::: containers; raw HTML is sanitized and link cards fall back to plain links.',
-    backupUnsaved: 'Back up unsaved changes',
+    backupUnsaved: 'Auto-save unsaved changes',
     backupHint:
-      'Backups for live repositories are encrypted with the vault key and written to local IndexedDB; they can only be restored after unlocking. Demo mode is not encrypted. Entering the editor checks for backups and prompts to restore.',
+      'Drafts for live repositories are encrypted with the vault key and written to local IndexedDB; they can only be restored after unlocking. Demo mode is not encrypted. Entering the editor checks for drafts and prompts to restore.',
     clearingBackups: 'Clearing…',
-    clearBackups: 'Clear local backups for this repository',
+    clearBackups: 'Clear local drafts for this repository',
   },
   appearance: {
     title: 'Appearance',
@@ -117,6 +117,7 @@ const settings: SettingsMessages = {
     tokensEncrypted: 'Each repository is encrypted separately',
     currentMode: 'Current unlock method:',
     autoLock: 'Auto-lock (minutes, 0 to disable)',
+    autoLockHint: 'Only applies when the unlock method is a password; when time is up it locks directly, even while editing.',
     legacyWarning:
       'This is the legacy “password or fingerprint” mode. Pick one method and update; it becomes either strict two-factor or a single method, and the device wrapper is removed.',
     newPassword: 'New password',
@@ -124,18 +125,17 @@ const settings: SettingsMessages = {
     newPasswordPlaceholder: 'Enter a new password',
     updating: 'Updating…',
     updateUnlock: 'Update unlock method',
-    updateNote: 'Takes effect immediately and is stored in the local vault; existing encrypted unsaved backups remain valid.',
+    updateNote: 'Takes effect immediately and is stored in the local vault; existing encrypted unsaved drafts remain valid.',
     lockNow: 'Lock now',
     resetVault: 'Reset vault',
     footer:
-      'With two-factor, a forgotten password or a changed fingerprint cannot be recovered — the only option is to reset the vault and re-enter the PAT. Local unsaved backups for live repositories are cleared too.',
+      'With two-factor, a forgotten password or a changed fingerprint cannot be recovered — the only option is to reset the vault and re-enter the PAT. Local unsaved drafts for live repositories are cleared too.',
   },
   config: {
     title: 'Current configuration',
     excludes: { one: '{count} exclusions', other: '{count} exclusions' },
-    demoNote:
-      'Demo repository content lives only in memory; unsaved backups are stored under the local demo key (unencrypted).',
-    liveNote: 'Backups are encrypted, written only to local IndexedDB, and never uploaded.',
+    demoNote: 'Demo repository content lives only in memory; unsaved drafts are stored under the local demo key (unencrypted).',
+    liveNote: 'Drafts are encrypted, written only to local IndexedDB, and never uploaded.',
   },
   export: {
     button: 'Export configuration',
@@ -163,10 +163,9 @@ const settings: SettingsMessages = {
   },
   transfer: {
     title: 'Import and export configuration',
-    meta: 'Backup / restore',
-    exportDescription:
-      'Export all repositories and global settings as a single JSON file; the file contains plaintext PATs, so keep it safe.',
-    importDescription: 'Replace all repositories, global settings, and PATs at once from an exported JSON file.',
+    meta: 'Import / export',
+    description:
+      'Export all repositories and settings as JSON (plaintext PATs included); importing replaces the current configuration.',
     importButton: 'Import configuration',
     demoNote: 'Demo mode does not support importing; connect a real repository first.',
     locked: 'The vault is locked. Unlock it before importing the configuration.',
@@ -188,20 +187,20 @@ const settings: SettingsMessages = {
     keepEditing: 'Keep editing',
     addRepoDiscard: 'Unsaved Settings changes will be discarded before adding and switching repositories.',
     switchDiscard: 'Unsaved Settings changes will be discarded before switching to {repo}.',
-    clearBackupsTitle: 'Clear unsaved backups for this repository on this device? This cannot be undone.',
+    clearBackupsTitle: 'Clear drafts (including autosave) for this repository on this device? This cannot be undone.',
     clearBackupsDescription:
-      'Only local backups for the current repository and branch are cleared; files on GitHub are untouched. Content being edited will be written again.',
-    clearBackupsConfirm: 'Clear backups',
+      'Clears explicit drafts and autosaved drafts for all branches of the current repository; files on GitHub are untouched. Content being edited will be written again.',
+    clearBackupsConfirm: 'Clear drafts',
     forceFullTitle: 'A forced full refresh clears the local post cache for this repository and re-reads every post. Continue?',
     forceFullDescription:
       'Re-reads with the current index concurrency; it only affects the cache on this device and does not change files on GitHub.',
     forceFullConfirm: 'Re-read',
     removeTitle: 'Remove repository “{repo}” from this device?',
     removeDescription:
-      'This deletes the repository PAT from the vault (kept if other branches of the same repository still use it) and removes its repository-level configuration. Local encrypted post caches, drafts, and backups are not deleted immediately; resetting the vault clears them all.',
+      'This deletes the repository PAT from the vault (kept if other branches of the same repository still use it) and removes its repository-level configuration. Local encrypted post caches and drafts (including autosave) are not deleted immediately; resetting the vault clears them all.',
     removeConfirm: 'Remove repository',
     resetVaultTitle:
-      'Resetting the vault deletes all repository PATs and the repository list on this device, and clears all local unsaved backups, drafts, and post caches for live repositories. The current content/fields/commit template are kept as defaults for the next setup. You will need to re-enter the PATs. Continue?',
+      'Resetting the vault deletes all repository PATs and the repository list on this device, and clears all local drafts (including autosave) and post caches for live repositories. The current content/fields/commit template are kept as defaults for the next setup. You will need to re-enter the PATs. Continue?',
     resetVaultDescription: 'Posts on GitHub are unaffected; local content that was never committed cannot be recovered.',
     resetVaultConfirm: 'Reset vault',
     resetFieldsTitle: 'Restore the common hello-world fields? The current field list will be replaced.',
@@ -212,7 +211,7 @@ const settings: SettingsMessages = {
     saved: 'Settings saved',
     fieldInvalid: 'Frontmatter fields are invalid. Fix them first',
     unlockUpdated: 'Unlock method updated: {mode}',
-    clearBackupsDone: 'Cleared local backups for this repository',
+    clearBackupsDone: 'Cleared local drafts for this repository',
     clearBackupsFailed: 'Clear failed. Try again later',
     demoNoCache: 'Demo mode does not write the local cache',
     switched: 'Switched to {repo}',

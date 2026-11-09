@@ -224,6 +224,11 @@ function toPatchValue(field: FrontmatterField, value: FrontmatterFormValue): unk
 
 export interface BuildPatchOptions {
   autoUpdatedAt?: string;
+  /**
+   * Source mode is a whole-file buffer: invalid or required-but-empty fields are
+   * treated as empty instead of blocking the switch. An existing key is removed.
+   */
+  invalidAsEmpty?: boolean;
 }
 
 export interface BuildPatchResult {
@@ -253,6 +258,10 @@ export function buildFrontmatterPatch(
     const original = originalData[field.name];
     const error = validateFieldValue(field, value);
     if (error) {
+      if (options.invalidAsEmpty) {
+        if (original !== undefined) patch[field.name] = null;
+        continue;
+      }
       errors[field.name] = error;
       continue;
     }

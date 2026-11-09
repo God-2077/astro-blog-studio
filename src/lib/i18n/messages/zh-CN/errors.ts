@@ -61,10 +61,6 @@ const errors = {
     removeMissing: '没有找到要移除的仓库。',
   },
   hooks: {
-    autoLockMessage: '有未保存的修改；锁定前会先写入本机加密备份。继续锁定吗？',
-    autoLockDescription: '选「继续编辑」会重新计时，当前修改不会丢。',
-    autoLockConfirm: '继续锁定',
-    autoLockCancel: '继续编辑',
     loadingFull: '正在重新读取全部文章…',
     loadingCheck: '正在检查远端更新…',
     treeFailed: '读取文件树失败，请重试',

@@ -393,6 +393,85 @@ test.describe('multiple repositories (mocked GitHub)', () => {
   });
 });
 
+test.describe('first-run configuration import (mocked GitHub)', () => {
+  test('creates the vault from imported tokens and restores every repository setting', async ({ page }) => {
+    const state: RepoMockState = {
+      patA: 'pat-imported-a',
+      patB: '',
+      authSeen: new Map(),
+      graphqlCalls: new Map(),
+    };
+    await page.route('https://api.github.com/**', installGitHubMock(state));
+    const imported = {
+      format: 'astro-blog-studio/config-export',
+      version: 1,
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      app: { name: 'astro-blog-studio', version: '1.0.0' },
+      source: 'live',
+      settings: {
+        version: 1,
+        repo: { owner: 'mock-owner', name: 'repo-a', branch: 'main' },
+        repos: [],
+        content: {
+          rootDir: 'src',
+          extensions: ['.md', '.mdx'],
+          excludes: [],
+          timezone: 'Asia/Shanghai',
+          indexConcurrency: 3,
+        },
+        commit: {
+          create: 'imported: {title}',
+          update: 'update: {title}',
+          delete: 'delete: {title}',
+          move: 'move: {title}',
+          confirmBeforeCommit: true,
+        },
+        editor: {
+          defaultDir: 'src/content/blog',
+          filenameTemplate: '{title}',
+          updateUpdatedAt: true,
+          layout: 'split',
+          showLineNumbers: true,
+          fontSize: 15,
+          externalImages: false,
+          backupUnsaved: true,
+        },
+        frontmatter: {
+          fields: [
+            { name: 'title', type: 'string', required: true },
+            { name: 'date', type: 'date', required: true },
+          ],
+        },
+        appearance: { theme: 'system', motion: 'full', density: 'cozy' },
+        security: { autoLockMinutes: 15 },
+        advanced: { debug: false },
+      },
+      tokens: { [repoA]: state.patA },
+    };
+
+    await page.goto('/');
+    await expect(page).toHaveURL(/#\/setup/, { timeout: 30_000 });
+    await expect(page.getByText('01 樱糖手帐')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '导入配置', exact: true })).toBeVisible();
+
+    await page.getByRole('radio', { name: '密码', exact: true }).check();
+    await page.locator('input[placeholder="设置一个密码"]').fill(password);
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'config.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(imported)),
+    });
+
+    await expect(page.getByText('配置已导入', { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('今天写点什么？')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('.abs-topbar')).toContainText(repoA);
+    await expect(page.getByText('A 文章')).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => state.graphqlCalls.get(repoA) ?? 0).toBe(1);
+    const auth = state.authSeen.get(repoA) ?? new Set<string>();
+    expect(auth.has(`token ${state.patA}`)).toBe(true);
+  });
+});
+
 test.describe('plain text files (mocked GitHub)', () => {
   test('opens configured non-Markdown files without frontmatter, preview, or mode switch', async ({ page }) => {
     const state: RepoMockState = {

@@ -5,7 +5,6 @@ const setup: SetupMessages = {
   title: 'Connect your repository',
   intro:
     'Your token is stored encrypted only on this device. Once configured, the Studio reads and writes the Markdown in your repository directly. You can add more repositories later in Settings — each with its own PAT, all sharing one unlock method.',
-  badge: '01 Sakura Journal',
   pat: {
     label: 'GitHub PAT',
     hint: 'Fine-grained: Contents read/write + Metadata read',

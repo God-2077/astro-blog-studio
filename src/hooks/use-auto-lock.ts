@@ -1,16 +1,16 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { confirmAction } from '@/components/confirm-toast';
-import { useT } from '@/lib/i18n/react';
-import { useEditorGuard } from '@/stores/editor';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
 
-/** Locks the live vault after N minutes without activity. Demo mode has no vault. */
+/**
+ * Locks a password-protected vault after N minutes without activity.
+ * The lock is unconditional: open edits are flushed to the encrypted local
+ * draft store first, so there is nothing to confirm.
+ */
 export function useAutoLock(enabled: boolean): void {
   const minutes = useSettings((state) => state.security.autoLockMinutes);
   const navigate = useNavigate();
-  const t = useT();
 
   useEffect(() => {
     if (!enabled || minutes <= 0) return;
@@ -20,17 +20,6 @@ export function useAutoLock(enabled: boolean): void {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         void (async () => {
-          if (useEditorGuard.getState().dirty) {
-            const lockAnyway = await confirmAction(t('errors.hooks.autoLockMessage'), {
-              description: t('errors.hooks.autoLockDescription'),
-              confirmLabel: t('errors.hooks.autoLockConfirm'),
-              cancelLabel: t('errors.hooks.autoLockCancel'),
-            });
-            if (!lockAnyway) {
-              arm();
-              return;
-            }
-          }
           await useVault.getState().lock();
           navigate('/unlock');
         })();
@@ -45,5 +34,5 @@ export function useAutoLock(enabled: boolean): void {
       window.clearTimeout(timer);
       for (const event of events) window.removeEventListener(event, onActivity);
     };
-  }, [enabled, minutes, navigate, t]);
+  }, [enabled, minutes, navigate]);
 }

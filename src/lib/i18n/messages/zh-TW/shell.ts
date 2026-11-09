@@ -14,7 +14,7 @@ const shell: ShellMessages = {
   },
   demo: {
     badge: '示範模式',
-    banner: '示範模式：範例儲存庫只在記憶體裡，不會連線 GitHub；未儲存備份儲存在本機示範鍵。重新整理後會還原初始範例。',
+    banner: '示範模式：範例儲存庫只在記憶體裡，不會連線 GitHub；未儲存草稿儲存在本機示範鍵。重新整理後會還原初始範例。',
     settings: '看設定',
     exit: '退出示範 / 連線真實儲存庫',
   },
@@ -68,12 +68,6 @@ const shell: ShellMessages = {
       filenameTrailingDot: '檔名不能以點（.）結尾',
       pathTaken: '這個路徑已經有檔案了',
       parkFailed: '上一篇新稿沒能存入草稿匣。請先清理本機儲存空間，或回到那篇新稿處理後再試。',
-    },
-    existingDraft: {
-      title: '已經有一篇未提交的新文章草稿。',
-      description: '繼續會先把上一篇存入本機草稿匣，再從空白開始；之後可以在草稿匣裡重新開啟。',
-      confirm: '存入草稿匣並繼續',
-      cancel: '先不新建',
     },
   },
 };

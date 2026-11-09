@@ -5,7 +5,6 @@ const setup: SetupMessages = {
   title: '把儲存庫接進來',
   intro:
     '權杖只會在這台裝置上加密儲存。設定成功後，這個工作室會直接讀寫儲存庫裡的 Markdown；之後可在設定裡新增更多儲存庫，每個儲存庫用自己的 PAT，共用同一套解鎖方式。',
-  badge: '01 櫻糖手帳',
   pat: {
     label: 'GitHub PAT',
     hint: 'Fine-grained: Contents 讀寫 + Metadata 讀',

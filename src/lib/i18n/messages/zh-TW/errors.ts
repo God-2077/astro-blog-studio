@@ -61,10 +61,6 @@ const errors: ErrorMessages = {
     removeMissing: '找不到要移除的儲存庫。',
   },
   hooks: {
-    autoLockMessage: '有未儲存的修改；鎖定前會先寫入本機加密備份。要繼續鎖定嗎？',
-    autoLockDescription: '選「繼續編輯」會重新計時，目前修改不會遺失。',
-    autoLockConfirm: '繼續鎖定',
-    autoLockCancel: '繼續編輯',
     loadingFull: '正在重新讀取全部文章…',
     loadingCheck: '正在檢查遠端更新…',
     treeFailed: '讀取檔案樹失敗，請重試',

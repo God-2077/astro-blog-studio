@@ -5,26 +5,26 @@ const editor: EditorMessages = {
   readingFile: 'Reading file',
   readingTime: { one: 'About {count} min', other: 'About {count} min' },
   backup: {
-    failedTitle: 'Local backup failed',
-    failedTooLarge: 'The file is too large, so no local backup was written; editing is unaffected.',
+    failedTitle: 'Local draft save failed',
+    failedTooLarge: 'The file is too large, so no local draft was written; editing is unaffected.',
     failedStorage:
       'Browser storage is unavailable or full. Editing is unaffected, but unsaved content may not be recoverable after a refresh.',
-    savedAt: 'Backed up locally at {time}',
-    pending: 'Backing up…',
-    failed: 'Backup failed',
-    checking: 'Checking local backup',
-    banner: 'A local unsaved backup is available ({time})',
+    savedAt: 'Saved locally as a draft at {time}',
+    pending: 'Saving draft…',
+    failed: 'Draft save failed',
+    checking: 'Checking local draft',
+    banner: 'A local unsaved draft is available ({time})',
     bannerHint: 'It will not be auto-overwritten before you restore it.',
     restore: 'Restore',
     discard: 'Discard',
-    restoredTitle: 'Local backup restored',
+    restoredTitle: 'Local draft restored',
     restoredDescription: 'Nothing is committed until you save; stamp when ready.',
     restoredNewTitle: 'Local draft restored',
     restoredNewDescription: 'The file is only created in the repository on the first stamped save.',
-    discarded: 'Local backup discarded',
+    discarded: 'Local draft discarded',
     dialog: {
-      eyebrow: 'local backup',
-      title: 'Unsaved backup found',
+      eyebrow: 'local draft',
+      title: 'Unsaved draft found',
       newDescription:
         'This post was created last time but not stamped yet, so the file still does not exist in the repository. Restoring returns it to a local draft state.',
       editDescription:
@@ -35,10 +35,10 @@ const editor: EditorMessages = {
       remoteChanged:
         'The remote file has changed since then; saving after restoring will surface a conflict instead of overwriting silently.',
       privacy:
-        'Backups live only in the browser on this device; backups for live repositories are encrypted with the vault key and can only be read after unlocking.',
+        'Drafts live only in the browser on this device; drafts for live repositories are encrypted with the vault key and can only be read after unlocking.',
       later: 'Later',
-      discard: 'Discard backup',
-      restore: 'Restore backup',
+      discard: 'Discard draft',
+      restore: 'Restore draft',
     },
   },
   draft: {
@@ -57,18 +57,18 @@ const editor: EditorMessages = {
     tooLargeTitle: 'Post is too large to save to Drafts',
     tooLargeDescription: 'A single draft is limited to about 1 million characters.',
     failedTitle: 'Draft save failed',
-    failedDescription: 'Browser storage may be full; delete some drafts or backups and try again.',
+    failedDescription: 'Browser storage may be full; delete some drafts and try again.',
     lostEyebrow: 'draft lost',
     lostTitle: 'Draft for this new post not found',
     lostDescription:
-      'Drafts for new posts only live in the tab that created them, local Drafts, and browser backups. Without a matching draft, the post will not be restored and no empty file will be left in the repository.',
+      'Drafts for new posts only live in the tab that created them and in local Drafts (including autosave). Without a matching draft, the post will not be restored and no empty file will be left in the repository.',
     lostNew: 'Back to Studio to start over',
     lostOpenBox: 'Open Drafts',
   },
   leave: {
     title: 'You have unsaved changes. Leave anyway?',
     description:
-      'These changes will not be written to the repository. With local backups on, you will see a backup prompt when you come back.',
+      'These changes will not be written to the repository. With autosave on, you will see a draft prompt when you come back.',
     confirm: 'Leave',
     cancel: 'Keep editing',
   },
@@ -78,8 +78,6 @@ const editor: EditorMessages = {
     listHint: 'Comma separated',
     categoriesPlaceholder: 'notes > memo, articles',
     listPlaceholder: 'a, b, c',
-    invalidTitle: 'The form has invalid fields',
-    invalidDescription: 'Fix them before switching to source mode.',
   },
   frontmatter: {
     invalidError: 'Fix the frontmatter fields first',

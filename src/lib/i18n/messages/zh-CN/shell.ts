@@ -14,7 +14,7 @@ const shell = {
   },
   demo: {
     badge: '演示模式',
-    banner: '演示模式：示例仓库只在内存里，不会连接 GitHub；未保存备份保存在本机演示键。刷新后恢复初始示例。',
+    banner: '演示模式：示例仓库只在内存里，不会连接 GitHub；未保存草稿保存在本机演示键。刷新后恢复初始示例。',
     settings: '看设置',
     exit: '退出演示 / 连接真实仓库',
   },
@@ -68,12 +68,6 @@ const shell = {
       filenameTrailingDot: '文件名不能以点（.）结尾',
       pathTaken: '这个路径已经有文件了',
       parkFailed: '上一篇新稿没能存入草稿箱。先清理本机存储，或回到那篇新稿处理后再试。',
-    },
-    existingDraft: {
-      title: '已经有一篇未提交的新文章草稿。',
-      description: '继续会先把上一篇存入本机草稿箱，再从空白开始；之后可以在草稿箱里重新打开。',
-      confirm: '存入草稿箱并继续',
-      cancel: '先不新建',
     },
   },
 } satisfies MessageTree;

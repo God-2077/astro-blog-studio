@@ -28,6 +28,7 @@ export function AppShell() {
   const setSidebarOpen = useUi((state) => state.setSidebarOpen);
   const rate = useRateLimit();
   const lock = useVault((state) => state.lock);
+  const vaultMode = useVault((state) => state.mode);
   const dirty = useEditorGuard((state) => state.dirty);
   const updateReady = usePwaUpdate((state) => state.needRefresh);
   const reopenUpdate = usePwaUpdate((state) => state.reopenPrompt);
@@ -59,7 +60,7 @@ export function AppShell() {
       });
     };
 
-  useAutoLock(mode === 'live');
+  useAutoLock(mode === 'live' && vaultMode === 'password');
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: close the drawer whenever the route changes
   useEffect(() => {

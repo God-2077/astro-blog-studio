@@ -26,6 +26,7 @@ import {
 } from '@/lib/config/export';
 import { ConfigImportError, parseConfigImport } from '@/lib/config/import';
 import { clampIndexConcurrency, INDEX_CONCURRENCY_MAX, INDEX_CONCURRENCY_MIN, type RepoProfile } from '@/lib/config/schema';
+import { clearDraftsByPrefix } from '@/lib/drafts/store';
 import {
   cloneFrontmatterFields,
   DEFAULT_FRONTMATTER_FIELDS,
@@ -277,9 +278,14 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
     if (!confirmed) return;
     setClearingBackups(true);
     try {
-      const ok = await clearBackupsByPrefix(backupKeyPrefix(mode, repo));
-      if (ok) toast.success(t('settings.toast.clearBackupsDone'));
-      else toast.error(t('settings.toast.clearBackupsFailed'));
+      const prefix = backupKeyPrefix(mode, repo);
+      const [draftsCleared, backupsCleared] = await Promise.all([clearDraftsByPrefix(prefix), clearBackupsByPrefix(prefix)]);
+      if (draftsCleared && backupsCleared) {
+        useDrafts.getState().reset();
+        toast.success(t('settings.toast.clearBackupsDone'));
+      } else {
+        toast.error(t('settings.toast.clearBackupsFailed'));
+      }
     } finally {
       setClearingBackups(false);
     }
@@ -939,36 +945,35 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
 
           <Collapse title={t('settings.transfer.title')} tape="mint" meta={t('settings.transfer.meta')}>
             <div className="mt-0.5 rounded-xl border border-dashed border-line bg-paper-2 p-3">
-              <p className="text-[10.5px] leading-relaxed text-muted">{t('settings.transfer.exportDescription')}</p>
-              <button type="button" className="abs-btn abs-btn-ghost mt-2 h-8 text-[11px]" onClick={openExport}>
-                <Download aria-hidden className="size-3" />
-                {t('settings.export.button')}
-              </button>
-            </div>
-            <div className="mt-2 rounded-xl border border-dashed border-line bg-paper-2 p-3">
-              <p className="text-[10.5px] leading-relaxed text-muted">{t('settings.transfer.importDescription')}</p>
+              <p className="text-[10.5px] leading-relaxed text-muted">{t('settings.transfer.description')}</p>
               {isDemo ? <p className="mt-1 text-[10px] leading-relaxed text-muted">{t('settings.transfer.demoNote')}</p> : null}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json,.json"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = '';
-                  if (file) void handleImportFile(file);
-                }}
-              />
-              <button
-                type="button"
-                className="abs-btn abs-btn-ghost mt-2 h-8 text-[11px]"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isDemo || importBusy}
-                aria-busy={importBusy}
-              >
-                <Upload aria-hidden className="size-3" />
-                {importBusy ? t('settings.transfer.importing') : t('settings.transfer.importButton')}
-              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button type="button" className="abs-btn abs-btn-ghost h-8 text-[11px]" onClick={openExport}>
+                  <Download aria-hidden className="size-3" />
+                  {t('settings.export.button')}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = '';
+                    if (file) void handleImportFile(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="abs-btn abs-btn-ghost h-8 text-[11px]"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isDemo || importBusy}
+                  aria-busy={importBusy}
+                >
+                  <Upload aria-hidden className="size-3" />
+                  {importBusy ? t('settings.transfer.importing') : t('settings.transfer.importButton')}
+                </button>
+              </div>
             </div>
           </Collapse>
         </div>
@@ -1004,6 +1009,7 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
                 onChange={(event) => setAutoLockMinutes(event.target.value)}
               />
             </Field>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted">{t('settings.security.autoLockHint')}</p>
 
             {!isDemo ? (
               <div className="mt-3 border-t border-dashed border-line pt-3">
