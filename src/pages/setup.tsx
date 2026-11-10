@@ -5,7 +5,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Field, Spinner } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
-import { APP_NAME, APP_URL, APP_URL_LABEL } from '@/lib/config/app-meta';
+import { APP_NAME, APP_URL, APP_URL_LABEL, APP_VERSION } from '@/lib/config/app-meta';
 import { SUGGESTED_EXCLUDES } from '@/lib/config/defaults';
 import { ConfigImportError, parseConfigImport } from '@/lib/config/import';
 import { mapError } from '@/lib/github/errors';
@@ -306,6 +306,9 @@ export function SetupPage() {
               {t('setup.createToken')}
             </a>
           </div>
+          <span className="pointer-events-none absolute right-3 bottom-2 font-mono text-[9px] leading-none text-muted sm:right-4 sm:bottom-3">
+            v{APP_VERSION}
+          </span>
         </div>
 
         <aside className="flex flex-col gap-3">
