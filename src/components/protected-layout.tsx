@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { MissingRepoToken } from '@/components/missing-repo-token';
 import { DemoGatewayProvider, GatewayProvider, isDemoRequested } from '@/lib/gateway/context';
 import { LiveGateway } from '@/lib/github/live';
+import { unlockReturnState } from '@/lib/navigation/unlock-return';
 import { repoTokenKey } from '@/lib/repos/identity';
 import { vaultSession } from '@/lib/vault/session';
 import { useRateLimit } from '@/stores/rate-limit';
@@ -12,6 +13,7 @@ import { useVault } from '@/stores/vault';
 export function ProtectedLayout() {
   const settings = useSettings();
   const vault = useVault();
+  const location = useLocation();
   const demo = isDemoRequested();
   const repo = settings.repo;
   const token = repo && vault.status === 'unlocked' ? vaultSession.getTokenForRepo(repoTokenKey(repo)) : null;
@@ -37,9 +39,9 @@ export function ProtectedLayout() {
 
   if (!repo) return <Navigate to="/setup" replace />;
   if (vault.status === 'empty') return <Navigate to="/setup" replace />;
-  if (vault.status === 'locked') return <Navigate to="/unlock" replace />;
+  if (vault.status === 'locked') return <Navigate to="/unlock" replace state={unlockReturnState(location)} />;
   if (!token) return <MissingRepoToken repo={repo} />;
-  if (!gateway) return <Navigate to="/unlock" replace />;
+  if (!gateway) return <Navigate to="/unlock" replace state={unlockReturnState(location)} />;
 
   const info = {
     owner: repo.owner,

@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, ArrowUpRight, Github, KeyRound, NotebookPen, ShieldCheck, Sparkles, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Field, Spinner } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
@@ -13,6 +13,7 @@ import { LiveGateway } from '@/lib/github/live';
 import { parseRepoInput } from '@/lib/github/repo-input';
 import { LOCALE_LABELS, LOCALES, normalizeLocale } from '@/lib/i18n';
 import { useActiveLocale, useT } from '@/lib/i18n/react';
+import { unlockReturnState } from '@/lib/navigation/unlock-return';
 import { repoTokenKey } from '@/lib/repos/identity';
 import { profileFromSettings } from '@/lib/repos/profile';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode } from '@/lib/vault/mode';
@@ -25,6 +26,7 @@ import { useVault } from '@/stores/vault';
 
 export function SetupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const settings = useSettings();
   const vault = useVault();
   const t = useT();
@@ -48,7 +50,7 @@ export function SetupPage() {
     if (vault.status === 'unlocked' && settings.repo) navigate('/', { replace: true });
   }, [vault.status, settings.repo, navigate]);
 
-  if (vault.status === 'locked') return <Navigate to="/unlock" replace />;
+  if (vault.status === 'locked') return <Navigate to="/unlock" replace state={unlockReturnState(location)} />;
   if (vault.status === 'unlocked' && settings.repo) return <Navigate to="/" replace />;
 
   const handleImportFile = async (file: File): Promise<void> => {

@@ -472,6 +472,57 @@ test.describe('first-run configuration import (mocked GitHub)', () => {
   });
 });
 
+test.describe('unlock return (mocked GitHub)', () => {
+  test('returns to the page that was locked after unlocking', async ({ page }) => {
+    const state: RepoMockState = {
+      patA: 'pat-return',
+      patB: '',
+      authSeen: new Map(),
+      graphqlCalls: new Map(),
+    };
+    await page.route('https://api.github.com/**', installGitHubMock(state));
+
+    await page.goto('/');
+    await expect(page).toHaveURL(/#\/setup/, { timeout: 30_000 });
+    await page.locator('input[placeholder="github_pat_…"]').fill(state.patA);
+    await page.locator('input[placeholder*="God-2077"]').fill(repoA);
+    await page.getByRole('radio', { name: '密码', exact: true }).check();
+    await page.locator('input[placeholder="设置一个密码"]').fill(password);
+    await page.getByRole('button', { name: /连接仓库/ }).click();
+    await expect(page.getByText('今天写点什么？')).toBeVisible({ timeout: 30_000 });
+
+    // 深链刷新会丢失内存会话；受保护路由要把当前地址记进解锁页。
+    await page.goto('/#/edit?path=src/content/blog/a.md');
+    await expect(page.locator('.cm-editor')).toBeVisible({ timeout: 30_000 });
+    await page.reload();
+    await expect(page).toHaveURL(/#\/unlock/, { timeout: 15_000 });
+    // 解锁页自身刷新后，来源仍应在 history state 里。
+    await page.reload();
+    await expect(page).toHaveURL(/#\/unlock/, { timeout: 15_000 });
+    await page.locator('input[type="password"]').fill(password);
+    await page.getByRole('button', { name: /揭开封印/ }).click();
+    await expect(page).toHaveURL(/#\/edit\?path=src\/content\/blog\/a\.md/, { timeout: 15_000 });
+    await expect(page.locator('.cm-editor')).toBeVisible({ timeout: 30_000 });
+
+    // 顶栏「锁定」后应回到编辑器。
+    await page.locator('.abs-topbar').getByRole('button', { name: '锁定', exact: true }).click();
+    await expect(page).toHaveURL(/#\/unlock/, { timeout: 15_000 });
+    await page.locator('input[type="password"]').fill(password);
+    await page.getByRole('button', { name: /揭开封印/ }).click();
+    await expect(page).toHaveURL(/#\/edit\?path=src\/content\/blog\/a\.md/, { timeout: 15_000 });
+    await expect(page.locator('.cm-editor')).toBeVisible({ timeout: 30_000 });
+
+    // 设置页「立即锁定」后应回到设置页。
+    await page.locator('.abs-topbar').getByRole('link', { name: '设置', exact: true }).click();
+    await expect(page).toHaveURL(/#\/settings/, { timeout: 15_000 });
+    await page.getByRole('button', { name: '立即锁定', exact: true }).click();
+    await expect(page).toHaveURL(/#\/unlock/, { timeout: 15_000 });
+    await page.locator('input[type="password"]').fill(password);
+    await page.getByRole('button', { name: /揭开封印/ }).click();
+    await expect(page).toHaveURL(/#\/settings/, { timeout: 15_000 });
+  });
+});
+
 test.describe('plain text files (mocked GitHub)', () => {
   test('opens configured non-Markdown files without frontmatter, preview, or mode switch', async ({ page }) => {
     const state: RepoMockState = {

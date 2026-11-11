@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Download, KeyRound, LockKeyhole, Plus, RefreshCw, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AddRepoDialog } from '@/components/add-repo-dialog';
 import { Collapse } from '@/components/collapse';
@@ -36,6 +36,7 @@ import {
 import { useGateway } from '@/lib/gateway/context';
 import { LOCALE_LABELS, LOCALES, normalizeLocale } from '@/lib/i18n';
 import { useActiveLocale, useT } from '@/lib/i18n/react';
+import { unlockReturnState } from '@/lib/navigation/unlock-return';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
 import { repoProfileKey, repoTokenKey } from '@/lib/repos/identity';
 import { allRepoProfiles } from '@/lib/repos/profile';
@@ -92,6 +93,7 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
   const content = useContent();
   const { checkNow, busy: cacheBusy } = useContentActions();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const t = useT();
   const activeLocale = useActiveLocale();
@@ -265,7 +267,7 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
 
   const lockNow = async (): Promise<void> => {
     await vault.lock();
-    navigate('/unlock');
+    navigate('/unlock', { state: unlockReturnState(location) });
   };
 
   const clearLocalBackups = async (): Promise<void> => {

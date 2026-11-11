@@ -22,12 +22,17 @@ function Probe(): null {
 
 function LocationLabel(): React.JSX.Element {
   const location = useLocation();
-  return <span data-testid="path">{location.pathname}</span>;
+  return (
+    <>
+      <span data-testid="path">{location.pathname}</span>
+      <span data-testid="state">{JSON.stringify(location.state)}</span>
+    </>
+  );
 }
 
-function renderProbe(): void {
+function renderProbe(initialEntry = '/'): void {
   render(
-    <MemoryRouter initialEntries={['/']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Probe />
       <LocationLabel />
     </MemoryRouter>,
@@ -52,6 +57,7 @@ describe('useAutoLock', () => {
     });
     expect(lock).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('path').textContent).toBe('/unlock');
+    expect(screen.getByTestId('state').textContent).toBe(JSON.stringify({ from: '/' }));
   });
 
   it('restarts the countdown on activity', async () => {
@@ -68,5 +74,15 @@ describe('useAutoLock', () => {
       await vi.advanceTimersByTimeAsync(5 * 60_000);
     });
     expect(lock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns to the route that was active when the lock fired', async () => {
+    renderProbe('/edit?path=code.md');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
+    });
+    expect(lock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('path').textContent).toBe('/unlock');
+    expect(screen.getByTestId('state').textContent).toBe(JSON.stringify({ from: '/edit?path=code.md' }));
   });
 });

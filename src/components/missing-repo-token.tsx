@@ -1,11 +1,12 @@
 import { KeyRound, LockKeyhole, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Field, Spinner } from '@/components/ui';
 import type { RepoConfig } from '@/lib/config/schema';
 import { mapError } from '@/lib/github/errors';
 import { LiveGateway } from '@/lib/github/live';
 import { useT } from '@/lib/i18n/react';
+import { unlockReturnState } from '@/lib/navigation/unlock-return';
 import { repoTokenKey } from '@/lib/repos/identity';
 import { useVault } from '@/stores/vault';
 
@@ -17,6 +18,7 @@ import { useVault } from '@/stores/vault';
 export function MissingRepoToken({ repo }: { repo: RepoConfig }) {
   const t = useT();
   const navigate = useNavigate();
+  const location = useLocation();
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function MissingRepoToken({ repo }: { repo: RepoConfig }) {
 
   const lock = async (): Promise<void> => {
     await useVault.getState().lock();
-    navigate('/unlock');
+    navigate('/unlock', { state: unlockReturnState(location) });
   };
 
   return (

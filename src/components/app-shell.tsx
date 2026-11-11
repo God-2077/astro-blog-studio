@@ -9,6 +9,7 @@ import { useTreeModel } from '@/hooks/use-data';
 import { APP_NAME, APP_URL, APP_VERSION } from '@/lib/config/app-meta';
 import { useGateway } from '@/lib/gateway/context';
 import { useActiveLocale, useT } from '@/lib/i18n/react';
+import { unlockReturnState } from '@/lib/navigation/unlock-return';
 import { cn } from '@/lib/utils/cn';
 import { useContent } from '@/stores/content';
 import { useEditorGuard } from '@/stores/editor';
@@ -81,7 +82,7 @@ export function AppShell() {
 
   const handleLock = async (): Promise<void> => {
     await lock();
-    navigate('/unlock');
+    navigate('/unlock', { state: unlockReturnState(location) });
   };
 
   const retryTree = (): void => {

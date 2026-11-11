@@ -1,9 +1,10 @@
 import { Fingerprint, KeyRound, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { confirmAction } from '@/components/confirm-toast';
 import { Spinner } from '@/components/ui';
 import { type TFunction, useT } from '@/lib/i18n/react';
+import { resolveUnlockReturn } from '@/lib/navigation/unlock-return';
 import type { VaultModeState } from '@/lib/vault/mode';
 import { useVault } from '@/stores/vault';
 
@@ -24,6 +25,8 @@ function modeDescription(t: TFunction, mode: VaultModeState | null): string {
 
 export function UnlockPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = resolveUnlockReturn(location.state);
   const vault = useVault();
   const t = useT();
   const [password, setPassword] = useState('');
@@ -39,13 +42,13 @@ export function UnlockPage() {
   }, [vault.status, vault.mode, vault.unlockDevice]);
 
   if (vault.status === 'empty') return <Navigate to="/setup" replace />;
-  if (vault.status === 'unlocked') return <Navigate to="/" replace />;
+  if (vault.status === 'unlocked') return <Navigate to={returnTo} replace />;
 
   const mode = vault.mode;
   const needsPassword = mode === 'password' || mode === 'two-factor' || mode === 'legacy-mixed';
 
   const finishUnlock = (): void => {
-    if (useVault.getState().status === 'unlocked') navigate('/', { replace: true });
+    if (useVault.getState().status === 'unlocked') navigate(returnTo, { replace: true });
   };
 
   const handleUnlock = async (): Promise<void> => {

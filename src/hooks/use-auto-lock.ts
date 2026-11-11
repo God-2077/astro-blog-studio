@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { unlockReturnState } from '@/lib/navigation/unlock-return';
 import { useSettings } from '@/stores/settings';
 import { useVault } from '@/stores/vault';
 
@@ -11,6 +12,13 @@ import { useVault } from '@/stores/vault';
 export function useAutoLock(enabled: boolean): void {
   const minutes = useSettings((state) => state.security.autoLockMinutes);
   const navigate = useNavigate();
+  const location = useLocation();
+  // 计时器不应因为路由变化而重置，但锁定发生时要知道当前页面。
+  const locationRef = useRef(location);
+
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
 
   useEffect(() => {
     if (!enabled || minutes <= 0) return;
@@ -21,7 +29,7 @@ export function useAutoLock(enabled: boolean): void {
       timer = window.setTimeout(() => {
         void (async () => {
           await useVault.getState().lock();
-          navigate('/unlock');
+          navigate('/unlock', { state: unlockReturnState(locationRef.current) });
         })();
       }, minutes * 60_000);
     };
