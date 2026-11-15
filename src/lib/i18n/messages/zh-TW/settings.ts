@@ -27,8 +27,12 @@ const settings: SettingsMessages = {
   content: {
     title: '內容與排除',
     demoNote: '示範模式使用固定的範例儲存庫與排除規則；這些欄位在連線真實儲存庫後才會生效。',
+    repoKind: '儲存庫類型',
+    repoKindHint: '切換後會套用該類型的根目錄、副檔名、排除規則與備用欄位；儲存後重建本機索引。',
     rootDir: '根目錄',
     rootDirHint: '相對於儲存庫根目錄',
+    daybookRootHint: '留空 = 儲存庫根目錄',
+    daybookRootPlaceholder: '儲存庫根目錄（留空）',
     extensions: '檔案副檔名',
     extensionsHint: '逗號分隔；非 .md / .mdx 以純文字編輯',
     timezone: '時區',
@@ -67,8 +71,13 @@ const settings: SettingsMessages = {
   frontmatter: {
     title: 'Frontmatter 欄位',
     meta: { one: '{count} 個欄位', other: '{count} 個欄位' },
+    daybookMeta: '4 個集合 · 固定欄位',
     invalid: '有誤',
     intro: '決定編輯器的欄位、類型與必填驗證；刪除欄位不會刪除既有檔案裡的鍵，未設定的欄位會原樣保留。',
+    daybookIntro: 'Daybook 的 post / daily / pages 使用主題固定的 frontmatter 欄位，工作室會依檔案所在目錄自動對應：',
+    noFields: '僅正文',
+    daybookFallback: '上表的欄位由主題 schema 決定，不在此處編輯；這裡只作參考。',
+    fallbackIntro: '下面的欄位只用於未識別目錄中的檔案，不會影響上面四個集合。',
   },
   fields: {
     required: '必填',
@@ -80,6 +89,7 @@ const settings: SettingsMessages = {
     reset: '還原常用欄位',
     limit: '{count} / 40',
     hint: '名稱支援字母、數字、底線、連字號；title / date 是 astro-blog schema 的必填項目，刪除後儲存的內容可能無法通過建置。既有檔案裡未設定的欄位會原樣保留。',
+    daybookHint: '這些只是未識別目錄的備用欄位；Daybook 的 daily / post / pages 欄位由主題固定，不在此處編輯。',
   },
   commit: {
     title: '提交訊息',

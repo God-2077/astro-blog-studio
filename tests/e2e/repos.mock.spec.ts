@@ -5,6 +5,7 @@ const password = process.env.E2E_PASSWORD ?? 'studio-e2e-password';
 const repoA = 'mock-owner/repo-a';
 const repoB = 'mock-owner/repo-b';
 const repoRoot = 'mock-owner/repo-root';
+const daybookRepo = 'mock-owner/daybook';
 
 type MockFile = { path: string; sha: string; text: string };
 
@@ -45,6 +46,39 @@ const files: Record<string, MockFile[]> = {
       path: 'src/legacy/y.md',
       sha: 'blob-legacy',
       text: "---\ntitle: '旧稿'\ndate: '2026-01-05'\n---\n旧稿正文\n",
+    },
+  ],
+  // Daybook content repository: collections live at the repository root.
+  [daybookRepo]: [
+    {
+      path: 'daily/2026-11-10.md',
+      sha: 'blob-daily',
+      text: "---\ndate: '2026-11-10'\ntitle: '第一天'\ndraft: true\n---\n日记正文\n",
+    },
+    {
+      path: 'post/hello.md',
+      sha: 'blob-post',
+      text: "---\ntitle: 'Daybook 文章'\ndate: '2026-11-14'\ncategories: [随笔]\ntags: [Daybook]\n---\n文章正文\n",
+    },
+    {
+      path: 'pages/guestbook.md',
+      sha: 'blob-page',
+      text: "---\ntitle: '留言板'\ndate: '2026-11-13'\n---\n页面正文\n",
+    },
+    {
+      path: 'spec/about.mdx',
+      sha: 'blob-spec',
+      text: '关于页正文\n',
+    },
+    {
+      path: 'README.md',
+      sha: 'blob-readme',
+      text: "---\ntitle: '不应出现在工作台'\n---\n仓库说明\n",
+    },
+    {
+      path: 'config/site.ts',
+      sha: 'blob-config',
+      text: 'export default {};',
     },
   ],
 };
@@ -566,6 +600,106 @@ test.describe('plain text files (mocked GitHub)', () => {
     await expect(page.getByText('预览 · 实时')).toHaveCount(0);
     await expect(page.locator('.abs-seg')).toHaveCount(0);
     await expect(page.locator('.abs-field').filter({ hasText: 'title' })).toHaveCount(0);
+  });
+});
+
+test.describe('Daybook content repository (mocked GitHub)', () => {
+  test('switches an existing blog profile to the Daybook preset from settings', async ({ page }) => {
+    const state: RepoMockState = {
+      patA: 'pat-daybook-switch',
+      patB: '',
+      authSeen: new Map(),
+      graphqlCalls: new Map(),
+    };
+    await page.route('https://api.github.com/**', installGitHubMock(state));
+
+    await page.goto('/');
+    await expect(page).toHaveURL(/#\/setup/, { timeout: 30_000 });
+    await page.locator('input[placeholder="github_pat_…"]').fill(state.patA);
+    await page.locator('input[placeholder*="God-2077"]').fill(daybookRepo);
+    await page.getByRole('radio', { name: '密码', exact: true }).check();
+    await page.locator('input[placeholder="设置一个密码"]').fill(password);
+    await page.getByRole('button', { name: /连接仓库/ }).click();
+    await expect(page.getByText('今天写点什么？')).toBeVisible({ timeout: 30_000 });
+
+    await page.locator('.abs-topbar').getByRole('link', { name: '设置', exact: true }).click();
+    await page.getByLabel('仓库类型').selectOption('daybook');
+    await expect(page.locator('label.abs-field').filter({ hasText: '根目录' }).locator('input')).toHaveValue('');
+    await expect(page.locator('label.abs-field').filter({ hasText: '排除规则' }).locator('textarea')).toHaveValue(/^\*\.md/m);
+    await page.getByRole('button', { name: '保存设置' }).click();
+    await expect(page.getByText('设置已保存').last()).toBeVisible();
+
+    await page.locator('.abs-brand').click();
+    await expect(page.getByText('仓库根目录 · Daybook')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('main').getByText('Daybook 文章')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('main').getByText('第一天')).toBeVisible();
+    await expect(page.getByRole('group', { name: '按内容集合筛选' })).toBeVisible();
+  });
+
+  test('adds a Daybook repository, filters collections, and drafts a daily note', async ({ page }) => {
+    const state: RepoMockState = {
+      patA: 'pat-daybook',
+      patB: '',
+      authSeen: new Map(),
+      graphqlCalls: new Map(),
+    };
+    await page.route('https://api.github.com/**', installGitHubMock(state));
+
+    await page.goto('/');
+    await expect(page).toHaveURL(/#\/setup/, { timeout: 30_000 });
+
+    await page.locator('input[placeholder="github_pat_…"]').fill(state.patA);
+    await page.locator('input[placeholder*="God-2077"]').fill(daybookRepo);
+    await page.locator('label').filter({ hasText: 'Daybook' }).click();
+
+    const rootDir = page.locator('label.abs-field').filter({ hasText: '根目录' }).locator('input');
+    const excludes = page.locator('label.abs-field').filter({ hasText: '排除规则' }).locator('textarea');
+    await expect(rootDir).toHaveValue('');
+    await expect(excludes).toHaveValue(/^\*\.md/m);
+
+    await page.getByRole('radio', { name: '密码', exact: true }).check();
+    await page.locator('input[placeholder="设置一个密码"]').fill(password);
+    await page.getByRole('button', { name: /连接仓库/ }).click();
+    await expect(page.getByText('今天写点什么？')).toBeVisible({ timeout: 30_000 });
+
+    // Daybook collections are listed, while root README/config files are not.
+    await expect(page.locator('main').getByText('第一天')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('main').getByText('Daybook 文章')).toBeVisible();
+    await expect(page.locator('main').getByText('留言板')).toBeVisible();
+    await expect(page.locator('main').getByText('不应出现在工作台')).toHaveCount(0);
+    await expect(page.getByText('仓库根目录 · Daybook')).toBeVisible();
+
+    // Collection filter narrows the recent list.
+    const filters = page.getByRole('group', { name: '按内容集合筛选' });
+    await filters.getByRole('button', { name: /^文章/ }).click();
+    await expect(page.locator('main').getByText('Daybook 文章')).toBeVisible();
+    await expect(page.locator('main').getByText('第一天')).toHaveCount(0);
+    await filters.getByRole('button', { name: /^全部/ }).click();
+    await expect(page.locator('main').getByText('第一天')).toBeVisible();
+
+    // Settings keeps the empty content root and exposes the fixed collections.
+    await page.locator('.abs-topbar').getByRole('link', { name: '设置', exact: true }).click();
+    const kindSelect = page.locator('label.abs-field').filter({ hasText: '仓库类型' }).locator('select');
+    await expect(kindSelect).toHaveValue('daybook');
+    await expect(page.locator('label.abs-field').filter({ hasText: '根目录' }).locator('input')).toHaveValue('');
+    await expect(page.getByText('4 个集合 · 固定字段')).toBeVisible();
+    await expect(page.getByText('仅正文')).toBeVisible();
+    await page.locator('.abs-brand').click();
+
+    // A new Daybook post starts in daily/ with only the daily frontmatter.
+    await page.getByRole('button', { name: '新建文章' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByLabel('内容类型')).toHaveValue('daily');
+    await expect(dialog.getByText(/^daily\/\d{4}-\d{2}-\d{2}\.md$/)).toBeVisible();
+    await dialog.getByLabel('标题').fill('今天的日记');
+    await dialog.getByRole('button', { name: '开始起草' }).click();
+    await expect(page).toHaveURL(/#\/edit\?path=daily%2F\d{4}-\d{2}-\d{2}\.md/, { timeout: 30_000 });
+    await page.getByRole('button', { name: '源文件' }).click();
+    const source = page.locator('.cm-content');
+    await expect(source).toContainText('date:');
+    await expect(source).toContainText('title: 今天的日记');
+    await expect(source).not.toContainText('categories');
+    await expect(source).not.toContainText('tags');
   });
 });
 

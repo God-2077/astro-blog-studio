@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DEFAULT_FRONTMATTER_FIELDS, FRONTMATTER_FIELD_TYPES } from '@/lib/frontmatter/fields';
 import { LOCALES } from '@/lib/i18n/locale';
+import { REPO_KINDS } from '@/lib/repos/kinds';
 
 export const repoSchema = z.object({
   owner: z.string().min(1),
@@ -31,6 +32,9 @@ export const frontmatterSettingsSchema = z
   .default({ fields: DEFAULT_FRONTMATTER_FIELDS });
 
 export const contentSettingsSchema = z.object({
+  // Repository layout preset. Stored with the content settings so switching a
+  // repository carries it along; old settings fall back to the blog layout.
+  repoKind: z.enum(REPO_KINDS).catch('blog').default('blog'),
   rootDir: z.string(),
   extensions: z.array(z.string()),
   excludes: z.array(z.string()),

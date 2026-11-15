@@ -17,6 +17,7 @@ const dashboard: DashboardMessages = {
   stats: {
     label: '統計',
     posts: '全記事',
+    entries: '全エントリ',
     excluded: '{count} 件を除外',
     reading: 'ファイルツリーを読み込み中',
     drafts: '下書き',
@@ -29,6 +30,9 @@ const dashboard: DashboardMessages = {
     loading: '読み込み中…',
     draftsMeta: '{count} 件 · 自動保存を含む · このデバイスのみ',
     sortLabel: '最近の記事の並び順',
+    filterLabel: 'コンテンツコレクションで絞り込む',
+    filterAll: 'すべて',
+    collectionEmpty: 'このコレクションにはまだコンテンツがありません。',
     sortUpdated: 'frontmatter の updated の降順',
     sortDate: 'frontmatter の date の降順',
     demoPlain: 'デモモード · 平文',

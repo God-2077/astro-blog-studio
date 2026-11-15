@@ -17,8 +17,15 @@ const setup = {
     label: '分支',
     hint: '留空使用仓库默认分支',
   },
+  repoKind: {
+    label: '仓库类型',
+    hint: '决定内容根目录、排除规则与编辑字段；Daybook 内容仓库通常以仓库根为内容根。',
+  },
   rootDir: {
     label: '文章根目录',
+    daybookLabel: '内容根目录',
+    daybookHint: 'Daybook 通常留空，表示仓库根目录',
+    daybookPlaceholder: '仓库根目录（留空）',
   },
   excludes: {
     label: '排除规则',

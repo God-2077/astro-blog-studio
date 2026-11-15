@@ -17,8 +17,15 @@ const setup: SetupMessages = {
     label: 'ブランチ',
     hint: '空欄の場合はリポジトリの既定ブランチを使用',
   },
+  repoKind: {
+    label: 'リポジトリの種類',
+    hint: 'コンテンツのルート、除外ルール、編集フィールドを決めます。Daybook コンテンツリポジトリは通常、リポジトリのルートをコンテンツルートにします。',
+  },
   rootDir: {
     label: '記事のルートディレクトリ',
+    daybookLabel: 'コンテンツのルートディレクトリ',
+    daybookHint: 'Daybook は通常、空欄（リポジトリのルート）にします',
+    daybookPlaceholder: 'リポジトリのルート（空欄）',
   },
   excludes: {
     label: '除外ルール',

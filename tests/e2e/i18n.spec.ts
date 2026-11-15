@@ -72,7 +72,7 @@ test.describe('i18n · 语言选择', () => {
     const appearance = page.getByRole('button', { name: /^Appearance/ });
     await expect(appearance).toBeVisible();
     if ((await appearance.getAttribute('aria-expanded')) !== 'true') await appearance.click();
-    const language = page.locator('select.abs-input');
+    const language = page.locator('select.abs-input.w-auto');
     await expect(language).toBeVisible();
 
     await language.selectOption('zh-TW');

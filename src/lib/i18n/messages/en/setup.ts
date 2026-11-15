@@ -17,8 +17,15 @@ const setup: SetupMessages = {
     label: 'Branch',
     hint: 'Leave empty to use the default branch',
   },
+  repoKind: {
+    label: 'Repository type',
+    hint: 'Determines the content root, exclusion rules, and editable fields. A Daybook content repository usually uses the repository root.',
+  },
   rootDir: {
     label: 'Posts root directory',
+    daybookLabel: 'Content root directory',
+    daybookHint: 'Daybook usually leaves this empty (repository root)',
+    daybookPlaceholder: 'Repository root (empty)',
   },
   excludes: {
     label: 'Exclusion rules',

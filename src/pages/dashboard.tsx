@@ -16,6 +16,7 @@ import { useGateway } from '@/lib/gateway/context';
 import { useActiveLocale, useT } from '@/lib/i18n/react';
 import { isMarkdownDocument, normalizeRepoPath } from '@/lib/paths/paths';
 import { type PostSortKey, postSortValue, RECENT_PAGE_SIZE, sortPosts } from '@/lib/posts/summary';
+import { DAYBOOK_COLLECTIONS, type DaybookCollectionId, daybookCollectionOf } from '@/lib/repos/kinds';
 import { cn } from '@/lib/utils/cn';
 import { displayDate, formatInTimeZone } from '@/lib/utils/date';
 import { useContent } from '@/stores/content';
@@ -27,7 +28,8 @@ import { useRateLimit } from '@/stores/rate-limit';
 export function DashboardPage() {
   const t = useT();
   const locale = useActiveLocale();
-  const { mode, config, repo } = useGateway();
+  const { mode, config, repo, key } = useGateway();
+  const isDaybook = config.repoKind === 'daybook';
   const { tree, model } = useTreeModel();
   const content = useContent();
   const { checkNow, busy, pending } = useContentActions();
@@ -36,6 +38,7 @@ export function DashboardPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sortKey, setSortKey] = useState<PostSortKey>('updated');
   const [visibleCount, setVisibleCount] = useState(RECENT_PAGE_SIZE);
+  const [collectionFilter, setCollectionFilter] = useState<'all' | DaybookCollectionId>('all');
   const lastCommit = useLastCommit((state) => state.commit);
   const rate = useRateLimit();
   const draftBox = useDrafts();
@@ -48,12 +51,35 @@ export function DashboardPage() {
     void loadDrafts(repoKey);
   }, [loadDrafts, repoKey]);
 
+  // The dashboard stays mounted when switching repositories; a collection from
+  // the previous Daybook repository must not hide the new tree.
+  useEffect(() => {
+    if (!key) return;
+    setCollectionFilter('all');
+  }, [key]);
+
+  const collectionCounts = useMemo(() => {
+    const counts = new Map<DaybookCollectionId, number>();
+    if (!isDaybook) return counts;
+    for (const post of content.summaries) {
+      const collection = daybookCollectionOf(post.path, config.rootDir);
+      if (collection) counts.set(collection.id, (counts.get(collection.id) ?? 0) + 1);
+    }
+    return counts;
+  }, [content.summaries, isDaybook, config.rootDir]);
+
   const toggleListMode = (): void => {
     if (listMode === 'posts') void loadDrafts(repoKey);
     setListMode(listMode === 'drafts' ? 'posts' : 'drafts');
   };
 
-  const sorted = useMemo(() => sortPosts(content.summaries, sortKey), [content.summaries, sortKey]);
+  const sorted = useMemo(() => {
+    const visible =
+      isDaybook && collectionFilter !== 'all'
+        ? content.summaries.filter((post) => daybookCollectionOf(post.path, config.rootDir)?.id === collectionFilter)
+        : content.summaries;
+    return sortPosts(visible, sortKey);
+  }, [content.summaries, isDaybook, collectionFilter, config.rootDir, sortKey]);
   const recent = sorted.slice(0, visibleCount);
   const hasMore = recent.length < sorted.length;
   const drafts = content.summaries.filter((item) => item.draft).length;
@@ -78,6 +104,11 @@ export function DashboardPage() {
   const changeSort = (next: PostSortKey): void => {
     if (next === sortKey) return;
     setSortKey(next);
+    setVisibleCount(RECENT_PAGE_SIZE);
+  };
+
+  const selectCollection = (next: 'all' | DaybookCollectionId): void => {
+    setCollectionFilter(next);
     setVisibleCount(RECENT_PAGE_SIZE);
   };
 
@@ -148,7 +179,8 @@ export function DashboardPage() {
             </p>
             <h1 className="mt-1 font-display text-[clamp(26px,3vw,36px)] font-bold leading-tight">{t('dashboard.title')}</h1>
             <p className="mt-1 text-[11px] text-muted">
-              {today} · {repo.owner}/{repo.name} · {config.rootDir}
+              {today} · {repo.owner}/{repo.name} · {config.rootDir || t('common.repoRoot')}
+              {isDaybook ? ` · ${t('common.repoKind.daybook')}` : ''}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -201,7 +233,7 @@ export function DashboardPage() {
 
         <section className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5" aria-label={t('dashboard.stats.label')}>
           <div className="abs-sticky bg-mint-2 rotate-[-0.7deg]">
-            <span className="abs-sticky-label">{t('dashboard.stats.posts')}</span>
+            <span className="abs-sticky-label">{isDaybook ? t('dashboard.stats.entries') : t('dashboard.stats.posts')}</span>
             <strong className="abs-sticky-value">{model ? model.totalMarkdown : '—'}</strong>
             <span className="abs-sticky-hint">
               {model ? t('dashboard.stats.excluded', { count: model.excludedCount }) : t('dashboard.stats.reading')}
@@ -278,6 +310,40 @@ export function DashboardPage() {
             )}
           </div>
 
+          {listMode === 'posts' && isDaybook ? (
+            <fieldset className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={t('dashboard.list.filterLabel')}>
+              <legend className="sr-only">{t('dashboard.list.filterLabel')}</legend>
+              <button
+                type="button"
+                className={cn('abs-btn h-7 px-2 text-[10px]', collectionFilter === 'all' ? 'bg-blush-2' : 'abs-btn-ghost')}
+                aria-pressed={collectionFilter === 'all'}
+                onClick={() => selectCollection('all')}
+              >
+                {t('dashboard.list.filterAll')}
+                <span className="ml-1 font-mono text-[9px] text-muted">{content.summaries.length}</span>
+              </button>
+              {DAYBOOK_COLLECTIONS.map((collection) => {
+                const count = collectionCounts.get(collection.id) ?? 0;
+                if (count === 0) return null;
+                return (
+                  <button
+                    key={collection.id}
+                    type="button"
+                    className={cn(
+                      'abs-btn h-7 px-2 text-[10px]',
+                      collectionFilter === collection.id ? 'bg-blush-2' : 'abs-btn-ghost',
+                    )}
+                    aria-pressed={collectionFilter === collection.id}
+                    onClick={() => selectCollection(collection.id)}
+                  >
+                    {t(collection.labelKey)}
+                    <span className="ml-1 font-mono text-[9px] text-muted">{count}</span>
+                  </button>
+                );
+              })}
+            </fieldset>
+          ) : null}
+
           {listMode === 'drafts' ? (
             <DraftsList
               status={draftBox.status}
@@ -308,30 +374,34 @@ export function DashboardPage() {
                 </div>
               ) : recent.length > 0 ? (
                 <ul>
-                  {recent.map((post) => (
-                    <li key={post.path}>
-                      <button
-                        type="button"
-                        className="group grid w-full grid-cols-[64px_minmax(0,1fr)] items-center gap-2.5 border-b border-dotted border-line px-1 py-2.5 text-left last:border-b-0 hover:bg-blush-2 sm:grid-cols-[64px_minmax(0,1fr)_auto]"
-                        onClick={() => navigate(`/edit?path=${encodeURIComponent(post.path)}`)}
-                      >
-                        <span className="whitespace-nowrap font-mono text-[9.5px] text-muted">
-                          {displayDate(postSortValue(post, sortKey))}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate text-[12px] font-bold group-hover:text-sakura">{post.title}</span>
-                          <span className="block truncate font-mono text-[9px] text-muted">{post.path}</span>
-                        </span>
-                        <span className="col-span-2 flex flex-wrap justify-start gap-1 pl-[72px] sm:col-span-1 sm:pl-0">
-                          {post.draft ? <Badge tone="butter">{t('dashboard.list.badges.draft')}</Badge> : null}
-                          {post.sticky ? <Badge tone="mint">{t('dashboard.list.badges.sticky')}</Badge> : null}
-                          {post.encrypted ? <Badge tone="blush">{t('dashboard.list.badges.encrypted')}</Badge> : null}
-                          {post.frontmatterError ? <Badge tone="ghost">{t('dashboard.list.badges.yaml')}</Badge> : null}
-                          {post.categories[0] ? <Badge tone="ghost">{post.categories[0]}</Badge> : null}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
+                  {recent.map((post) => {
+                    const collection = isDaybook ? daybookCollectionOf(post.path, config.rootDir) : null;
+                    return (
+                      <li key={post.path}>
+                        <button
+                          type="button"
+                          className="group grid w-full grid-cols-[64px_minmax(0,1fr)] items-center gap-2.5 border-b border-dotted border-line px-1 py-2.5 text-left last:border-b-0 hover:bg-blush-2 sm:grid-cols-[64px_minmax(0,1fr)_auto]"
+                          onClick={() => navigate(`/edit?path=${encodeURIComponent(post.path)}`)}
+                        >
+                          <span className="whitespace-nowrap font-mono text-[9.5px] text-muted">
+                            {displayDate(postSortValue(post, sortKey))}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-[12px] font-bold group-hover:text-sakura">{post.title}</span>
+                            <span className="block truncate font-mono text-[9px] text-muted">{post.path}</span>
+                          </span>
+                          <span className="col-span-2 flex flex-wrap justify-start gap-1 pl-[72px] sm:col-span-1 sm:pl-0">
+                            {collection ? <Badge tone="mint">{t(collection.labelKey)}</Badge> : null}
+                            {post.draft ? <Badge tone="butter">{t('dashboard.list.badges.draft')}</Badge> : null}
+                            {post.sticky ? <Badge tone="mint">{t('dashboard.list.badges.sticky')}</Badge> : null}
+                            {post.encrypted ? <Badge tone="blush">{t('dashboard.list.badges.encrypted')}</Badge> : null}
+                            {post.frontmatterError ? <Badge tone="ghost">{t('dashboard.list.badges.yaml')}</Badge> : null}
+                            {post.categories[0] ? <Badge tone="ghost">{post.categories[0]}</Badge> : null}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : !model || model.files.length === 0 ? (
                 <div className="py-6">
@@ -343,9 +413,11 @@ export function DashboardPage() {
                       </Link>
                     }
                   >
-                    {t('dashboard.list.emptyBody', { rootDir: config.rootDir })}
+                    {t('dashboard.list.emptyBody', { rootDir: config.rootDir || t('common.repoRoot') })}
                   </EmptyState>
                 </div>
+              ) : isDaybook && collectionFilter !== 'all' ? (
+                <p className="py-8 text-center text-[11.5px] text-muted">{t('dashboard.list.collectionEmpty')}</p>
               ) : (
                 <p className="py-8 text-center text-[11.5px] text-muted">
                   {t('dashboard.list.pending', { count: model.totalMarkdown })}

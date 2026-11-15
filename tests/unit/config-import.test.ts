@@ -56,6 +56,33 @@ describe('parseConfigImport', () => {
     expect(parsed.settings.commit.create).toBe('imported: {title}');
   });
 
+  it('round-trips a Daybook repository type and keeps an empty content root', () => {
+    const settings = settingsWith(activeRepo, []);
+    settings.content = {
+      ...settings.content,
+      repoKind: 'daybook',
+      rootDir: '',
+      excludes: ['*.md', 'public'],
+    };
+    const parsed = parseConfigImport(documentOf(settings, { 'acme/active': 'pat-active' }));
+
+    expect(parsed.settings.content.repoKind).toBe('daybook');
+    expect(parsed.settings.content.rootDir).toBe('');
+    expect(parsed.settings.content.excludes).toEqual(['*.md', 'public']);
+  });
+
+  it('defaults an exported file without repoKind to the blog layout', () => {
+    const settings = settingsWith(activeRepo, []);
+    const raw = JSON.parse(documentOf(settings, { 'acme/active': 'pat-active' })) as {
+      settings: { content: Record<string, unknown> };
+    };
+    delete raw.settings.content.repoKind;
+
+    const parsed = parseConfigImport(JSON.stringify(raw));
+
+    expect(parsed.settings.content.repoKind).toBe('blog');
+  });
+
   it('normalizes token keys and ignores tokens for repositories outside the file', () => {
     const settings = settingsWith(activeRepo, [profile('acme', 'notes')]);
     const parsed = parseConfigImport(

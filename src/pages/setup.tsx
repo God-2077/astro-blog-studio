@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Github, KeyRound, NotebookPen, ShieldCheck, S
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { RepoKindPicker } from '@/components/repo-kind-picker';
 import { Field, Spinner } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
 import { APP_NAME, APP_URL, APP_URL_LABEL, APP_VERSION } from '@/lib/config/app-meta';
@@ -15,6 +16,7 @@ import { LOCALE_LABELS, LOCALES, normalizeLocale } from '@/lib/i18n';
 import { useActiveLocale, useT } from '@/lib/i18n/react';
 import { unlockReturnState } from '@/lib/navigation/unlock-return';
 import { repoTokenKey } from '@/lib/repos/identity';
+import { type RepoKind, repoKindPreset } from '@/lib/repos/kinds';
 import { profileFromSettings } from '@/lib/repos/profile';
 import { MIN_VAULT_PASSWORD_LENGTH, modeNeedsPassword, type VaultMode } from '@/lib/vault/mode';
 import { useContent } from '@/stores/content';
@@ -36,7 +38,8 @@ export function SetupPage() {
   const [token, setToken] = useState('');
   const [repoInput, setRepoInput] = useState('');
   const [branch, setBranch] = useState('');
-  const [rootDir, setRootDir] = useState(settings.content.rootDir || 'src');
+  const [repoKind, setRepoKind] = useState<RepoKind>(settings.content.repoKind);
+  const [rootDir, setRootDir] = useState(settings.content.rootDir);
   const [excludes, setExcludes] = useState(
     settings.content.excludes.length > 0 ? settings.content.excludes.join('\n') : SUGGESTED_EXCLUDES.join('\n'),
   );
@@ -93,6 +96,14 @@ export function SetupPage() {
     }
   };
 
+  const changeRepoKind = (kind: RepoKind): void => {
+    const preset = repoKindPreset(kind);
+    setRepoKind(kind);
+    setRootDir(preset.content.rootDir);
+    setExcludes(preset.content.excludes.join('\n'));
+    setError(null);
+  };
+
   const handleSubmit = async (): Promise<void> => {
     setError(null);
     const parsed = parseRepoInput(repoInput);
@@ -114,7 +125,8 @@ export function SetupPage() {
       const finalBranch = branch.trim() || info.defaultBranch;
       const repo = { ...parsed, branch: finalBranch };
       const content = {
-        rootDir: rootDir.trim() || 'src',
+        repoKind,
+        rootDir: rootDir.trim(),
         excludes: excludes
           .split('\n')
           .map((line) => line.trim())
@@ -169,7 +181,15 @@ export function SetupPage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-5">
+            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">{t('setup.repoKind.label')}</p>
+            <div className="mt-1.5">
+              <RepoKindPicker value={repoKind} onChange={changeRepoKind} />
+            </div>
+            <p className="mt-1.5 text-[9.5px] leading-relaxed text-muted">{t('setup.repoKind.hint')}</p>
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <Field
               label={t('setup.pat.label')}
               hint={<span className="font-mono">{t('setup.pat.hint')}</span>}
@@ -202,12 +222,15 @@ export function SetupPage() {
                 placeholder="main"
               />
             </Field>
-            <Field label={t('setup.rootDir.label')}>
+            <Field
+              label={repoKind === 'daybook' ? t('setup.rootDir.daybookLabel') : t('setup.rootDir.label')}
+              hint={repoKind === 'daybook' ? t('setup.rootDir.daybookHint') : undefined}
+            >
               <input
                 className="abs-input font-mono text-[11px]"
                 value={rootDir}
                 onChange={(event) => setRootDir(event.target.value)}
-                placeholder="src"
+                placeholder={repoKind === 'daybook' ? t('setup.rootDir.daybookPlaceholder') : 'src'}
               />
             </Field>
             <Field label={t('setup.excludes.label')} hint={<span className="font-mono">{t('setup.excludes.hint')}</span>}>

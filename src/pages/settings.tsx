@@ -27,18 +27,14 @@ import {
 import { ConfigImportError, parseConfigImport } from '@/lib/config/import';
 import { clampIndexConcurrency, INDEX_CONCURRENCY_MAX, INDEX_CONCURRENCY_MIN, type RepoProfile } from '@/lib/config/schema';
 import { clearDraftsByPrefix } from '@/lib/drafts/store';
-import {
-  cloneFrontmatterFields,
-  DEFAULT_FRONTMATTER_FIELDS,
-  normalizeFrontmatterFields,
-  validateFrontmatterFields,
-} from '@/lib/frontmatter/fields';
+import { cloneFrontmatterFields, normalizeFrontmatterFields, validateFrontmatterFields } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { LOCALE_LABELS, LOCALES, normalizeLocale } from '@/lib/i18n';
 import { useActiveLocale, useT } from '@/lib/i18n/react';
 import { unlockReturnState } from '@/lib/navigation/unlock-return';
 import { renderCommitMessage } from '@/lib/paths/commit-message';
 import { repoProfileKey, repoTokenKey } from '@/lib/repos/identity';
+import { DAYBOOK_COLLECTIONS, type RepoKind, repoKindLabelKey, repoKindPreset } from '@/lib/repos/kinds';
 import { allRepoProfiles } from '@/lib/repos/profile';
 import { THEME_OPTIONS, type ThemePreference } from '@/lib/theme/theme';
 import { cn } from '@/lib/utils/cn';
@@ -99,6 +95,7 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
   const activeLocale = useActiveLocale();
 
   const [rootDir, setRootDir] = useState(settings.content.rootDir);
+  const [repoKind, setRepoKind] = useState<RepoKind>(settings.content.repoKind);
   const [extensions, setExtensions] = useState(settings.content.extensions.join(', '));
   const [excludes, setExcludes] = useState(settings.content.excludes.join('\n'));
   const [timezone, setTimezone] = useState(settings.content.timezone);
@@ -138,12 +135,13 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
   const repoProfiles = isDemo ? [] : allRepoProfiles(settings);
   const activeRepoKey = settings.repo ? repoProfileKey(settings.repo) : null;
   const resolvedTheme = useResolvedTheme();
-  const samplePath = `${rootDir || 'src'}/content/blog/note/便笺-备忘单.md`;
+  const samplePath = repoKind === 'daybook' ? 'daily/2026-01-01.md' : `${rootDir || 'src'}/content/blog/note/便笺-备忘单.md`;
   const sampleTitle = '便笺：备忘单';
   const today = new Date().toISOString().slice(0, 10);
 
   const storedSnapshot = stableSnapshot({
-    rootDir: settings.content.rootDir.trim() || 'src',
+    repoKind: settings.content.repoKind,
+    rootDir: settings.content.rootDir.trim(),
     extensions: settings.content.extensions
       .map((part) => part.trim())
       .filter(Boolean)
@@ -162,7 +160,8 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
     fields: normalizeFrontmatterFields(settings.frontmatter.fields),
   });
   const localSnapshot = stableSnapshot({
-    rootDir: rootDir.trim() || 'src',
+    repoKind,
+    rootDir: rootDir.trim(),
     extensions: parseExtensionsInput(extensions),
     excludes: parseExcludesInput(excludes),
     timezone: timezone.trim() || 'Asia/Shanghai',
@@ -208,7 +207,8 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
       settings.patch({
         content: {
           ...settings.content,
-          rootDir: rootDir.trim() || 'src',
+          repoKind,
+          rootDir: rootDir.trim(),
           extensions: parseExtensionsInput(extensions),
           excludes: parseExcludesInput(excludes),
           timezone: timezone.trim() || 'Asia/Shanghai',
@@ -389,13 +389,24 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
     navigate('/setup');
   };
 
+  const changeRepoKind = (next: RepoKind): void => {
+    if (next === repoKind) return;
+    const preset = repoKindPreset(next);
+    setRepoKind(next);
+    setRootDir(preset.content.rootDir);
+    setExtensions(preset.content.extensions.join(', '));
+    setExcludes(preset.content.excludes.join('\n'));
+    setFields(cloneFrontmatterFields(preset.fallbackFields));
+    setFieldError(null);
+  };
+
   const resetFields = async (): Promise<void> => {
     const confirmed = await confirmAction(t('settings.confirm.resetFieldsTitle'), {
       description: t('settings.confirm.resetFieldsDescription'),
       confirmLabel: t('settings.confirm.resetFieldsConfirm'),
     });
     if (!confirmed) return;
-    setFields(cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS));
+    setFields(cloneFrontmatterFields(repoKindPreset(repoKind).fallbackFields));
     setFieldError(null);
   };
 
@@ -590,7 +601,8 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
                             {profile.owner}/{profile.name}
                           </p>
                           <p className="mt-0.5 break-all font-mono text-[9px] text-muted">
-                            {profile.branch} · {profile.content.rootDir}
+                            {profile.branch} · {t(repoKindLabelKey(profile.content.repoKind))} ·{' '}
+                            {profile.content.rootDir || t('common.repoRoot')}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-1">
@@ -643,14 +655,34 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
               </p>
             ) : null}
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <Field label={t('settings.content.repoKind')} hint={t('settings.content.repoKindHint')} className="sm:col-span-2">
+                <select
+                  className="abs-input"
+                  aria-label={t('settings.content.repoKind')}
+                  value={repoKind}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === 'blog' || value === 'daybook') changeRepoKind(value);
+                  }}
+                  disabled={isDemo}
+                >
+                  <option value="blog">{t('common.repoKind.blog')}</option>
+                  <option value="daybook">{t('common.repoKind.daybook')}</option>
+                </select>
+              </Field>
               <Field
                 label={t('settings.content.rootDir')}
-                hint={<span className="font-mono">{t('settings.content.rootDirHint')}</span>}
+                hint={
+                  <span className="font-mono">
+                    {repoKind === 'daybook' ? t('settings.content.daybookRootHint') : t('settings.content.rootDirHint')}
+                  </span>
+                }
               >
                 <input
                   className="abs-input font-mono text-[11px]"
                   value={rootDir}
                   onChange={(event) => setRootDir(event.target.value)}
+                  placeholder={repoKind === 'daybook' ? t('settings.content.daybookRootPlaceholder') : 'src'}
                   disabled={isDemo}
                 />
               </Field>
@@ -770,12 +802,38 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
             tape="mint"
             meta={
               <>
-                {t('settings.frontmatter.meta', { count: fields.length })}
+                {repoKind === 'daybook'
+                  ? t('settings.frontmatter.daybookMeta')
+                  : t('settings.frontmatter.meta', { count: fields.length })}
                 {fieldError ? <span className="ml-1 text-danger">{t('settings.frontmatter.invalid')}</span> : null}
               </>
             }
           >
-            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">{t('settings.frontmatter.intro')}</p>
+            {repoKind === 'daybook' ? (
+              <div className="mt-1 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2">
+                <p className="text-[10.5px] leading-relaxed text-muted">{t('settings.frontmatter.daybookIntro')}</p>
+                <ul className="mt-1.5 space-y-1">
+                  {DAYBOOK_COLLECTIONS.map((collection) => (
+                    <li
+                      key={collection.id}
+                      className="grid gap-1 border-t border-dotted border-line pt-1 first:border-t-0 first:pt-0 sm:grid-cols-[72px_56px_minmax(0,1fr)]"
+                    >
+                      <span className="font-display text-[11px] font-bold">{t(collection.labelKey)}</span>
+                      <code className="font-mono text-[9px] text-muted">{collection.dir}/</code>
+                      <span className="break-all font-mono text-[9px] text-ink-soft">
+                        {collection.fields.length
+                          ? collection.fields.map((field) => field.name).join(', ')
+                          : t('settings.frontmatter.noFields')}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 text-[9px] leading-relaxed text-muted">{t('settings.frontmatter.daybookFallback')}</p>
+              </div>
+            ) : null}
+            <p className="mt-2 text-[10.5px] leading-relaxed text-muted">
+              {repoKind === 'daybook' ? t('settings.frontmatter.fallbackIntro') : t('settings.frontmatter.intro')}
+            </p>
             <FrontmatterFieldsEditor
               fields={fields}
               onChange={(next) => {
@@ -783,6 +841,7 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
                 setFieldError(null);
               }}
               onResetDefaults={resetFields}
+              hint={repoKind === 'daybook' ? t('settings.fields.daybookHint') : undefined}
             />
             {fieldError ? (
               <p
@@ -1076,7 +1135,7 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
             <p className="mt-1 break-all font-mono">
               {repo.owner}/{repo.name}
               <br />
-              {repo.defaultBranch} · {config.rootDir}
+              {repo.defaultBranch} · {config.rootDir || t('common.repoRoot')}
               <br />
               {t('settings.config.excludes', { count: config.excludes.length })}
             </p>
@@ -1087,7 +1146,11 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
 
       {addRepoOpen ? (
         <AddRepoDialog
-          defaults={{ rootDir: settings.content.rootDir, excludes: settings.content.excludes.join('\n') }}
+          defaults={{
+            repoKind: settings.content.repoKind,
+            rootDir: settings.content.rootDir,
+            excludes: settings.content.excludes.join('\n'),
+          }}
           onClose={() => setAddRepoOpen(false)}
           onSubmit={handleAddRepo}
         />

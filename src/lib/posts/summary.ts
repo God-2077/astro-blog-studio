@@ -81,15 +81,18 @@ export function summarize(text: string, path: string): PostSummary {
   const parsed = markdown ? parseDocument(text) : null;
   const data = parsed?.data ?? {};
   const title = asString(data.title) ?? path.slice(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');
+  const singularCategory = asString(data.category);
+  const categories = [...new Set([...flattenCategories(data.categories), ...(singularCategory ? [singularCategory] : [])])];
   return {
     path,
     title,
     date: asString(data.date) ?? '',
     updated: asString(data.updated),
-    categories: flattenCategories(data.categories),
+    categories,
     tags: flattenTags(data.tags),
     draft: data.draft === true,
-    sticky: data.sticky === true,
+    // Daybook uses `pin` for the same "sticky" idea as the blog's `sticky`.
+    sticky: data.sticky === true || data.pin === true,
     encrypted: Boolean(data.password),
     frontmatterError: Boolean(parsed?.frontmatterError),
     bodyLength: parsed ? parsed.body.length : text.length,

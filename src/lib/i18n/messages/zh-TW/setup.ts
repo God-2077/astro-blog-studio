@@ -17,8 +17,15 @@ const setup: SetupMessages = {
     label: '分支',
     hint: '留空使用儲存庫預設分支',
   },
+  repoKind: {
+    label: '儲存庫類型',
+    hint: '決定內容根目錄、排除規則與編輯欄位；Daybook 內容儲存庫通常以儲存庫根為內容根。',
+  },
   rootDir: {
     label: '文章根目錄',
+    daybookLabel: '內容根目錄',
+    daybookHint: 'Daybook 通常留空，表示儲存庫根目錄',
+    daybookPlaceholder: '儲存庫根目錄（留空）',
   },
   excludes: {
     label: '排除規則',

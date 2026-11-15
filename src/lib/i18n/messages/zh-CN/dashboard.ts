@@ -17,6 +17,7 @@ const dashboard = {
   stats: {
     label: '统计',
     posts: '全部文章',
+    entries: '全部条目',
     excluded: '{count} 个被排除',
     reading: '读取文件树中',
     drafts: '草稿',
@@ -29,6 +30,9 @@ const dashboard = {
     loading: '读取中…',
     draftsMeta: '{count} 篇 · 含自动保存 · 仅本机',
     sortLabel: '最近文章排序',
+    filterLabel: '按内容集合筛选',
+    filterAll: '全部',
+    collectionEmpty: '这个集合还没有内容。',
     sortUpdated: '按 frontmatter 的 updated 降序',
     sortDate: '按 frontmatter 的 date 降序',
     demoPlain: '演示模式 · 明文',

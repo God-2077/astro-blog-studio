@@ -17,6 +17,7 @@ const dashboard: DashboardMessages = {
   stats: {
     label: 'Stats',
     posts: 'All posts',
+    entries: 'All entries',
     excluded: '{count} excluded',
     reading: 'Reading file tree',
     drafts: 'Drafts',
@@ -29,6 +30,9 @@ const dashboard: DashboardMessages = {
     loading: 'Loading…',
     draftsMeta: '{count} posts · includes autosave · local only',
     sortLabel: 'Sort recent posts',
+    filterLabel: 'Filter by collection',
+    filterAll: 'All',
+    collectionEmpty: 'This collection has no content yet.',
     sortUpdated: 'By frontmatter updated, newest first',
     sortDate: 'By frontmatter date, newest first',
     demoPlain: 'Demo mode · plaintext',

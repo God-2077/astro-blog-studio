@@ -28,8 +28,13 @@ const settings: SettingsMessages = {
     title: 'コンテンツと除外',
     demoNote:
       'デモモードでは固定のサンプルリポジトリと除外ルールを使います。これらのフィールドは実際のリポジトリに接続すると有効になります。',
+    repoKind: 'リポジトリの種類',
+    repoKindHint:
+      '切り替えるとその種類のルートディレクトリ、拡張子、除外ルール、予備フィールドが適用されます。保存後にローカルインデックスを再構築します。',
     rootDir: 'ルートディレクトリ',
     rootDirHint: 'リポジトリのルートからの相対パス',
+    daybookRootHint: '空欄 = リポジトリのルート',
+    daybookRootPlaceholder: 'リポジトリのルート（空欄）',
     extensions: 'ファイル拡張子',
     extensionsHint: 'カンマ区切り。.md / .mdx 以外はプレーンテキストとして編集',
     timezone: 'タイムゾーン',
@@ -70,9 +75,15 @@ const settings: SettingsMessages = {
   frontmatter: {
     title: 'frontmatter フィールド',
     meta: { one: '{count} 件のフィールド', other: '{count} 件のフィールド' },
+    daybookMeta: '4 コレクション · 固定フィールド',
     invalid: 'エラーあり',
     intro:
       'エディターのフィールド、型、必須チェックを決めます。フィールドを削除しても既存ファイルのキーは削除されず、未設定のフィールドはそのまま保持されます。',
+    daybookIntro:
+      'Daybook の post / daily / pages はテーマ固定の frontmatter フィールドを使い、ワークベンチがファイルのディレクトリに応じて自動で対応付けます：',
+    noFields: '本文のみ',
+    daybookFallback: '上のフィールドはテーマの schema で決まるため、ここでは編集できません。参考表示です。',
+    fallbackIntro: '下のフィールドは認識できないディレクトリのファイルにのみ使われ、上の 4 コレクションには影響しません。',
   },
   fields: {
     required: '必須',
@@ -84,6 +95,8 @@ const settings: SettingsMessages = {
     reset: 'よく使うフィールドに戻す',
     limit: '{count} / 40',
     hint: '名前に使えるのは英字、数字、アンダースコア、ハイフンです。title / date は astro-blog schema の必須項目で、削除すると保存した内容がビルドを通らない可能性があります。既存ファイルの未設定フィールドはそのまま保持されます。',
+    daybookHint:
+      'これらは認識できないディレクトリ用の予備フィールドです。Daybook の daily / post / pages はテーマ固定で、ここでは編集しません。',
   },
   commit: {
     title: 'コミットメッセージ',

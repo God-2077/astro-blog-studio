@@ -3,7 +3,7 @@ import {
   type FrontmatterField,
   type FrontmatterFormValue,
   type FrontmatterFormValues,
-  knownFieldHint,
+  fieldHint,
 } from '@/lib/frontmatter/fields';
 import { useT } from '@/lib/i18n/react';
 import { cn } from '@/lib/utils/cn';
@@ -56,13 +56,13 @@ export function FrontmatterForm({ fields, values, errors, onChange }: Frontmatte
           );
         }
 
-        const categoryHint = field.name === 'categories' ? knownFieldHint('categories') : undefined;
+        const listHint = field.type === 'list' ? fieldHint(field) : undefined;
         const hint =
           field.type === 'date'
             ? undefined
             : field.type === 'list'
-              ? categoryHint
-                ? `${t('editor.form.listHint')}；${categoryHint}`
+              ? listHint
+                ? `${t('editor.form.listHint')}；${listHint}`
                 : t('editor.form.listHint')
               : undefined;
 

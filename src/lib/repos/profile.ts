@@ -1,4 +1,5 @@
 import type { RepoConfig, RepoProfile, Settings } from '@/lib/config/schema';
+import { fallbackFields, repoKindPreset } from './kinds';
 
 type RepoScopedSettings = Pick<Settings, 'repo' | 'content' | 'commit' | 'frontmatter'>;
 
@@ -40,13 +41,21 @@ export function profileFromSettings(
   repo: RepoConfig,
   contentOverrides: Partial<RepoProfile['content']> = {},
 ): RepoProfile {
+  const targetKind = contentOverrides.repoKind ?? settings.content.repoKind;
+  const sameKind = targetKind === settings.content.repoKind;
+  // A new repository of a different kind must not inherit field sets that the
+  // target theme rejects (e.g. blog `categories` inside a Daybook daily note).
+  const contentBase = sameKind
+    ? clone(settings.content)
+    : { ...clone(settings.content), ...repoKindPreset(targetKind).content };
+
   return {
     owner: repo.owner,
     name: repo.name,
     branch: repo.branch,
-    content: { ...clone(settings.content), ...contentOverrides },
+    content: { ...contentBase, ...contentOverrides },
     commit: clone(settings.commit),
-    frontmatter: clone(settings.frontmatter),
+    frontmatter: sameKind ? clone(settings.frontmatter) : { fields: fallbackFields(targetKind) },
   };
 }
 

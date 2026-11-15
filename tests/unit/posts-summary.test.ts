@@ -56,6 +56,13 @@ describe('summarize', () => {
     expect(summary.frontmatterError).toBe(false);
     expect(summary.bodyLength).toBe(text.length);
   });
+
+  it('maps Daybook category and pin keys into the shared summary', () => {
+    const summary = summarize("---\ndate: '2026-11-15'\ncategory: 生活\npin: true\n---\n日记\n", 'daily/2026-11-15.md');
+
+    expect(summary.categories).toEqual(['生活']);
+    expect(summary.sticky).toBe(true);
+  });
 });
 
 describe('postRecencyMs', () => {

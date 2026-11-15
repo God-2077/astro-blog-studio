@@ -49,6 +49,7 @@ import { createEditorTheme, markdownEditorExtensions, plainTextEditorExtensions 
 import { renderMarkdown } from '@/lib/markdown/render';
 import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
 import { isMarkdownDocument, joinPath, normalizeRepoPath } from '@/lib/paths/paths';
+import { resolveFields } from '@/lib/repos/kinds';
 import { formatInTimeZone } from '@/lib/utils/date';
 import { useDrafts } from '@/stores/drafts';
 import { useEditorGuard } from '@/stores/editor';
@@ -85,7 +86,11 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const t = useT();
   const locale = useActiveLocale();
   const resolvedTheme = useResolvedTheme();
-  const fields = settings.frontmatter.fields;
+  const fields = useMemo(
+    () => resolveFields({ content: settings.content, frontmatter: settings.frontmatter }, path),
+    [settings.content, settings.frontmatter, path],
+  );
+  const nestedCategories = settings.content.repoKind !== 'daybook';
   const queryClient = useQueryClient();
   const setLastCommit = useLastCommit((state) => state.setCommit);
   const pendingDraft = usePendingPost((state) => state.draft);
@@ -301,6 +306,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         fields,
         form,
         originalData,
+        nestedCategories,
       }),
       state: { body, rawInner, hasFrontmatter, fmError, form, sourceText },
     };
@@ -322,6 +328,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     form,
     fields,
     originalData,
+    nestedCategories,
   ]);
 
   const backup = useEditorBackup({
@@ -403,8 +410,9 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         ? formatInTimeZone(new Date(), config.timezone)
         : undefined;
     const { patch, errors } = buildFrontmatterPatch(fields, form, originalData, {
-      autoUpdatedAt,
+      ...(autoUpdatedAt ? { autoUpdatedAt } : {}),
       invalidAsEmpty: options.invalidAsEmpty,
+      nestedCategories,
     });
     if (Object.keys(errors).length) return { text: '', errors };
     const raw = updateFrontmatterRaw(rawInner, patch);
@@ -521,6 +529,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
         fields,
         form,
         originalData,
+        nestedCategories,
       });
       const record: DraftRecord = {
         version: 1,

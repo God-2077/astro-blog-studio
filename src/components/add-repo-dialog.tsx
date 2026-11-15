@@ -1,11 +1,14 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { GitBranch, KeyRound, Plus, X } from 'lucide-react';
 import { useState } from 'react';
+import { RepoKindPicker } from '@/components/repo-kind-picker';
 import { Field, Spinner } from '@/components/ui';
 import type { AddRepoInput } from '@/hooks/use-repo-manager';
 import { useT } from '@/lib/i18n/react';
+import { type RepoKind, repoKindPreset } from '@/lib/repos/kinds';
 
 export interface AddRepoDefaults {
+  repoKind: RepoKind;
   rootDir: string;
   excludes: string;
 }
@@ -23,10 +26,19 @@ export function AddRepoDialog({
   const [repoInput, setRepoInput] = useState('');
   const [branch, setBranch] = useState('');
   const [token, setToken] = useState('');
-  const [rootDir, setRootDir] = useState(defaults.rootDir || 'src');
+  const [repoKind, setRepoKind] = useState<RepoKind>(defaults.repoKind);
+  const [rootDir, setRootDir] = useState(defaults.rootDir);
   const [excludes, setExcludes] = useState(defaults.excludes);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const changeKind = (kind: RepoKind): void => {
+    const preset = repoKindPreset(kind);
+    setRepoKind(kind);
+    setRootDir(preset.content.rootDir);
+    setExcludes(preset.content.excludes.join('\n'));
+    setError(null);
+  };
 
   const submit = async (): Promise<void> => {
     if (busy) return;
@@ -37,7 +49,7 @@ export function AddRepoDialog({
     setBusy(true);
     setError(null);
     try {
-      await onSubmit({ repoInput, branch, token, rootDir, excludes });
+      await onSubmit({ repoInput, branch, token, repoKind, rootDir, excludes });
       onClose();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -69,7 +81,15 @@ export function AddRepoDialog({
             </Dialog.Close>
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4">
+            <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">{t('dialogs.addRepo.kind')}</p>
+            <div className="mt-1.5">
+              <RepoKindPicker value={repoKind} onChange={changeKind} />
+            </div>
+            <p className="mt-1.5 text-[9.5px] leading-relaxed text-muted">{t('dialogs.addRepo.presetNote')}</p>
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <Field
               label={t('dialogs.addRepo.repo')}
               hint={<span className="font-mono">{t('dialogs.addRepo.repoHint')}</span>}
@@ -108,13 +128,17 @@ export function AddRepoDialog({
             </Field>
             <Field
               label={t('dialogs.addRepo.rootDir')}
-              hint={<span className="font-mono">{t('dialogs.addRepo.rootDirHint')}</span>}
+              hint={
+                <span className="font-mono">
+                  {repoKind === 'daybook' ? t('dialogs.addRepo.daybookRootHint') : t('dialogs.addRepo.rootDirHint')}
+                </span>
+              }
             >
               <input
                 className="abs-input font-mono text-[11px]"
                 value={rootDir}
                 onChange={(event) => setRootDir(event.target.value)}
-                placeholder="src"
+                placeholder={repoKind === 'daybook' ? t('dialogs.addRepo.repoRootPlaceholder') : 'src'}
               />
             </Field>
             <Field

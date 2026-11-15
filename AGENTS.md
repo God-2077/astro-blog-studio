@@ -41,8 +41,9 @@ src/
     app-shell.tsx           顶栏、演示条、桌面索引、移动抽屉、CSS 外框
     protected-layout.tsx    vault 状态 + live/demo GatewayProvider
     tree-panel.tsx          文件树、搜索、排除计数、离开未保存确认
-    new-post-dialog.tsx     新建文章 → 本地草稿（不写 API）
-    add-repo-dialog.tsx     设置页「添加仓库」Dialog（仓库/分支/PAT/根目录/排除）
+    new-post-dialog.tsx     新建文章 → 本地草稿（不写 API）；Daybook 下按集合选择目录与字段
+    add-repo-dialog.tsx     设置页「添加仓库」Dialog（仓库类型/仓库/分支/PAT/根目录/排除）
+    repo-kind-picker.tsx    仓库类型 radio 卡片（Astro 博客 / Daybook），Setup 与添加仓库共用
     repo-token-dialog.tsx   设置页「更新令牌」Dialog（校验 PAT 后写入保险库）
     missing-repo-token.tsx  活动仓库缺少 PAT 时的恢复页
     backup-dialog.tsx       「发现未保存的备份」AlertDialog（稍后 / 丢弃 / 恢复）
@@ -82,6 +83,7 @@ src/
     paths/                  normalize / exclusion matcher
     pwa/update-polling.ts   SW 更新检测：节流 + single-flight + 可见/在线判断
     repos/identity.ts       owner/name 规范化、仓库 profile key 与 PAT token key
+    repos/kinds.ts          仓库类型（blog/daybook）预设、Daybook 集合字段、按路径解析字段
     repos/profile.ts        活动配置快照、仓库档案克隆、Setup/新增仓库配置模板
     tree/model.ts           文件树模型（相对根目录显示，路径保留全路径；按 tree 引用 memo）
     vault/                  crypto(HKDF 备份/草稿/文章子密钥) / fingerprint / keystore(三种解锁模式 + 多仓库 PAT 映射) / session / mode
@@ -170,7 +172,9 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
 12. **多仓库与仓库级配置**
     - 活动仓库的 config 在 `Settings.repo + content/commit/frontmatter` 顶层；非活动仓库在 `Settings.repos` 档案里，不得把活动仓库重复放进 `repos`。切换用 `useRepoManager`：先 park 内存新稿，再 `settings.activateRepo`，最后只清 `useContent`/`useDrafts`/`useLastCommit`/`useRateLimit` 内存与 React Query；**禁止**调用 `storage.clear()` / `clearContentByPrefix` / `clearBackupsByPrefix` / `clearDraftsByPrefix`。
     - 仓库级配置范围只有 `content`、`commit`、`frontmatter`；编辑器、外观、安全为全局。`editor.defaultDir` 与 `filenameTemplate` 仍是全局。
-    - PAT key 用 `repoTokenKey`（小写 `owner/name`），profile key 用 `repoProfileKey`（小写 owner/name + 原样 branch）；同一仓库不同分支共享 PAT，但缓存/草稿/备份继续按 branch 隔离。
+    - 仓库类型存在 `content.repoKind`（`blog` / `daybook`），随活动仓库/档案一起切换，旧设置缺省按 `blog`。添加仓库与 Setup 必须提供类型选择；Daybook 预设为仓库根（`rootDir: ''`）、排除 `*.md`/`*.mdx`/`public`/`config`/`.github`/`node_modules`。**不要把空根目录回退成 `src`**：`settingsDirty` 快照、保存、添加仓库与 Setup 都必须保留 `''`。
+    - Daybook 的 `daily/post/pages/spec` 字段由 `src/lib/repos/kinds.ts` 固定，必须与内容仓库的 `schema.ts` 对齐；编辑器、新建稿、草稿 park 必须用 `resolveFields(settings, path)` 按目录取字段，不得继续只读 `settings.frontmatter.fields`。`spec` 只有正文；`daily` 标题可选、文件名默认当天日期；`post/pages` 标题必填。Daybook 下 `categories` 按扁平字符串数组写入，不使用博客的 `a > b` 嵌套。
+    - PAT key 用 `repoTokenKey`（小写 `owner/name`），profile key 用 `repoProfileKey`（小写 owner/name + 原样 branch）；同一仓库不同分支共享 PAT，但缓存/草稿/备份继续按 branch 隔离。同一仓库+分支不能以两种类型同时存在。
     - 新增仓库必须先校验该仓库自己的 PAT，再写 vault token，再添加并激活档案；更新令牌失败不得覆盖旧令牌；移除非活动仓库时，只有同一 slug 不再被任何档案使用时才删除 PAT。
     - 旧版单 `token` 解锁后 best-effort 迁移到活动仓库；迁移失败时本次会话仍把旧 PAT 绑定到活动 slug，下次解锁重试。
     - 切回原仓库必须复用 IndexedDB 缓存：tree sha + 配置签名未变时只拉 HEAD tree，0 次文章正文读取；这条必须有单元/端到端回归。
@@ -186,8 +190,8 @@ scripts/                    seed/clean/test-env、design build/serve、generate-
 
 1. `pnpm test:seed`（测试仓库为空或需要恢复种子）。
 2. `pnpm test` / `pnpm test:live`；live 会创建 `src/_e2e/<runId>/*` 并自动清理。
-3. `pnpm test:e2e`：setup 用「密码」模式建本地加密保险库（`tests/e2e/.auth/`，已 gitignore；不要用双因子，避免指纹来源波动导致 flaky），demo 验证 fixture/字段配置/源文件模式/新稿草稿/`{title}`/未保存备份恢复与丢弃；`repos.mock.spec.ts` 用 Playwright route 模拟两个 GitHub 仓库，验证添加第二仓库/独立 PAT/切换/仓库级配置/锁定后一次解锁再切换，并断言 A → B → A 切回后没有第二次 GraphQL 正文读取；live 创建/清理 `src/_e2e/*`，并断言首访 1 次 tree + 1 次 GraphQL 批量、刷新后 0 次文章内容请求且 `abs-content` 中只有 `v: 1` 密文、新稿保存前 404、保存后单提交、真实草稿在 IndexedDB 中是 `v: 2` 密文且锁定/解锁后可恢复。`pwa` 组会先用 `vite build` 构建再 `vite preview`：断言 manifest/图标/SW、断网从预缓存打开、以及 waiting 新版本 → 弹窗 → 「稍后」→ 徽标 → 「立即刷新」才 reload（会临时 append `dist/sw.js` 并在 afterAll 还原）。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。只想验 PWA 用 `pnpm test:e2e:pwa`。
-4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；源文件模式改整份文件并切回表单；未保存备份：改标题/源文件/新稿 → 刷新 → 稍后 → 恢复 → 保存后不再提示，以及丢弃后不再提示；双因子 Setup → 刷新必须输密码且不自动解锁、换指纹后失败并提示重置；真实仓库改标题后 IndexedDB 只有密文、锁定 → 解锁 → 恢复；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；两个真实仓库分别用不同 PAT 添加、切换、切回（Network 里只有 tree、无正文重读）、更新令牌、移除非活动仓库；本机文章缓存：首访全量 → 刷新只检查 tree → 远端改/删/加后只读变更 → 设置强制全量 → 锁定/解锁仍可读 → 重置保险库清空 `live:` 缓存；移动/删除/冲突；390px；`pnpm build` 后 `pnpm preview` 断网重载与更新弹窗。
+3. `pnpm test:e2e`：setup 用「密码」模式建本地加密保险库（`tests/e2e/.auth/`，已 gitignore；不要用双因子，避免指纹来源波动导致 flaky），demo 验证 fixture/字段配置/源文件模式/新稿草稿/`{title}`/未保存备份恢复与丢弃；`repos.mock.spec.ts` 用 Playwright route 模拟两个 GitHub 仓库，验证添加第二仓库/独立 PAT/切换/仓库级配置/锁定后一次解锁再切换，并断言 A → B → A 切回后没有第二次 GraphQL 正文读取；同一文件还模拟 Daybook 仓库，验证类型选择、空根目录、集合筛选、daily 新稿字段与设置页集合参考。live 创建/清理 `src/_e2e/*`，并断言首访 1 次 tree + 1 次 GraphQL 批量、刷新后 0 次文章内容请求且 `abs-content` 中只有 `v: 1` 密文、新稿保存前 404、保存后单提交、真实草稿在 IndexedDB 中是 `v: 2` 密文且锁定/解锁后可恢复。`pwa` 组会先用 `vite build` 构建再 `vite preview`：断言 manifest/图标/SW、断网从预缓存打开、以及 waiting 新版本 → 弹窗 → 「稍后」→ 徽标 → 「立即刷新」才 reload（会临时 append `dist/sw.js` 并在 afterAll 还原）。默认使用系统 Edge；无 Edge 时安装 chromium 并改 `playwright.config.ts` 的 channel。只想验 PWA 用 `pnpm test:e2e:pwa`。
+4. 手动 E2E 至少覆盖：demo 工作台 → 编辑器保存 → 提交小票；新稿先本地起草、不产生文件，盖章后一次创建；设置增删字段/必填校验；源文件模式改整份文件并切回表单；未保存备份：改标题/源文件/新稿 → 刷新 → 稍后 → 恢复 → 保存后不再提示，以及丢弃后不再提示；双因子 Setup → 刷新必须输密码且不自动解锁、换指纹后失败并提示重置；真实仓库改标题后 IndexedDB 只有密文、锁定 → 解锁 → 恢复；live 读取 CRLF 种子 → 保存 → 再 seed 恢复；两个真实仓库分别用不同 PAT 添加、切换、切回（Network 里只有 tree、无正文重读）、更新令牌、移除非活动仓库；Daybook 仓库添加 → 空根目录 → 集合筛选 → daily/post/pages 新稿字段与保存 → 设置页类型切换/预设；本机文章缓存：首访全量 → 刷新只检查 tree → 远端改/删/加后只读变更 → 设置强制全量 → 锁定/解锁仍可读 → 重置保险库清空 `live:` 缓存；移动/删除/冲突；390px；`pnpm build` 后 `pnpm preview` 断网重载与更新弹窗。
 5. `pnpm verify`；`pnpm test:clean`；轮换测试 token。
 
 ## 代码风格

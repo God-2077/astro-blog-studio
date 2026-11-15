@@ -14,9 +14,10 @@ interface FrontmatterFieldsEditorProps {
   fields: FrontmatterField[];
   onChange: (fields: FrontmatterField[]) => void;
   onResetDefaults: () => void;
+  hint?: string;
 }
 
-export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: FrontmatterFieldsEditorProps) {
+export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults, hint }: FrontmatterFieldsEditorProps) {
   const t = useT();
   const rowKeysRef = useRef<string[]>([]);
   if (rowKeysRef.current.length !== fields.length) {
@@ -118,7 +119,7 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
           <option key={name} value={name} />
         ))}
       </datalist>
-      <p className="text-[9.5px] leading-relaxed text-muted">{t('settings.fields.hint')}</p>
+      <p className="text-[9.5px] leading-relaxed text-muted">{hint ?? t('settings.fields.hint')}</p>
     </div>
   );
 }

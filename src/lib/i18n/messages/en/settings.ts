@@ -28,8 +28,13 @@ const settings: SettingsMessages = {
     title: 'Content & exclusions',
     demoNote:
       'Demo mode uses a fixed sample repository and exclusion rules; these fields apply once a live repository is connected.',
+    repoKind: 'Repository type',
+    repoKindHint:
+      'Switching applies that type’s root directory, extensions, exclusions, and fallback fields; saving rebuilds the local index.',
     rootDir: 'Root directory',
     rootDirHint: 'Relative to the repository root',
+    daybookRootHint: 'Empty = repository root',
+    daybookRootPlaceholder: 'Repository root (empty)',
     extensions: 'File extensions',
     extensionsHint: 'Comma separated; non .md / .mdx files are edited as plain text',
     timezone: 'Time zone',
@@ -70,9 +75,16 @@ const settings: SettingsMessages = {
   frontmatter: {
     title: 'Frontmatter fields',
     meta: { one: '{count} fields', other: '{count} fields' },
+    daybookMeta: '4 collections · fixed fields',
     invalid: 'Invalid',
     intro:
       'Defines the editor fields, types, and required validation. Removing a field does not remove its keys from existing files, and unconfigured fields are kept as-is.',
+    daybookIntro:
+      'Daybook’s post / daily / pages use theme-fixed frontmatter fields; the workbench matches them automatically by directory:',
+    noFields: 'Body only',
+    daybookFallback: 'The fields above are fixed by the theme schema and cannot be edited here; this is a reference.',
+    fallbackIntro:
+      'The fields below only apply to files in unrecognized directories and do not affect the four collections above.',
   },
   fields: {
     required: 'Required',
@@ -84,6 +96,8 @@ const settings: SettingsMessages = {
     reset: 'Restore common fields',
     limit: '{count} / 40',
     hint: 'Names may contain letters, digits, underscores, and hyphens. title / date are required by the astro-blog schema; content saved after removing them may fail to build. Unconfigured fields in existing files are kept as-is.',
+    daybookHint:
+      'These are fallback fields for unrecognized directories only. Daybook’s daily / post / pages fields are fixed by the theme and are not edited here.',
   },
   commit: {
     title: 'Commit message',

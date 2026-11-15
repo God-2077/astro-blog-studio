@@ -10,6 +10,10 @@ export interface FrontmatterField {
   name: string;
   type: FrontmatterFieldType;
   required: boolean;
+  /** Boolean fields only: the theme default when the key is absent (e.g. Daybook comments). */
+  defaultValue?: boolean;
+  /** Overrides the generic known-field hint (code-defined presets only). */
+  hintKey?: MessageKey;
 }
 
 export type FrontmatterFormValue = string | boolean;
@@ -148,8 +152,9 @@ export function valueToDisplay(field: FrontmatterField, value: unknown): string 
 export function formValuesFromData(fields: readonly FrontmatterField[], data: Record<string, unknown>): FrontmatterFormValues {
   const values: FrontmatterFormValues = {};
   for (const field of fields) {
-    if (field.type === 'boolean') values[field.name] = data[field.name] === true;
-    else values[field.name] = valueToDisplay(field, data[field.name]);
+    if (field.type === 'boolean') {
+      values[field.name] = data[field.name] === undefined ? field.defaultValue === true : data[field.name] === true;
+    } else values[field.name] = valueToDisplay(field, data[field.name]);
   }
   return values;
 }
@@ -161,10 +166,10 @@ function splitList(value: string): string[] {
     .filter(Boolean);
 }
 
-function parseListValue(field: FrontmatterField, text: string): string[] | string[][] | undefined {
+function parseListValue(field: FrontmatterField, text: string, nestedCategories: boolean): string[] | string[][] | undefined {
   const items = splitList(text);
   if (items.length === 0) return undefined;
-  if (field.name === 'categories' && items.some((item) => item.includes('>'))) {
+  if (nestedCategories && field.name === 'categories' && items.some((item) => item.includes('>'))) {
     return items.map((item) =>
       item
         .split('>')
@@ -191,12 +196,21 @@ export function missingRequiredFieldNames(fields: readonly FrontmatterField[], d
     .map((field) => field.name);
 }
 
+export type TitleFieldMode = 'required' | 'optional' | 'none';
+
+/** How the new-post dialog should treat `title`: required, shown but optional, or absent. */
+export function titleFieldMode(fields: readonly FrontmatterField[]): TitleFieldMode {
+  const title = fields.find((field) => field.name === 'title' && field.type === 'string');
+  if (!title) return 'none';
+  return title.required ? 'required' : 'optional';
+}
+
 /**
  * 新建文章对话框只在 title 是可写入的必填 string 字段时显示标题输入框。
  * 非 string 的 title 不会被 buildNewPostDocument 写入，按不可用处理。
  */
 export function hasRequiredTitleField(fields: readonly FrontmatterField[]): boolean {
-  return fields.some((field) => field.name === 'title' && field.type === 'string' && field.required);
+  return titleFieldMode(fields) === 'required';
 }
 
 function validateFieldValue(field: FrontmatterField, value: FrontmatterFormValue): string | null {
@@ -214,11 +228,11 @@ function validateFieldValue(field: FrontmatterField, value: FrontmatterFormValue
   return null;
 }
 
-function toPatchValue(field: FrontmatterField, value: FrontmatterFormValue): unknown {
+function toPatchValue(field: FrontmatterField, value: FrontmatterFormValue, nestedCategories: boolean): unknown {
   if (field.type === 'boolean') return value === true;
   const text = typeof value === 'string' ? value.trim() : '';
   if (field.type === 'number') return Number(text);
-  if (field.type === 'list') return parseListValue(field, text);
+  if (field.type === 'list') return parseListValue(field, text, nestedCategories);
   return text;
 }
 
@@ -229,6 +243,11 @@ export interface BuildPatchOptions {
    * treated as empty instead of blocking the switch. An existing key is removed.
    */
   invalidAsEmpty?: boolean;
+  /**
+   * The blog theme accepts nested `categories: [[a, b]]` via `a > b`. Daybook's
+   * schema only accepts `string[]`, so its callers disable this split.
+   */
+  nestedCategories?: boolean;
 }
 
 export interface BuildPatchResult {
@@ -268,11 +287,12 @@ export function buildFrontmatterPatch(
 
     if (field.type === 'boolean') {
       const bool = value === true;
-      if (original === undefined) {
+      const originalBool = original === undefined ? field.defaultValue === true : original === true;
+      if (original === undefined && field.defaultValue === undefined) {
         if (bool || field.required) patch[field.name] = bool;
         continue;
       }
-      if (bool === (original === true)) continue;
+      if (bool === originalBool) continue;
       patch[field.name] = bool;
       continue;
     }
@@ -284,7 +304,7 @@ export function buildFrontmatterPatch(
       if (original !== undefined) patch[field.name] = null;
       continue;
     }
-    patch[field.name] = toPatchValue(field, value);
+    patch[field.name] = toPatchValue(field, value, options.nestedCategories !== false);
   }
 
   if (options.autoUpdatedAt && hasUpdatedField && !('updated' in patch) && !errors.updated) {
@@ -317,4 +337,9 @@ export function buildNewPostDocument(fields: readonly FrontmatterField[], input:
 export function knownFieldHint(name: string): string | undefined {
   const hint = KNOWN_BLOG_FIELDS[name.trim()]?.hint;
   return hint ? t(hint) : undefined;
+}
+
+/** Preset-specific hint (e.g. Daybook's flat categories / different hideFrom enum). */
+export function fieldHint(field: FrontmatterField): string | undefined {
+  return field.hintKey ? t(field.hintKey) : knownFieldHint(field.name);
 }

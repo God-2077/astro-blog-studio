@@ -2,11 +2,13 @@ import { createContext, type ReactNode, useContext, useEffect, useMemo } from 'r
 import { demoContentConfig, demoRepo } from '@/lib/demo/fixtures';
 import { FixtureGateway } from '@/lib/github/fixture';
 import type { GitHubGateway, RepoInfo } from '@/lib/github/types';
+import type { RepoKind } from '@/lib/repos/kinds';
 import { useRateLimit } from '@/stores/rate-limit';
 
 export type AppMode = 'demo' | 'live';
 
 export interface StudioConfig {
+  repoKind: RepoKind;
   rootDir: string;
   extensions: string[];
   excludes: string[];
@@ -42,7 +44,7 @@ export function GatewayProvider({
       gateway,
       repo,
       config,
-      key: `${mode}:${repo.owner}/${repo.name}@${repo.defaultBranch}:${config.rootDir}`,
+      key: `${mode}:${repo.owner}/${repo.name}@${repo.defaultBranch}:${config.repoKind}:${config.rootDir}`,
     }),
     [mode, gateway, repo, config],
   );

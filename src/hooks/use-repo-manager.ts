@@ -7,6 +7,7 @@ import { LiveGateway } from '@/lib/github/live';
 import { parseRepoInput } from '@/lib/github/repo-input';
 import { t } from '@/lib/i18n';
 import { repoProfileKey, repoTokenKey } from '@/lib/repos/identity';
+import type { RepoKind } from '@/lib/repos/kinds';
 import { profileFromSettings } from '@/lib/repos/profile';
 import { vaultSession } from '@/lib/vault/session';
 import { useContent } from '@/stores/content';
@@ -20,6 +21,7 @@ export interface AddRepoInput {
   repoInput: string;
   branch: string;
   token: string;
+  repoKind: RepoKind;
   rootDir: string;
   excludes: string;
 }
@@ -135,7 +137,8 @@ export function useRepoManager() {
 
       const latest = useSettings.getState();
       const profile = profileFromSettings(latest, repo, {
-        rootDir: input.rootDir.trim() || 'src',
+        repoKind: input.repoKind,
+        rootDir: input.rootDir.trim(),
         excludes: splitLines(input.excludes),
       });
       if (!latest.addRepo(profile)) throw new Error(t('errors.repo.alreadyAdded'));

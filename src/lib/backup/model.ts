@@ -117,6 +117,7 @@ export interface BuildBackupTextInput {
   fields: readonly FrontmatterField[];
   form: FrontmatterFormValues;
   originalData: Record<string, unknown>;
+  nestedCategories?: boolean;
 }
 
 /**
@@ -130,7 +131,9 @@ export function buildBackupText(input: BuildBackupTextInput): string {
   let raw = input.rawInner;
   let patchKeys = 0;
   try {
-    const { patch } = buildFrontmatterPatch(input.fields, input.form, input.originalData);
+    const { patch } = buildFrontmatterPatch(input.fields, input.form, input.originalData, {
+      nestedCategories: input.nestedCategories,
+    });
     patchKeys = Object.keys(patch).length;
     raw = updateFrontmatterRaw(raw, patch);
   } catch {

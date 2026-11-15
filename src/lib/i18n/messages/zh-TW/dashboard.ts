@@ -17,6 +17,7 @@ const dashboard: DashboardMessages = {
   stats: {
     label: '統計',
     posts: '全部文章',
+    entries: '全部項目',
     excluded: '{count} 個被排除',
     reading: '讀取檔案樹中',
     drafts: '草稿',
@@ -29,6 +30,9 @@ const dashboard: DashboardMessages = {
     loading: '讀取中…',
     draftsMeta: '{count} 篇 · 含自動儲存 · 僅本機',
     sortLabel: '最近文章排序',
+    filterLabel: '依內容集合篩選',
+    filterAll: '全部',
+    collectionEmpty: '這個集合還沒有內容。',
     sortUpdated: '依 frontmatter 的 updated 遞減排序',
     sortDate: '依 frontmatter 的 date 遞減排序',
     demoPlain: '示範模式 · 明文',

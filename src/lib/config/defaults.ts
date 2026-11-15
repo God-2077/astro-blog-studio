@@ -1,16 +1,17 @@
-import { cloneFrontmatterFields, DEFAULT_FRONTMATTER_FIELDS } from '@/lib/frontmatter/fields';
+import { cloneFrontmatterFields } from '@/lib/frontmatter/fields';
+import { repoKindPreset } from '@/lib/repos/kinds';
 import { INDEX_CONCURRENCY_DEFAULT, type Settings } from './schema';
 
 export const SUGGESTED_EXCLUDES = [];
+
+const BLOG_PRESET = repoKindPreset('blog');
 
 export const defaultSettings: Settings = {
   version: 1,
   repo: null,
   repos: [],
   content: {
-    rootDir: 'src',
-    extensions: ['.md', '.mdx'],
-    excludes: [],
+    ...BLOG_PRESET.content,
     timezone: 'Asia/Shanghai',
     indexConcurrency: INDEX_CONCURRENCY_DEFAULT,
   },
@@ -32,7 +33,7 @@ export const defaultSettings: Settings = {
     backupUnsaved: true,
   },
   frontmatter: {
-    fields: cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS),
+    fields: cloneFrontmatterFields(BLOG_PRESET.fallbackFields),
   },
   appearance: {
     theme: 'system',

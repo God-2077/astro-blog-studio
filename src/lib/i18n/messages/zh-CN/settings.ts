@@ -27,8 +27,12 @@ const settings = {
   content: {
     title: '内容与排除',
     demoNote: '演示模式使用固定的示例仓库与排除规则；这些字段在连接真实仓库后生效。',
+    repoKind: '仓库类型',
+    repoKindHint: '切换后会套用该类型的根目录、扩展名、排除规则与备用字段；保存后重建本机索引。',
     rootDir: '根目录',
     rootDirHint: '相对仓库根',
+    daybookRootHint: '留空 = 仓库根目录',
+    daybookRootPlaceholder: '仓库根目录（留空）',
     extensions: '文件扩展名',
     extensionsHint: '逗号分隔；非 .md / .mdx 按纯文本编辑',
     timezone: '时区',
@@ -67,8 +71,13 @@ const settings = {
   frontmatter: {
     title: 'Frontmatter 字段',
     meta: { one: '{count} 个字段', other: '{count} 个字段' },
+    daybookMeta: '4 个集合 · 固定字段',
     invalid: '有误',
     intro: '决定编辑器的字段、类型和必填校验；删除字段不会删除已有文件里的键，未配置字段会原样保留。',
+    daybookIntro: 'Daybook 的 post / daily / pages 使用主题固定的 frontmatter 字段，工作台按文件所在目录自动匹配：',
+    noFields: '仅正文',
+    daybookFallback: '上表的字段由主题 schema 决定，不在此处编辑；这里只作参考。',
+    fallbackIntro: '下面的字段只用于未识别目录中的文件，不会影响上面四个集合。',
   },
   fields: {
     required: '必填',
@@ -80,6 +89,7 @@ const settings = {
     reset: '恢复常用字段',
     limit: '{count} / 40',
     hint: '名称支持字母、数字、下划线、连字符；title / date 是 astro-blog schema 的必填项，删除后保存的内容可能无法通过构建。已有文件里的未配置字段会原样保留。',
+    daybookHint: '这些只是未识别目录的备用字段；Daybook 的 daily / post / pages 字段由主题固定，不在此处编辑。',
   },
   commit: {
     title: '提交消息',

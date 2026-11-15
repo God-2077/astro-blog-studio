@@ -4,14 +4,21 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Field } from '@/components/ui';
 import { useParkPendingDraft } from '@/hooks/use-pending-draft';
-import { buildNewPostDocument, hasRequiredTitleField } from '@/lib/frontmatter/fields';
+import { buildNewPostDocument, titleFieldMode } from '@/lib/frontmatter/fields';
 import { useGateway } from '@/lib/gateway/context';
 import { type TFunction, useT } from '@/lib/i18n/react';
 import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-message';
 import { type FilenameIssue, resolveManualFilename, resolveTitleFilename } from '@/lib/paths/filename';
 import { isMarkdownDocument, joinPath, normalizeRepoPath } from '@/lib/paths/paths';
+import {
+  creatableDaybookCollections,
+  type DaybookCollectionId,
+  daybookCollectionById,
+  daybookCollectionOf,
+  isDaybookCollectionId,
+} from '@/lib/repos/kinds';
 import { collectFolders, type TreeModel } from '@/lib/tree/model';
-import { formatInTimeZone } from '@/lib/utils/date';
+import { dateOnlyInTimeZone, formatInTimeZone } from '@/lib/utils/date';
 import { usePendingPost } from '@/stores/pending-post';
 import { useSettings } from '@/stores/settings';
 
@@ -48,12 +55,21 @@ export function NewPostDialog({
   const navigate = useNavigate();
   const setPendingDraft = usePendingPost((state) => state.setDraft);
   const parkPendingDraft = useParkPendingDraft();
+  const isDaybook = config.repoKind === 'daybook';
+  const collections = useMemo(() => creatableDaybookCollections(), []);
   const [title, setTitle] = useState('');
-  const [dir, setDir] = useState(settings.editor.defaultDir || config.rootDir);
+  const [collectionId, setCollectionId] = useState<DaybookCollectionId>('daily');
+  const [dir, setDir] = useState(
+    isDaybook ? (daybookCollectionById('daily')?.dir ?? config.rootDir) : settings.editor.defaultDir || config.rootDir,
+  );
   const [filename, setFilename] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [parking, setParking] = useState(false);
   const filenameRef = useRef<HTMLInputElement>(null);
+  const now = new Date();
+  const date = formatInTimeZone(now, settings.content.timezone);
+  const daybookDate = dateOnlyInTimeZone(now, settings.content.timezone);
+  const effectiveDate = isDaybook ? daybookDate : date;
 
   const folders = useMemo(
     () => (model ? collectFolders(model.nodes).map((folder) => joinPath(config.rootDir, folder.path)) : []),
@@ -65,13 +81,32 @@ export function NewPostDialog({
     setTitle('');
     setFilename('');
     setError(null);
+    if (isDaybook) {
+      const preferred = settings.editor.defaultDir || '';
+      const collection = daybookCollectionOf(preferred, config.rootDir) ?? daybookCollectionById('daily');
+      setCollectionId(collection?.id ?? 'daily');
+      setDir(collection?.dir ?? config.rootDir);
+      return;
+    }
     const preferred = settings.editor.defaultDir || config.rootDir;
     setDir(folders.includes(preferred) ? preferred : config.rootDir);
-  }, [open, settings.editor.defaultDir, config.rootDir, folders]);
+  }, [open, isDaybook, settings.editor.defaultDir, config.rootDir, folders]);
 
-  const showTitle = hasRequiredTitleField(settings.frontmatter.fields);
-  const usesTitle = showTitle && filename.trim().length === 0;
-  const resolution = usesTitle ? resolveTitleFilename(title) : resolveManualFilename(filename);
+  const normalizedDir = normalizeRepoPath(dir);
+  const fullDir =
+    config.rootDir && normalizedDir && !normalizedDir.startsWith(config.rootDir)
+      ? joinPath(config.rootDir, normalizedDir)
+      : normalizedDir || config.rootDir;
+  const pathCollection = isDaybook ? daybookCollectionOf(fullDir, config.rootDir) : null;
+  const fields = isDaybook ? (pathCollection?.fields ?? settings.frontmatter.fields) : settings.frontmatter.fields;
+  const titleMode = titleFieldMode(fields);
+  // Keep the blog behavior: its optional title stays hidden and the filename is
+  // typed manually. Daybook daily notes show the optional title explicitly.
+  const showTitle = isDaybook ? titleMode !== 'none' : titleMode === 'required';
+  const requiresTitle = titleMode === 'required';
+  const defaultFilename = isDaybook && pathCollection?.defaultFilename === 'date' ? daybookDate : '';
+  const usesTitle = requiresTitle && filename.trim().length === 0;
+  const resolution = usesTitle ? resolveTitleFilename(title) : resolveManualFilename(filename.trim() || defaultFilename);
   const finalFile = resolution.filename;
   const unsupportedSuffix = resolution.unsupportedSuffix;
   /** Explicit non-Markdown suffix: create an empty plain-text file, not a frontmatter draft. */
@@ -83,26 +118,37 @@ export function NewPostDialog({
   const liveIssue = !usesTitle && filename.trim().length > 0 ? resolution.issue : null;
   const liveError = liveIssue ? filenameIssueMessage(liveIssue, t) : null;
   const shownError = error ?? liveError;
-  const normalizedDir = normalizeRepoPath(dir);
-  const fullDir =
-    config.rootDir && normalizedDir && !normalizedDir.startsWith(config.rootDir)
-      ? joinPath(config.rootDir, normalizedDir)
-      : normalizedDir || config.rootDir;
   const path = joinPath(fullDir, finalFile);
-  const date = formatInTimeZone(new Date(), settings.content.timezone);
   const messageTitle =
     showTitle && !plainText ? title.trim() || undefined : finalFile ? resolveCommitTitle('', path) : undefined;
   const message = renderCommitMessage(settings.commit.create, {
     path,
     action: 'create',
-    date,
+    date: effectiveDate,
     title: messageTitle,
   });
   const collision = Boolean(model?.files.some((file) => file.path === path));
 
+  const changeCollection = (id: DaybookCollectionId): void => {
+    const collection = daybookCollectionById(id);
+    if (!collection) return;
+    setCollectionId(id);
+    setDir(collection.dir);
+    setFilename('');
+    setError(null);
+  };
+
+  const changeDir = (value: string): void => {
+    setDir(value);
+    setError(null);
+    if (!isDaybook) return;
+    const collection = daybookCollectionOf(value, config.rootDir);
+    if (collection?.creatable) setCollectionId(collection.id);
+  };
+
   const handleCreate = async (): Promise<void> => {
     if (parking) return;
-    if (showTitle && !title.trim() && !plainText) {
+    if (requiresTitle && !title.trim() && !plainText) {
       setError(t('shell.newPost.errors.titleRequired'));
       return;
     }
@@ -127,9 +173,7 @@ export function NewPostDialog({
       }
     }
 
-    const text = plainText
-      ? ''
-      : buildNewPostDocument(settings.frontmatter.fields, { title: showTitle ? title.trim() : '', date });
+    const text = plainText ? '' : buildNewPostDocument(fields, { title: showTitle ? title.trim() : '', date: effectiveDate });
     setPendingDraft({ path, text });
     onOpenChange(false);
     navigate(`/edit?path=${encodeURIComponent(path)}&new=1`);
@@ -157,7 +201,11 @@ export function NewPostDialog({
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {showTitle && !plainText ? (
-              <Field label={t('shell.newPost.titleLabel')} className="sm:col-span-2">
+              <Field
+                label={t('shell.newPost.titleLabel')}
+                hint={titleMode === 'optional' ? t('shell.newPost.titleOptionalHint') : undefined}
+                className="sm:col-span-2"
+              >
                 <input
                   className="abs-input"
                   value={title}
@@ -165,18 +213,38 @@ export function NewPostDialog({
                     setTitle(event.target.value);
                     setError(null);
                   }}
-                  placeholder={t('shell.newPost.titlePlaceholder')}
+                  placeholder={
+                    titleMode === 'optional' ? t('shell.newPost.titleOptionalPlaceholder') : t('shell.newPost.titlePlaceholder')
+                  }
                 />
+              </Field>
+            ) : null}
+            {isDaybook ? (
+              <Field
+                label={t('shell.newPost.collectionLabel')}
+                hint={<span className="font-mono">{t('shell.newPost.collectionHint')}</span>}
+                className="sm:col-span-2"
+              >
+                <select
+                  className="abs-input"
+                  value={collectionId}
+                  onChange={(event) => {
+                    if (isDaybookCollectionId(event.target.value)) changeCollection(event.target.value);
+                  }}
+                >
+                  {collections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {t(collection.labelKey)}
+                    </option>
+                  ))}
+                </select>
               </Field>
             ) : null}
             <Field label={t('shell.newPost.dirLabel')} hint={<span className="font-mono">{t('shell.newPost.dirHint')}</span>}>
               <input
                 className="abs-input font-mono text-[11px]"
                 value={dir}
-                onChange={(event) => {
-                  setDir(event.target.value);
-                  setError(null);
-                }}
+                onChange={(event) => changeDir(event.target.value)}
                 list="studio-folders"
               />
               <datalist id="studio-folders">
@@ -190,7 +258,11 @@ export function NewPostDialog({
               hint={
                 <>
                   <span className="font-mono">
-                    {showTitle ? t('shell.newPost.filenameHint') : t('shell.newPost.filenameHintRequired')}
+                    {defaultFilename
+                      ? t('shell.newPost.filenameHintDate')
+                      : showTitle
+                        ? t('shell.newPost.filenameHint')
+                        : t('shell.newPost.filenameHintRequired')}
                   </span>
                   {unsupportedSuffix ? (
                     <span className="mt-1 flex items-start gap-1.5 text-warning" role="status">
