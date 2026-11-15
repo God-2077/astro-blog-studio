@@ -22,3 +22,13 @@ tests/e2e/.auth/
 
 # playwright
 .pw-*
+
+# temp
+tmp/
+.tmp/
+.tmp-*
+tmp-*
+temp
+.temp
+.temp-*
+temp-*
