@@ -23,6 +23,7 @@ import {
   restoreToEditorState,
 } from '@/lib/backup/model';
 import { readBackup } from '@/lib/backup/store';
+import { daybookFieldsForPath } from '@/lib/daybook/model';
 import { type DraftRecord, draftFromBackup, draftToBackup } from '@/lib/drafts/model';
 import { readDraft, removeDraft, writeDraft } from '@/lib/drafts/store';
 import {
@@ -85,7 +86,11 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
   const t = useT();
   const locale = useActiveLocale();
   const resolvedTheme = useResolvedTheme();
-  const fields = settings.frontmatter.fields;
+  /** Daybook files use the schema field set for their daily/post/pages folder; other repos stay configurable. */
+  const fields = useMemo(
+    () => (config.daybook && path ? daybookFieldsForPath(path) : settings.frontmatter.fields),
+    [config.daybook, path, settings.frontmatter.fields],
+  );
   const queryClient = useQueryClient();
   const setLastCommit = useLastCommit((state) => state.setCommit);
   const pendingDraft = usePendingPost((state) => state.draft);
@@ -940,7 +945,7 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
           </div>
         ) : null}
 
-        {sourceActive ? null : (
+        {sourceActive || fields.length === 0 ? null : (
           <section className="abs-paper relative p-3.5">
             <span className="abs-tape" aria-hidden />
             <div className="flex flex-wrap items-center justify-between gap-2">

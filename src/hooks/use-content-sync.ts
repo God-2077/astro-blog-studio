@@ -4,6 +4,7 @@ import { useTreeModel } from '@/hooks/use-data';
 import { clampIndexConcurrency } from '@/lib/config/schema';
 import { contentRepoKey, contentSignature } from '@/lib/content/model';
 import type { SyncResult } from '@/lib/content/sync';
+import { isDaybookContentPath } from '@/lib/daybook/model';
 import { useGateway } from '@/lib/gateway/context';
 import { mapError } from '@/lib/github/errors';
 import { useT } from '@/lib/i18n/react';
@@ -27,6 +28,15 @@ function isBusyStatus(status: string): boolean {
   return status === 'checking' || status === 'loading' || status === 'updating';
 }
 
+/** Config/spec files stay in the tree but must never enter the post cache. */
+function contentFilesForPlan(
+  model: NonNullable<ReturnType<typeof useTreeModel>['model']>,
+  config: { daybook: boolean; extensions: string[] },
+) {
+  if (!config.daybook) return model.files;
+  return model.files.filter((file) => isDaybookContentPath(file.path, config.extensions));
+}
+
 /**
  * Drives the local article cache from the AppShell: load the encrypted cache
  * once per session, then reconcile it with every new HEAD tree. Mounted for the
@@ -47,7 +57,7 @@ export function useContentSync(): void {
   // biome-ignore lint/correctness/useExhaustiveDependencies: repo/config changes reset the cache identity even when React Query reuses the same tree object
   useEffect(() => {
     if (!tree.data || !model) return;
-    const plan = planIndex(model.files, INDEX_CHUNK_SIZE, MAX_INDEX_FILES);
+    const plan = planIndex(contentFilesForPlan(model, config), INDEX_CHUNK_SIZE, MAX_INDEX_FILES);
     void useContent.getState().syncWithTree({
       chunks: plan.chunks,
       treeSha: tree.data.sha,
@@ -108,7 +118,8 @@ export function useContentActions(): ContentActions {
           return failWith(fresh.error ? mapError(fresh.error).message : t('errors.hooks.treeFailed'));
         }
 
-        const plan = planIndex(buildTreeModel(fresh.data.entries, config).files, INDEX_CHUNK_SIZE, MAX_INDEX_FILES);
+        const freshModel = buildTreeModel(fresh.data.entries, config);
+        const plan = planIndex(contentFilesForPlan(freshModel, config), INDEX_CHUNK_SIZE, MAX_INDEX_FILES);
         const result = await useContent.getState().syncWithTree({
           chunks: plan.chunks,
           treeSha: fresh.data.sha,

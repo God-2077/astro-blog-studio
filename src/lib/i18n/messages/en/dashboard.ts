@@ -7,6 +7,7 @@ const dashboard: DashboardMessages = {
     sync: { syncing: 'Syncing…', checking: 'Checking…', idle: 'Check for updates' },
     drafts: { label: 'Drafts', open: 'View local Drafts', close: 'Back to posts' },
     newPost: 'New post',
+    new: 'New',
   },
   treeTruncated: 'GitHub truncated the file tree; the index may be incomplete.',
   summary: {

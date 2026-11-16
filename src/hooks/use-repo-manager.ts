@@ -22,6 +22,7 @@ export interface AddRepoInput {
   token: string;
   rootDir: string;
   excludes: string;
+  daybook: boolean;
 }
 
 function errorMessage(caught: unknown): Error {
@@ -134,8 +135,10 @@ export function useRepoManager() {
       }
 
       const latest = useSettings.getState();
+      const daybook = Boolean(input.daybook);
       const profile = profileFromSettings(latest, repo, {
-        rootDir: input.rootDir.trim() || 'src',
+        rootDir: daybook ? '' : input.rootDir.trim() || 'src',
+        daybook,
         excludes: splitLines(input.excludes),
       });
       if (!latest.addRepo(profile)) throw new Error(t('errors.repo.alreadyAdded'));

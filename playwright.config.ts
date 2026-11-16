@@ -32,7 +32,7 @@ export default defineConfig({
     },
     {
       name: 'demo',
-      testMatch: /(demo|repos\.mock|i18n)\.spec\.ts/,
+      testMatch: /(demo|repos\.mock|daybook\.mock|i18n)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], channel: 'msedge', storageState: { cookies: [], origins: [] } },
     },
     {

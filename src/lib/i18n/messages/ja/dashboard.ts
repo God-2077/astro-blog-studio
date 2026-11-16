@@ -7,6 +7,7 @@ const dashboard: DashboardMessages = {
     sync: { syncing: '同期中…', checking: '確認中…', idle: '更新を確認' },
     drafts: { label: '下書き', open: 'このデバイスの下書きを見る', close: '記事一覧に戻る' },
     newPost: '新規記事',
+    new: '新規',
   },
   treeTruncated: 'ファイルツリーが GitHub で切り詰められたため、インデックスが不完全な可能性があります。',
   summary: {

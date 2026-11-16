@@ -24,6 +24,7 @@ export function AddRepoDialog({
   const [branch, setBranch] = useState('');
   const [token, setToken] = useState('');
   const [rootDir, setRootDir] = useState(defaults.rootDir || 'src');
+  const [daybook, setDaybook] = useState(false);
   const [excludes, setExcludes] = useState(defaults.excludes);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export function AddRepoDialog({
     setBusy(true);
     setError(null);
     try {
-      await onSubmit({ repoInput, branch, token, rootDir, excludes });
+      await onSubmit({ repoInput, branch, token, rootDir: daybook ? '' : rootDir, excludes, daybook });
       onClose();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -106,15 +107,30 @@ export function AddRepoDialog({
                 spellCheck={false}
               />
             </Field>
+            <label className="sm:col-span-2 flex items-start gap-2.5 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2.5 text-[11px]">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-3.5 accent-[var(--abs-sakura)]"
+                checked={daybook}
+                onChange={(event) => setDaybook(event.target.checked)}
+              />
+              <span>
+                <span className="font-medium">{t('dialogs.addRepo.daybook')}</span>
+                <span className="mt-0.5 block font-mono text-[9.5px] leading-relaxed text-muted">
+                  {t('dialogs.addRepo.daybookHint')}
+                </span>
+              </span>
+            </label>
             <Field
               label={t('dialogs.addRepo.rootDir')}
               hint={<span className="font-mono">{t('dialogs.addRepo.rootDirHint')}</span>}
             >
               <input
                 className="abs-input font-mono text-[11px]"
-                value={rootDir}
+                value={daybook ? '' : rootDir}
                 onChange={(event) => setRootDir(event.target.value)}
-                placeholder="src"
+                placeholder={daybook ? '/' : 'src'}
+                disabled={daybook}
               />
             </Field>
             <Field

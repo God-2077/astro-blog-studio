@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { confirmAction } from '@/components/confirm-toast';
 import { ContentSyncStatus } from '@/components/content-status';
+import { DaybookNewDialog } from '@/components/daybook-new-dialog';
 import { NewPostDialog } from '@/components/new-post-dialog';
 import { Badge, EmptyState, ErrorNote, SkeletonList } from '@/components/ui';
 import { useContentActions } from '@/hooks/use-content-sync';
@@ -42,6 +43,7 @@ export function DashboardPage() {
   const loadDrafts = useDrafts((state) => state.load);
   const parkPendingDraft = useParkPendingDraft();
   const repoKey = backupRepoKey(mode, repo);
+  const isDaybook = config.daybook;
   const [listMode, setListMode] = useState<'posts' | 'drafts'>(params.get('drafts') === '1' ? 'drafts' : 'posts');
 
   useEffect(() => {
@@ -179,7 +181,7 @@ export function DashboardPage() {
             </button>
             <button type="button" className="abs-btn abs-btn-primary" onClick={() => setDialog(true)}>
               <Plus aria-hidden className="size-3.5" />
-              {t('dashboard.actions.newPost')}
+              {t(isDaybook ? 'dashboard.actions.new' : 'dashboard.actions.newPost')}
             </button>
           </div>
         </section>
@@ -288,6 +290,7 @@ export function DashboardPage() {
               onRemove={(draft) => void removeDraftItem(draft)}
               onNew={() => setDialog(true)}
               onRetry={() => void loadDrafts(repoKey)}
+              newLabel={t(isDaybook ? 'dashboard.actions.new' : 'dashboard.actions.newPost')}
             />
           ) : (
             <>
@@ -482,7 +485,11 @@ export function DashboardPage() {
         </Link>
       </aside>
 
-      <NewPostDialog open={openDialog} onOpenChange={setDialog} model={model} />
+      {isDaybook ? (
+        <DaybookNewDialog open={openDialog} onOpenChange={setDialog} model={model} />
+      ) : (
+        <NewPostDialog open={openDialog} onOpenChange={setDialog} model={model} />
+      )}
     </div>
   );
 }
@@ -496,6 +503,7 @@ function DraftsList({
   onRemove,
   onNew,
   onRetry,
+  newLabel,
 }: {
   status: DraftsStatus;
   items: DraftBoxItem[];
@@ -505,6 +513,7 @@ function DraftsList({
   onRemove: (draft: DraftBoxItem) => void;
   onNew: () => void;
   onRetry: () => void;
+  newLabel: string;
 }) {
   const t = useT();
   const locale = useActiveLocale();
@@ -535,7 +544,7 @@ function DraftsList({
           action={
             <button type="button" className="abs-btn abs-btn-ghost h-8 text-[11px]" onClick={onNew}>
               <Plus aria-hidden className="size-3.5" />
-              {t('dashboard.actions.newPost')}
+              {newLabel}
             </button>
           }
         >

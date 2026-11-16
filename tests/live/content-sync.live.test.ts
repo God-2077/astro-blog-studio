@@ -9,7 +9,7 @@ import { createTestOctokit, readTestEnv, redact, type TestEnv } from '../../scri
 const env = readTestEnv(false);
 const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 const createdPath = `src/_e2e/${runId}/content-sync.md`;
-const treeConfig = { rootDir: 'src', extensions: ['.md', '.mdx'], excludes: [] };
+const treeConfig = { rootDir: 'src', extensions: ['.md', '.mdx'], excludes: [], daybook: false };
 
 let context: TestEnv;
 let gateway: LiveGateway;

@@ -98,7 +98,10 @@ export function contentSignature(config: TreeConfig): string {
   const excludes = [
     ...new Set(config.excludes.map((entry) => normalizeExclude(entry)).filter((entry): entry is string => Boolean(entry))),
   ].sort();
-  return `${normalizeRepoPath(config.rootDir)}\u0000${extensions.join(',')}\u0000${excludes.join('\n')}`;
+  const signature = `${normalizeRepoPath(config.rootDir)}\u0000${extensions.join(',')}\u0000${excludes.join('\n')}`;
+  // Only daybook configs get the extra marker, so caches written before this
+  // flag existed stay valid for ordinary blog repositories.
+  return config.daybook ? `${signature}\u0000daybook` : signature;
 }
 
 function readString(value: unknown): string | null {

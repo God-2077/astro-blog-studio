@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { backupRepoKey } from '@/lib/backup/model';
+import { daybookFieldsForPath } from '@/lib/daybook/model';
 import { capturePendingDraft } from '@/lib/drafts/pending';
 import { writeDraft } from '@/lib/drafts/store';
 import { useGateway } from '@/lib/gateway/context';
@@ -15,14 +16,15 @@ export type ParkPendingDraftResult = 'empty' | 'saved' | 'failed';
  * the write succeeded, so a failed park cannot silently lose work.
  */
 export function useParkPendingDraft(): () => Promise<ParkPendingDraftResult> {
-  const { mode, repo } = useGateway();
-  const fields = useSettings((state) => state.frontmatter.fields);
+  const { mode, repo, config } = useGateway();
+  const configuredFields = useSettings((state) => state.frontmatter.fields);
 
   return useCallback(async () => {
     const pending = usePendingPost.getState().draft;
     if (!pending) return 'empty';
 
     const repoKey = backupRepoKey(mode, repo);
+    const fields = config.daybook ? daybookFieldsForPath(pending.path) : configuredFields;
     const record = await capturePendingDraft({ repoKey, fields, pending });
     const result = await writeDraft(record);
     if (result !== 'saved') return 'failed';
@@ -30,5 +32,5 @@ export function useParkPendingDraft(): () => Promise<ParkPendingDraftResult> {
     usePendingPost.getState().clearDraft();
     useDrafts.getState().remember(record);
     return 'saved';
-  }, [mode, repo, fields]);
+  }, [mode, repo, config.daybook, configuredFields]);
 }

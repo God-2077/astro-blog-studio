@@ -9,6 +9,7 @@ export const defaultSettings: Settings = {
   repos: [],
   content: {
     rootDir: 'src',
+    daybook: false,
     extensions: ['.md', '.mdx'],
     excludes: [],
     timezone: 'Asia/Shanghai',

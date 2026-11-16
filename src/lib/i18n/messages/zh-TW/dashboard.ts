@@ -7,6 +7,7 @@ const dashboard: DashboardMessages = {
     sync: { syncing: '同步中…', checking: '檢查中…', idle: '檢查更新' },
     drafts: { label: '草稿匣', open: '檢視本機草稿匣', close: '回到文章清單' },
     newPost: '新建文章',
+    new: '新增',
   },
   treeTruncated: '檔案樹被 GitHub 截斷，索引可能不完整。',
   summary: {

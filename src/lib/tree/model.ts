@@ -1,3 +1,4 @@
+import { isDaybookAllowlistedPath, isDaybookContentPath } from '@/lib/daybook/model';
 import type { TreeEntry } from '@/lib/github/types';
 import { createExclusionMatcher, isMarkdownFile, isUnderRoot, normalizeRepoPath } from '@/lib/paths/paths';
 
@@ -20,6 +21,7 @@ export type TreeNode = FolderNode | FileNode;
 
 export interface TreeConfig {
   rootDir: string;
+  daybook: boolean;
   extensions: string[];
   excludes: string[];
 }
@@ -35,7 +37,7 @@ const collator = new Intl.Collator('zh-Hans-CN', { numeric: true, sensitivity: '
 const modelCache = new WeakMap<TreeEntry[], Map<string, TreeModel>>();
 
 function configCacheKey(config: TreeConfig): string {
-  return `${config.rootDir}\u0000${config.extensions.join('\u0000')}\u0000${config.excludes.join('\u0000')}`;
+  return `${config.daybook ? 'daybook' : 'blog'}\u0000${config.rootDir}\u0000${config.extensions.join('\u0000')}\u0000${config.excludes.join('\u0000')}`;
 }
 
 function stripRoot(path: string, rootDir: string): string {
@@ -50,9 +52,11 @@ export function buildTreeModel(entries: TreeEntry[], config: TreeConfig): TreeMo
   if (cached) return cached;
 
   const matcher = createExclusionMatcher(config.excludes);
-  const relevant = entries.filter(
-    (entry) => entry.path && isUnderRoot(entry.path, config.rootDir) && isMarkdownFile(entry.path, config.extensions),
-  );
+  const relevant = entries.filter((entry) => {
+    if (!entry.path) return false;
+    if (config.daybook) return isDaybookAllowlistedPath(entry.path, config.extensions);
+    return isUnderRoot(entry.path, config.rootDir) && isMarkdownFile(entry.path, config.extensions);
+  });
   const visible = relevant.filter((entry) => !matcher.match(entry.path));
   const excludedCount = relevant.length - visible.length;
 
@@ -76,7 +80,7 @@ export function buildTreeModel(entries: TreeEntry[], config: TreeConfig): TreeMo
 
   const files: FileNode[] = [];
   for (const entry of visible) {
-    const relative = stripRoot(entry.path, config.rootDir);
+    const relative = stripRoot(entry.path, config.daybook ? '' : config.rootDir);
     const parts = relative.split('/').filter(Boolean);
     const fileName = parts.pop() ?? relative;
     const folderPath = parts.join('/');
@@ -106,7 +110,11 @@ export function buildTreeModel(entries: TreeEntry[], config: TreeConfig): TreeMo
   sortNodes(rootNodes);
   files.sort((a, b) => collator.compare(a.path, b.path));
 
-  const model: TreeModel = { nodes: rootNodes, files, totalMarkdown: files.length, excludedCount };
+  // Config and spec files are visible for editing but are not posts.
+  const totalMarkdown = config.daybook
+    ? files.filter((file) => isDaybookContentPath(file.path, config.extensions)).length
+    : files.length;
+  const model: TreeModel = { nodes: rootNodes, files, totalMarkdown, excludedCount };
   const byConfig = modelCache.get(entries) ?? new Map<string, TreeModel>();
   byConfig.set(cacheKey, model);
   modelCache.set(entries, byConfig);

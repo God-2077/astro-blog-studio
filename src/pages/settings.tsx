@@ -10,7 +10,7 @@ import { ExportConfigDialog, type ExportConfigMeta } from '@/components/export-c
 import { FrontmatterFieldsEditor } from '@/components/frontmatter-fields-editor';
 import { RepoTokenDialog } from '@/components/repo-token-dialog';
 import { useResolvedTheme } from '@/components/theme-provider';
-import { Field, Spinner } from '@/components/ui';
+import { Badge, Field, Spinner } from '@/components/ui';
 import { UnlockModePicker } from '@/components/unlock-mode-picker';
 import { useContentActions } from '@/hooks/use-content-sync';
 import { useParkPendingDraft } from '@/hooks/use-pending-draft';
@@ -135,15 +135,16 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
   const parkPendingDraft = useParkPendingDraft();
 
   const isDemo = mode === 'demo';
+  const isDaybook = settings.content.daybook;
   const repoProfiles = isDemo ? [] : allRepoProfiles(settings);
   const activeRepoKey = settings.repo ? repoProfileKey(settings.repo) : null;
   const resolvedTheme = useResolvedTheme();
-  const samplePath = `${rootDir || 'src'}/content/blog/note/便笺-备忘单.md`;
-  const sampleTitle = '便笺：备忘单';
   const today = new Date().toISOString().slice(0, 10);
+  const samplePath = isDaybook ? `daily/${today}-01.md` : `${rootDir || 'src'}/content/blog/note/便笺-备忘单.md`;
+  const sampleTitle = '便笺：备忘单';
 
   const storedSnapshot = stableSnapshot({
-    rootDir: settings.content.rootDir.trim() || 'src',
+    rootDir: isDaybook ? '' : settings.content.rootDir.trim() || 'src',
     extensions: settings.content.extensions
       .map((part) => part.trim())
       .filter(Boolean)
@@ -159,10 +160,10 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
       backupUnsaved: settings.editor.backupUnsaved,
     },
     autoLockMinutes: settings.security.autoLockMinutes,
-    fields: normalizeFrontmatterFields(settings.frontmatter.fields),
+    fields: isDaybook ? null : normalizeFrontmatterFields(settings.frontmatter.fields),
   });
   const localSnapshot = stableSnapshot({
-    rootDir: rootDir.trim() || 'src',
+    rootDir: isDaybook ? '' : rootDir.trim() || 'src',
     extensions: parseExtensionsInput(extensions),
     excludes: parseExcludesInput(excludes),
     timezone: timezone.trim() || 'Asia/Shanghai',
@@ -175,7 +176,7 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
       backupUnsaved,
     },
     autoLockMinutes: Math.min(240, Math.max(0, Number(autoLockMinutes) || 0)),
-    fields: normalizeFrontmatterFields(fields),
+    fields: isDaybook ? null : normalizeFrontmatterFields(fields),
   });
   const settingsDirty = storedSnapshot !== localSnapshot;
 
@@ -194,21 +195,23 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
   };
 
   const save = async (): Promise<void> => {
-    const issues = validateFrontmatterFields(fields);
-    if (issues.length) {
-      setFieldError(issues.map((issue) => issue.message).join('；'));
-      toast.error(t('settings.toast.fieldInvalid'));
-      return;
+    if (!isDaybook) {
+      const issues = validateFrontmatterFields(fields);
+      if (issues.length) {
+        setFieldError(issues.map((issue) => issue.message).join('；'));
+        toast.error(t('settings.toast.fieldInvalid'));
+        return;
+      }
     }
     setFieldError(null);
     const normalizedFields = normalizeFrontmatterFields(fields);
-    setFields(normalizedFields);
+    if (!isDaybook) setFields(normalizedFields);
     setBusy(true);
     try {
       settings.patch({
         content: {
           ...settings.content,
-          rootDir: rootDir.trim() || 'src',
+          rootDir: isDaybook ? '' : rootDir.trim() || 'src',
           extensions: parseExtensionsInput(extensions),
           excludes: parseExcludesInput(excludes),
           timezone: timezone.trim() || 'Asia/Shanghai',
@@ -229,9 +232,7 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
           showLineNumbers,
           backupUnsaved,
         },
-        frontmatter: {
-          fields: normalizedFields,
-        },
+        ...(isDaybook ? {} : { frontmatter: { fields: normalizedFields } }),
         security: {
           ...settings.security,
           autoLockMinutes: Math.min(240, Math.max(0, Number(autoLockMinutes) || 0)),
@@ -589,8 +590,9 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
                           <p className="break-all font-mono text-[11px] text-ink">
                             {profile.owner}/{profile.name}
                           </p>
-                          <p className="mt-0.5 break-all font-mono text-[9px] text-muted">
-                            {profile.branch} · {profile.content.rootDir}
+                          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 break-all font-mono text-[9px] text-muted">
+                            {profile.branch} · {profile.content.rootDir || '/'}
+                            {profile.content.daybook ? <Badge tone="mint">{t('settings.repos.daybook')}</Badge> : null}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-1">
@@ -636,7 +638,15 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
             </Collapse>
           ) : null}
 
-          <Collapse title={t('settings.content.title')} tape="blush">
+          <Collapse
+            title={
+              <>
+                {t('settings.content.title')}
+                {isDaybook ? <Badge tone="mint">{t('settings.content.daybookBadge')}</Badge> : null}
+              </>
+            }
+            tape="blush"
+          >
             {isDemo ? (
               <p className="mt-1 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2 text-[10.5px] leading-relaxed text-muted">
                 {t('settings.content.demoNote')}
@@ -645,13 +655,18 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
               <Field
                 label={t('settings.content.rootDir')}
-                hint={<span className="font-mono">{t('settings.content.rootDirHint')}</span>}
+                hint={
+                  <span className="font-mono">
+                    {isDaybook ? t('settings.content.daybookRootHint') : t('settings.content.rootDirHint')}
+                  </span>
+                }
               >
                 <input
                   className="abs-input font-mono text-[11px]"
-                  value={rootDir}
+                  value={isDaybook ? '' : rootDir}
                   onChange={(event) => setRootDir(event.target.value)}
-                  disabled={isDemo}
+                  placeholder={isDaybook ? '/' : 'src'}
+                  disabled={isDemo || isDaybook}
                 />
               </Field>
               <Field label={t('settings.content.extensions')} hint={t('settings.content.extensionsHint')}>
@@ -765,34 +780,36 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
             </p>
           </Collapse>
 
-          <Collapse
-            title={t('settings.frontmatter.title')}
-            tape="mint"
-            meta={
-              <>
-                {t('settings.frontmatter.meta', { count: fields.length })}
-                {fieldError ? <span className="ml-1 text-danger">{t('settings.frontmatter.invalid')}</span> : null}
-              </>
-            }
-          >
-            <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">{t('settings.frontmatter.intro')}</p>
-            <FrontmatterFieldsEditor
-              fields={fields}
-              onChange={(next) => {
-                setFields(next);
-                setFieldError(null);
-              }}
-              onResetDefaults={resetFields}
-            />
-            {fieldError ? (
-              <p
-                className="mt-2 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[11px] text-danger"
-                role="alert"
-              >
-                {fieldError}
-              </p>
-            ) : null}
-          </Collapse>
+          {isDaybook ? null : (
+            <Collapse
+              title={t('settings.frontmatter.title')}
+              tape="mint"
+              meta={
+                <>
+                  {t('settings.frontmatter.meta', { count: fields.length })}
+                  {fieldError ? <span className="ml-1 text-danger">{t('settings.frontmatter.invalid')}</span> : null}
+                </>
+              }
+            >
+              <p className="mt-0.5 text-[10.5px] leading-relaxed text-muted">{t('settings.frontmatter.intro')}</p>
+              <FrontmatterFieldsEditor
+                fields={fields}
+                onChange={(next) => {
+                  setFields(next);
+                  setFieldError(null);
+                }}
+                onResetDefaults={resetFields}
+              />
+              {fieldError ? (
+                <p
+                  className="mt-2 rounded-lg border border-danger/30 bg-[var(--abs-danger-surface)] px-3 py-2 text-[11px] text-danger"
+                  role="alert"
+                >
+                  {fieldError}
+                </p>
+              ) : null}
+            </Collapse>
+          )}
 
           <Collapse title={t('settings.commit.title')}>
             <p className="mt-0.5 text-[10.5px] text-muted">

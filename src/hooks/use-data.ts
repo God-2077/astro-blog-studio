@@ -36,11 +36,12 @@ export function useTreeModel(): { tree: ReturnType<typeof useTree>; model: TreeM
       tree.data
         ? buildTreeModel(tree.data.entries, {
             rootDir: config.rootDir,
+            daybook: config.daybook,
             extensions: config.extensions,
             excludes: config.excludes,
           })
         : null,
-    [tree.data, config.rootDir, config.extensions, config.excludes],
+    [tree.data, config.rootDir, config.daybook, config.extensions, config.excludes],
   );
   return { tree, model };
 }

@@ -16,6 +16,7 @@ export const demoRepo: RepoInfo = {
 
 export const demoContentConfig = {
   rootDir: 'src',
+  daybook: false,
   extensions: ['.md', '.mdx'],
   excludes: ['src/content/blog/en', 'src/content/blog/ja', 'src/pages/en', 'src/pages/ja'],
   timezone: 'Asia/Shanghai',

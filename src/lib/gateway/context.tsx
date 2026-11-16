@@ -8,6 +8,7 @@ export type AppMode = 'demo' | 'live';
 
 export interface StudioConfig {
   rootDir: string;
+  daybook: boolean;
   extensions: string[];
   excludes: string[];
   timezone: string;
@@ -42,7 +43,7 @@ export function GatewayProvider({
       gateway,
       repo,
       config,
-      key: `${mode}:${repo.owner}/${repo.name}@${repo.defaultBranch}:${config.rootDir}`,
+      key: `${mode}:${repo.owner}/${repo.name}@${repo.defaultBranch}:${config.rootDir}:${config.daybook ? 'daybook' : 'blog'}`,
     }),
     [mode, gateway, repo, config],
   );

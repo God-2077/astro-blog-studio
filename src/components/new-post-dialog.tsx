@@ -15,7 +15,7 @@ import { formatInTimeZone } from '@/lib/utils/date';
 import { usePendingPost } from '@/stores/pending-post';
 import { useSettings } from '@/stores/settings';
 
-function filenameIssueMessage(issue: FilenameIssue, t: TFunction): string {
+export function filenameIssueMessage(issue: FilenameIssue, t: TFunction): string {
   switch (issue.code) {
     case 'empty':
       return t('shell.newPost.errors.filenameRequired');

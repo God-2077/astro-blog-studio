@@ -41,7 +41,7 @@ describe('paths and exclusions', () => {
       { path: 'src/pages/about.md', sha: 'd' },
       { path: 'public/readme.md', sha: 'e' },
     ];
-    const config = { rootDir: 'src', extensions: ['.md'], excludes: ['src/content/blog/en'] };
+    const config = { rootDir: 'src', extensions: ['.md'], excludes: ['src/content/blog/en'], daybook: false };
     const model = buildTreeModel(entries, config);
     expect(model.files.map((file) => file.path)).toEqual([
       'src/content/blog/note/a.md',
@@ -60,7 +60,7 @@ describe('tree model root files', () => {
   const build = (paths: string[], rootDir: string) =>
     buildTreeModel(
       paths.map((path) => ({ path, sha: path })),
-      { rootDir, extensions, excludes: [] },
+      { rootDir, extensions, excludes: [], daybook: false },
     );
 
   it('keeps articles that sit directly in the content root', () => {

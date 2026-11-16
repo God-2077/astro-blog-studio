@@ -32,6 +32,10 @@ export const frontmatterSettingsSchema = z
 
 export const contentSettingsSchema = z.object({
   rootDir: z.string(),
+  // astro-daybook repositories use a fixed daily/post/pages layout at the repo
+  // root. The flag lives in content settings so it follows repo profiles,
+  // config import/export and repository switching automatically.
+  daybook: z.boolean().default(false).catch(false),
   extensions: z.array(z.string()),
   excludes: z.array(z.string()),
   timezone: z.string().min(1),

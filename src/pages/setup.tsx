@@ -37,6 +37,7 @@ export function SetupPage() {
   const [repoInput, setRepoInput] = useState('');
   const [branch, setBranch] = useState('');
   const [rootDir, setRootDir] = useState(settings.content.rootDir || 'src');
+  const [daybook, setDaybook] = useState(settings.content.daybook);
   const [excludes, setExcludes] = useState(
     settings.content.excludes.length > 0 ? settings.content.excludes.join('\n') : SUGGESTED_EXCLUDES.join('\n'),
   );
@@ -114,7 +115,8 @@ export function SetupPage() {
       const finalBranch = branch.trim() || info.defaultBranch;
       const repo = { ...parsed, branch: finalBranch };
       const content = {
-        rootDir: rootDir.trim() || 'src',
+        rootDir: daybook ? '' : rootDir.trim() || 'src',
+        daybook,
         excludes: excludes
           .split('\n')
           .map((line) => line.trim())
@@ -202,12 +204,27 @@ export function SetupPage() {
                 placeholder="main"
               />
             </Field>
+            <label className="sm:col-span-2 flex items-start gap-2.5 rounded-lg border border-dashed border-line bg-paper-2 px-3 py-2.5 text-[11px]">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-3.5 accent-[var(--abs-sakura)]"
+                checked={daybook}
+                onChange={(event) => setDaybook(event.target.checked)}
+              />
+              <span>
+                <span className="font-medium">{t('dialogs.addRepo.daybook')}</span>
+                <span className="mt-0.5 block font-mono text-[9.5px] leading-relaxed text-muted">
+                  {t('dialogs.addRepo.daybookHint')}
+                </span>
+              </span>
+            </label>
             <Field label={t('setup.rootDir.label')}>
               <input
                 className="abs-input font-mono text-[11px]"
-                value={rootDir}
+                value={daybook ? '' : rootDir}
                 onChange={(event) => setRootDir(event.target.value)}
-                placeholder="src"
+                placeholder={daybook ? '/' : 'src'}
+                disabled={daybook}
               />
             </Field>
             <Field label={t('setup.excludes.label')} hint={<span className="font-mono">{t('setup.excludes.hint')}</span>}>

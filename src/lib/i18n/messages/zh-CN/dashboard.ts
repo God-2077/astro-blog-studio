@@ -7,6 +7,7 @@ const dashboard = {
     sync: { syncing: '同步中…', checking: '检查中…', idle: '检查更新' },
     drafts: { label: '草稿箱', open: '查看本机草稿箱', close: '回到文章列表' },
     newPost: '新建文章',
+    new: '新建',
   },
   treeTruncated: '文件树被 GitHub 截断，索引可能不完整。',
   summary: {
