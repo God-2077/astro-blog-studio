@@ -11,7 +11,7 @@ import { renderCommitMessage, resolveCommitTitle } from '@/lib/paths/commit-mess
 import { resolveManualFilename, resolveTitleFilename } from '@/lib/paths/filename';
 import { joinPath } from '@/lib/paths/paths';
 import type { TreeModel } from '@/lib/tree/model';
-import { dateOnlyInTimeZone } from '@/lib/utils/date';
+import { formatInTimeZone } from '@/lib/utils/date';
 import { usePendingPost } from '@/stores/pending-post';
 import { useSettings } from '@/stores/settings';
 
@@ -62,7 +62,9 @@ export function DaybookNewDialog({
   const titleRef = useRef<HTMLInputElement>(null);
   const filenameRef = useRef<HTMLInputElement>(null);
 
-  const date = dateOnlyInTimeZone(new Date(), settings.content.timezone);
+  const date = formatInTimeZone(new Date(), settings.content.timezone);
+  // 日记文件名只用日期，frontmatter 的 date 与普通仓库一致，写完整时间戳。
+  const day = date.slice(0, 10);
 
   useEffect(() => {
     if (!open) return;
@@ -89,7 +91,7 @@ export function DaybookNewDialog({
       next === 'daily'
         ? nextDailyFilename(
             model.files.map((file) => file.path),
-            date,
+            day,
           )
         : '',
     );
