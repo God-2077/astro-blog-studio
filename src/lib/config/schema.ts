@@ -22,6 +22,9 @@ export const frontmatterFieldSchema = z.object({
   name: z.string().min(1).max(64),
   type: z.enum(FRONTMATTER_FIELD_TYPES),
   required: z.boolean(),
+  // 旧配置没有这两个键；undefined 表示沿用默认布局/默认值回退规则。
+  fullWidth: z.boolean().optional().catch(undefined),
+  defaultValue: z.string().max(4000).optional().catch(undefined),
 });
 
 export const frontmatterSettingsSchema = z

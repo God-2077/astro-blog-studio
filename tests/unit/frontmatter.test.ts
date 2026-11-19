@@ -6,10 +6,13 @@ import {
   buildNewPostDocument,
   cloneFrontmatterFields,
   DEFAULT_FRONTMATTER_FIELDS,
+  defaultValueForField,
   type FrontmatterField,
   formValuesFromData,
   hasRequiredTitleField,
+  isFullWidthField,
   missingRequiredFieldNames,
+  moveFrontmatterField,
   validateFrontmatterFields,
   valueToDisplay,
 } from '@/lib/frontmatter/fields';
@@ -209,5 +212,87 @@ describe('new post document', () => {
 
   it('returns an empty document when no matching fields are configured', () => {
     expect(buildNewPostDocument([{ name: 'order', type: 'number', required: false }], { title: 'x', date: 'y' })).toBe('');
+  });
+
+  it('writes configured defaults for new posts only', () => {
+    const fields: FrontmatterField[] = [
+      { name: 'title', type: 'string', required: true },
+      { name: 'date', type: 'date', required: true },
+      { name: 'summary', type: 'text', required: false, defaultValue: '第一行\n第二行' },
+      { name: 'series', type: 'list', required: false, defaultValue: 'a, b' },
+      { name: 'order', type: 'number', required: false, defaultValue: '42' },
+      { name: 'draft', type: 'boolean', required: false, defaultValue: 'false' },
+    ];
+    const text = buildNewPostDocument(fields, { title: '新文章', date: '2026-01-02 03:04:05' });
+    expect(text).toContain('summary: "第一行\\n第二行"');
+    expect(text).toContain('series:\n- a\n- b');
+    expect(text).toContain('order: 42');
+    expect(text).toContain('draft: false');
+
+    expect(formValuesFromData(fields, {})).not.toHaveProperty('summary', '第一行\n第二行');
+    expect(defaultValueForField(fields[3] as FrontmatterField)).toEqual(['a', 'b']);
+  });
+
+  it('keeps the legacy draft default until it is explicitly cleared', () => {
+    const legacy: FrontmatterField = { name: 'draft', type: 'boolean', required: false };
+    expect(defaultValueForField(legacy)).toBe(true);
+    expect(defaultValueForField({ ...legacy, defaultValue: '' })).toBeUndefined();
+    expect(defaultValueForField({ ...legacy, defaultValue: 'false' })).toBe(false);
+  });
+});
+
+describe('frontmatter layout and ordering', () => {
+  it('defaults text, title, and description to full width', () => {
+    expect(isFullWidthField({ name: 'summary', type: 'text', required: false })).toBe(true);
+    expect(isFullWidthField({ name: 'title', type: 'string', required: false })).toBe(true);
+    expect(isFullWidthField({ name: 'description', type: 'string', required: false })).toBe(true);
+    expect(isFullWidthField({ name: 'tags', type: 'list', required: false })).toBe(false);
+    expect(isFullWidthField({ name: 'summary', type: 'text', required: false, fullWidth: false })).toBe(false);
+  });
+
+  it('moves fields without mutating the original list', () => {
+    const fields: FrontmatterField[] = [
+      { name: 'a', type: 'string', required: false },
+      { name: 'b', type: 'string', required: false },
+      { name: 'c', type: 'string', required: false },
+    ];
+    expect(moveFrontmatterField(fields, 0, 2).map((field) => field.name)).toEqual(['b', 'c', 'a']);
+    expect(moveFrontmatterField(fields, 2, 0).map((field) => field.name)).toEqual(['c', 'a', 'b']);
+    expect(fields.map((field) => field.name)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('rejects invalid default values', () => {
+    expect(
+      validateFrontmatterFields([
+        { name: 'order', type: 'number', required: false, defaultValue: 'not-a-number' },
+        { name: 'published', type: 'date', required: false, defaultValue: '2026/01/01' },
+        { name: 'draft', type: 'boolean', required: false, defaultValue: 'yes' },
+      ]).map((issue) => issue.message),
+    ).toEqual(expect.arrayContaining(['默认值不是有效的 number', '默认值不是有效的 date', '默认值不是有效的 boolean']));
+    expect(validateFrontmatterFields([{ name: 'summary', type: 'text', required: false, defaultValue: '任意文本' }])).toEqual(
+      [],
+    );
+  });
+
+  it('keeps optional field config compatible with old saved settings', () => {
+    const parsed = settingsSchema.safeParse({
+      ...defaultSettings,
+      frontmatter: {
+        fields: [
+          { name: 'description', type: 'string', required: false },
+          { name: 'summary', type: 'text', required: false, fullWidth: false, defaultValue: 'x' },
+        ],
+      },
+    });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.frontmatter.fields[0]).toEqual({ name: 'description', type: 'string', required: false });
+    expect(parsed.data.frontmatter.fields[1]).toEqual({
+      name: 'summary',
+      type: 'text',
+      required: false,
+      fullWidth: false,
+      defaultValue: 'x',
+    });
   });
 });

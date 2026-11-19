@@ -57,6 +57,14 @@ describe('frontmatter document handling', () => {
     expect(parsed.frontmatterRaw).toContain('unclosed');
   });
 
+  it('round-trips multiline text without folding newlines', () => {
+    const next = updateFrontmatterRaw('title: x', { summary: '第一行\n第二行' });
+    expect(next).toContain('summary: "第一行\\n第二行"');
+    const parsed = parseDocument(`---\n${next}\n---\n\nbody`);
+    expect(parsed.data.summary).toBe('第一行\n第二行');
+    expect(parsed.frontmatterError).toBeUndefined();
+  });
+
   it('quotes date strings and escapes single quotes', () => {
     const next = updateFrontmatterRaw("title: 'x'", { title: "it's a title", date: '2026-01-01 00:00:00' });
     expect(next).toContain("title: 'it''s a title'");

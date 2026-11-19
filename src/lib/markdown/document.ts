@@ -159,6 +159,8 @@ export function serializeScalar(value: unknown): string {
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'null';
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   const text = String(value);
+  // 单引号标量会把换行折叠成空格；JSON 双引号转义是合法的 YAML，可保留换行。
+  if (/[\r\n]/.test(text)) return JSON.stringify(text);
   return isQuotableString(text) ? quoteYaml(text) : text;
 }
 

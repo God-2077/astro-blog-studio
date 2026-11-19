@@ -149,7 +149,7 @@ test.describe('demo mode', () => {
     await expect(fieldsSection).toBeVisible();
     await fieldsSection.locator('button[aria-label="删除字段 draft"]').click();
     await fieldsSection.getByRole('button', { name: /添加字段/ }).click();
-    await fieldsSection.locator('input.abs-input').last().fill('subtitle');
+    await fieldsSection.locator('[data-field-row]').last().locator('input[placeholder="field_name"]').fill('subtitle');
     await page.getByRole('button', { name: '保存设置' }).click();
     await expect(page.getByText('设置已保存')).toBeVisible();
 
@@ -159,6 +159,38 @@ test.describe('demo mode', () => {
     const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
     await expect(frontmatter.getByText('subtitle')).toBeVisible();
     await expect(frontmatter.getByText('1 个未知字段保留')).toBeVisible();
+  });
+
+  test('adds a text field with a default, full width, and keyboard reordering', async ({ page }) => {
+    await page.goto('/?demo=1#/settings');
+    const fieldsSection = page.locator('section.abs-paper').filter({ hasText: 'Frontmatter 字段' });
+    await fieldsSection.getByRole('button', { name: /添加字段/ }).click();
+    const row = fieldsSection.locator('[data-field-row]').last();
+    await row.locator('input[placeholder="field_name"]').fill('summary');
+    await row.getByLabel('字段 summary 类型').selectOption('text');
+
+    const defaultValue = row.getByRole('textbox', { name: '默认值' });
+    await defaultValue.fill('第一行\n第二行');
+    await expect(row.getByRole('checkbox', { name: '独占一行' })).toBeChecked();
+
+    const handle = row.getByRole('button', { name: '拖动字段 summary 排序' });
+    await handle.focus();
+    await handle.press('ArrowUp');
+    await expect(fieldsSection.locator('[data-field-row]').nth(6)).toContainText('summary');
+
+    await page.getByRole('button', { name: '保存设置' }).click();
+    await expect(page.getByText('设置已保存')).toBeVisible();
+
+    await page.goto('/?demo=1');
+    await page.getByRole('button', { name: '新建文章' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await dialog.locator('input.abs-input').first().fill('文本默认值');
+    await dialog.getByRole('button', { name: '开始起草' }).click();
+
+    const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
+    const summary = frontmatter.locator('label.abs-field').filter({ hasText: 'summary' });
+    await expect(summary.locator('textarea')).toHaveValue('第一行\n第二行');
+    await expect(summary).toHaveClass(/sm:col-span-2/);
   });
 
   test('persists the index concurrency setting', async ({ page }) => {
@@ -240,7 +272,9 @@ test.describe('demo mode', () => {
   test('hides the title input when the configured title is optional', async ({ page }) => {
     await page.goto('/?demo=1#/settings');
     const fieldsSection = page.locator('section.abs-paper').filter({ hasText: 'Frontmatter 字段' });
-    await fieldsSection.getByRole('checkbox').first().uncheck();
+    const titleRow = fieldsSection.locator('[data-field-row]').first();
+    await titleRow.locator('button[aria-expanded]').click();
+    await titleRow.getByRole('checkbox').first().uncheck();
     const commitSection = page.locator('section.abs-paper').filter({ hasText: '提交消息' });
     await commitSection.locator('input.abs-input').nth(0).fill('create: {title} @ {path}');
     await page.getByRole('button', { name: '保存设置' }).click();

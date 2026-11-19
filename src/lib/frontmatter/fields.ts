@@ -2,7 +2,7 @@ import { t } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/i18n/messages';
 import { serializeFieldLines } from '@/lib/markdown/document';
 
-export const FRONTMATTER_FIELD_TYPES = ['string', 'date', 'number', 'boolean', 'list'] as const;
+export const FRONTMATTER_FIELD_TYPES = ['string', 'text', 'date', 'number', 'boolean', 'list'] as const;
 
 export type FrontmatterFieldType = (typeof FRONTMATTER_FIELD_TYPES)[number];
 
@@ -10,6 +10,10 @@ export interface FrontmatterField {
   name: string;
   type: FrontmatterFieldType;
   required: boolean;
+  /** 显式设置优先；未设置时 text / title / description 默认独占一行。 */
+  fullWidth?: boolean;
+  /** 表单文本形式的默认值；仅用于新建文章，不补写已有文件。 */
+  defaultValue?: string;
 }
 
 export type FrontmatterFormValue = string | boolean;
@@ -21,6 +25,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/;
 
 export const FIELD_TYPE_LABELS: Record<FrontmatterFieldType, string> = {
   string: 'string',
+  text: 'text',
   date: 'date',
   number: 'number',
   boolean: 'boolean',
@@ -68,6 +73,20 @@ export function cloneFrontmatterFields(fields: readonly FrontmatterField[]): Fro
   return fields.map((field) => ({ ...field }));
 }
 
+export function isFullWidthField(field: FrontmatterField): boolean {
+  if (field.fullWidth !== undefined) return field.fullWidth;
+  return field.type === 'text' || field.name === 'title' || field.name === 'description';
+}
+
+export function moveFrontmatterField(fields: readonly FrontmatterField[], from: number, to: number): FrontmatterField[] {
+  const next = fields.slice();
+  if (from === to || from < 0 || from >= next.length || to < 0 || to >= next.length) return next;
+  const [item] = next.splice(from, 1);
+  if (!item) return next;
+  next.splice(to, 0, item);
+  return next;
+}
+
 export function isReservedFieldName(name: string): boolean {
   return RESERVED_FIELD_NAMES.has(name);
 }
@@ -104,9 +123,28 @@ export function validateFrontmatterFields(fields: FrontmatterField[]): Frontmatt
     if (seen.has(name)) {
       issues.push({ index, message: t('errors.validation.duplicateName', { name }) });
     }
+    const defaultIssue = validateDefaultValue(field);
+    if (defaultIssue) {
+      issues.push({ index, message: defaultIssue });
+    }
     seen.add(name);
   });
   return issues;
+}
+
+function validateDefaultValue(field: FrontmatterField): string | null {
+  const raw = field.defaultValue;
+  if (raw === undefined || raw.trim() === '') return null;
+  if (field.type === 'date' && !DATE_RE.test(raw.trim())) {
+    return t('errors.validation.invalidDefault', { type: field.type });
+  }
+  if (field.type === 'number' && !Number.isFinite(Number(raw.trim()))) {
+    return t('errors.validation.invalidDefault', { type: field.type });
+  }
+  if (field.type === 'boolean' && !/^(true|false)$/i.test(raw.trim())) {
+    return t('errors.validation.invalidDefault', { type: field.type });
+  }
+  return null;
 }
 
 export function normalizeFrontmatterFields(fields: FrontmatterField[]): FrontmatterField[] {
@@ -173,6 +211,31 @@ function parseListValue(field: FrontmatterField, text: string): string[] | strin
     );
   }
   return items;
+}
+
+function defaultText(field: FrontmatterField): string | undefined {
+  if (field.defaultValue !== undefined) {
+    return field.defaultValue.trim() === '' ? undefined : field.defaultValue;
+  }
+  // 旧配置没有 defaultValue 时保持 draft: true 的新稿行为；显式清空后不再回退。
+  return field.name === 'draft' && field.type === 'boolean' ? 'true' : undefined;
+}
+
+export function defaultValueForField(field: FrontmatterField): unknown {
+  const raw = defaultText(field);
+  if (raw === undefined) return undefined;
+  switch (field.type) {
+    case 'boolean':
+      return /^true$/i.test(raw.trim());
+    case 'number':
+      return Number.isFinite(Number(raw.trim())) ? Number(raw.trim()) : undefined;
+    case 'list':
+      return parseListValue(field, raw);
+    case 'text':
+      return raw;
+    default:
+      return raw.trim();
+  }
 }
 
 export function isFormValueEmpty(field: FrontmatterField, value: FrontmatterFormValue): boolean {
@@ -304,10 +367,15 @@ export function buildNewPostDocument(fields: readonly FrontmatterField[], input:
   for (const field of fields) {
     if (field.name === 'title' && field.type === 'string' && input.title.trim()) {
       lines.push(...serializeFieldLines(field.name, input.title.trim()));
-    } else if (field.name === 'date' && field.type === 'date') {
+      continue;
+    }
+    if (field.name === 'date' && field.type === 'date') {
       lines.push(...serializeFieldLines(field.name, input.date));
-    } else if (field.name === 'draft' && field.type === 'boolean') {
-      lines.push(...serializeFieldLines(field.name, true));
+      continue;
+    }
+    const value = defaultValueForField(field);
+    if (value !== undefined) {
+      lines.push(...serializeFieldLines(field.name, value));
     }
   }
   if (lines.length === 0) return '';

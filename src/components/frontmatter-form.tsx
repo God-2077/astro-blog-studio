@@ -3,6 +3,7 @@ import {
   type FrontmatterField,
   type FrontmatterFormValue,
   type FrontmatterFormValues,
+  isFullWidthField,
   knownFieldHint,
 } from '@/lib/frontmatter/fields';
 import { useT } from '@/lib/i18n/react';
@@ -31,7 +32,7 @@ export function FrontmatterForm({ fields, values, errors, onChange }: Frontmatte
         const value = values[field.name] ?? (field.type === 'boolean' ? false : '');
         const error = errors[field.name];
         const label = `${field.name}${field.required ? ' *' : ''}`;
-        const fullWidth = field.name === 'title' || field.name === 'description';
+        const fullWidth = isFullWidthField(field);
 
         if (field.type === 'boolean') {
           return (
@@ -93,6 +94,13 @@ export function FrontmatterForm({ fields, values, errors, onChange }: Frontmatte
                   field.name === 'categories' ? t('editor.form.categoriesPlaceholder') : t('editor.form.listPlaceholder')
                 }
                 spellCheck={false}
+              />
+            ) : field.type === 'text' ? (
+              <textarea
+                className="abs-textarea min-h-[64px] text-[12px]"
+                rows={2}
+                value={typeof value === 'string' ? value : ''}
+                onChange={(event) => onChange(field.name, event.target.value)}
               />
             ) : (
               <input

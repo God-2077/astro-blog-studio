@@ -23,6 +23,7 @@ const errors: ErrorMessages = {
     requiredValue: '必須フィールドです',
     invalidDate: '日時の形式は YYYY-MM-DD HH:mm:ss で入力してください',
     invalidNumber: '有効な数値を入力してください',
+    invalidDefault: '既定値が有効な {type} ではありません',
   },
   vault: {
     passwordTooShort: 'パスワードは少なくとも {count} 文字必要です',

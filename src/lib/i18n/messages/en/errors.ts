@@ -23,6 +23,7 @@ const errors: ErrorMessages = {
     requiredValue: 'Required field',
     invalidDate: 'Dates must use YYYY-MM-DD HH:mm:ss',
     invalidNumber: 'Enter a valid number',
+    invalidDefault: 'The default value is not a valid {type}',
   },
   vault: {
     passwordTooShort: 'The password needs at least {count} characters',

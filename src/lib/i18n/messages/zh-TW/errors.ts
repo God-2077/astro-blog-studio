@@ -22,6 +22,7 @@ const errors: ErrorMessages = {
     requiredValue: '必填欄位',
     invalidDate: '日期格式應為 YYYY-MM-DD HH:mm:ss',
     invalidNumber: '請輸入有效的數字',
+    invalidDefault: '預設值不是有效的 {type}',
   },
   vault: {
     passwordTooShort: '密碼至少 {count} 位',

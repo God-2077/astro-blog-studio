@@ -22,6 +22,7 @@ const errors = {
     requiredValue: '必填字段',
     invalidDate: '日期格式应为 YYYY-MM-DD HH:mm:ss',
     invalidNumber: '请输入有效数字',
+    invalidDefault: '默认值不是有效的 {type}',
   },
   vault: {
     passwordTooShort: '密码至少 {count} 位',
