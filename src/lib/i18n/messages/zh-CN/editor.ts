@@ -68,6 +68,9 @@ const editor = {
   form: {
     empty: '当前没有配置 frontmatter 字段。可以在设置里添加字段；已有文件里的字段会作为未知字段原样保留。',
     listHint: '逗号分隔',
+    multiSelectHint: '可多选',
+    selectPlaceholder: '请选择',
+    fillNow: '填入当前时间',
     categoriesPlaceholder: '笔记 > 备忘, 文章',
     listPlaceholder: 'a, b, c',
   },

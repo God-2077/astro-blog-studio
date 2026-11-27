@@ -68,6 +68,9 @@ const editor: EditorMessages = {
   form: {
     empty: '目前沒有設定 frontmatter 欄位。可以在設定裡新增欄位；既有檔案裡的欄位會作為未知欄位原樣保留。',
     listHint: '逗號分隔',
+    multiSelectHint: '可多選',
+    selectPlaceholder: '請選擇',
+    fillNow: '填入目前時間',
     categoriesPlaceholder: '筆記 > 備忘, 文章',
     listPlaceholder: 'a, b, c',
   },

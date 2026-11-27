@@ -840,7 +840,9 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
     ? undefined
     : `${repo.htmlUrl}/blob/${repo.defaultBranch}/${path.split('/').map(encodeURIComponent).join('/')}`;
   const isDemo = mode === 'demo';
-  const hasUpdatedField = fields.some((field) => field.name === 'updated' && field.type === 'date');
+  const hasUpdatedField = fields.some(
+    (field) => field.name === 'updated' && (field.type === 'date' || field.type === 'datetime'),
+  );
   const updatedFieldHint = fieldErrors.updated
     ? t('editor.frontmatter.updatedFormatError')
     : settings.editor.updateUpdatedAt
@@ -979,7 +981,13 @@ function EditorSession({ path, isNew, draftRequested }: { path: string | null; i
               </div>
             ) : (
               <>
-                <FrontmatterForm fields={fields} values={form} errors={fieldErrors} onChange={updateField} />
+                <FrontmatterForm
+                  fields={fields}
+                  values={form}
+                  errors={fieldErrors}
+                  timezone={config.timezone}
+                  onChange={updateField}
+                />
                 <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-[9px] text-muted">
                   <span>{t('editor.frontmatter.eolKept', { eol: meta.eol === '\r\n' ? 'CRLF' : 'LF' })}</span>
                   {hasUpdatedField ? <span>{updatedFieldHint}</span> : null}

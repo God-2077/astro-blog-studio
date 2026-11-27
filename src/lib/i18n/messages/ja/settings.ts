@@ -75,12 +75,17 @@ const settings: SettingsMessages = {
     meta: { one: '{count} 件のフィールド', other: '{count} 件のフィールド' },
     invalid: 'エラーあり',
     intro:
-      'エディターのフィールド、型、既定値、必須チェックを決めます。フィールドを削除しても既存ファイルのキーは削除されず、未設定のフィールドはそのまま保持されます。',
+      'エディターのフィールド、型、説明、候補値、既定値、必須チェックを決めます。フィールドを削除しても既存ファイルのキーは削除されず、未設定のフィールドはそのまま保持されます。',
   },
   fields: {
     required: '必須',
     name: 'フィールド名',
     type: '型',
+    description: '説明',
+    descriptionPlaceholder: 'エディターのフィールド下に表示されます（任意）',
+    options: '候補値',
+    optionsPlaceholder: '1 行に 1 つの候補値',
+    optionsHint: 'enum / enum-list でのみ使用します。候補値に半角カンマは使えません。',
     defaultValue: '既定値',
     defaultPlaceholder: '空欄は既定値なし',
     defaultNone: '既定値なし',
@@ -95,7 +100,7 @@ const settings: SettingsMessages = {
     add: 'フィールドを追加',
     reset: 'よく使うフィールドに戻す',
     limit: '{count} / 40',
-    hint: '名前に使えるのは英字、数字、アンダースコア、ハイフンです。型は string / text / date / number / boolean / list に対応します。既定値は新しい記事の作成時だけ使われ、既存ファイルには書き込まれません。ハンドルをドラッグすると順序を変更できます。title / date は astro-blog schema の必須項目で、削除すると保存した内容がビルドを通らない可能性があります。',
+    hint: '名前に使えるのは英字、数字、アンダースコア、ハイフンです。型は string / text / date / datetime / number / boolean / list / enum / enum-list に対応します。説明はエディターのフィールド下に表示されます。既定値は新しい記事の作成時だけ使われ、既存ファイルには書き込まれません。ハンドルをドラッグすると順序を変更できます。title / date は astro-blog schema の必須項目で、削除すると保存した内容がビルドを通らない可能性があります。',
   },
   commit: {
     title: 'コミットメッセージ',

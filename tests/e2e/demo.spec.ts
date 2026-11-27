@@ -193,6 +193,70 @@ test.describe('demo mode', () => {
     await expect(summary).toHaveClass(/sm:col-span-2/);
   });
 
+  test('configures descriptions, enums, and fills dates from the form', async ({ page }) => {
+    await page.goto('/?demo=1#/settings');
+    const fieldsSection = page.locator('section.abs-paper').filter({ hasText: 'Frontmatter 字段' });
+
+    const titleRow = fieldsSection.locator('[data-field-row]').first();
+    await titleRow.locator('button[aria-expanded]').click();
+    await titleRow.getByLabel('描述').fill('文章标题说明');
+
+    const updatedRow = fieldsSection.locator('[data-field-row]').nth(2);
+    await updatedRow.locator('button[aria-expanded]').click();
+    await updatedRow.getByLabel('字段 updated 类型').selectOption('date');
+
+    await fieldsSection.getByRole('button', { name: /添加字段/ }).click();
+    const statusRow = fieldsSection.locator('[data-field-row]').last();
+    await statusRow.locator('input[placeholder="field_name"]').fill('status');
+    await statusRow.getByLabel('字段 status 类型').selectOption('enum');
+    const statusOptions = statusRow.getByLabel('候选值');
+    await statusOptions.click();
+    await page.keyboard.type('in progress');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('live');
+    await statusRow.getByLabel('默认值').selectOption('in progress');
+
+    await fieldsSection.getByRole('button', { name: /添加字段/ }).click();
+    const flagsRow = fieldsSection.locator('[data-field-row]').last();
+    await flagsRow.locator('input[placeholder="field_name"]').fill('flags');
+    await flagsRow.getByLabel('字段 flags 类型').selectOption('enum-list');
+    const flagOptions = flagsRow.getByLabel('候选值');
+    await flagOptions.click();
+    await page.keyboard.type('a');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('b');
+
+    await page.getByRole('button', { name: '保存设置' }).click();
+    await expect(page.getByText('设置已保存')).toBeVisible();
+
+    await page.goto(
+      '/?demo=1#/edit?path=src%2Fcontent%2Fblog%2Fnote%2F%E4%BE%BF%E7%AC%BA-Markdown-%E5%A4%87%E5%BF%98%E5%8D%95.md',
+    );
+    const frontmatter = page.locator('section.abs-paper').filter({ hasText: 'FRONTMATTER' });
+    await expect(frontmatter.getByText('文章标题说明')).toBeVisible();
+
+    const status = frontmatter.getByLabel('status');
+    await expect(status).toHaveValue('');
+    await status.selectOption('live');
+
+    const flags = frontmatter.locator('fieldset.abs-field').filter({ hasText: 'flags' });
+    await flags.getByRole('checkbox', { name: 'a' }).check();
+
+    const dateInput = frontmatter.getByLabel('date', { exact: true });
+    await dateInput.locator('..').getByRole('button', { name: '填入当前时间' }).click();
+    await expect(dateInput).toHaveValue(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+
+    const updatedInput = frontmatter.getByLabel('updated', { exact: true });
+    await updatedInput.locator('..').getByRole('button', { name: '填入当前时间' }).click();
+    await expect(updatedInput).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+
+    await page.locator('.abs-stamp').click();
+    await page.getByRole('button', { name: '确认盖章' }).click();
+    await expect(page.getByText('已提交 · 1 个提交')).toBeVisible();
+    await expect(status).toHaveValue('live');
+    await expect(flags.getByRole('checkbox', { name: 'a' })).toBeChecked();
+  });
+
   test('persists the index concurrency setting', async ({ page }) => {
     await page.goto('/?demo=1#/settings');
     const concurrency = page.locator('label.abs-field').filter({ hasText: '索引并发' }).locator('input');

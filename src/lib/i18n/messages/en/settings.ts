@@ -75,12 +75,17 @@ const settings: SettingsMessages = {
     meta: { one: '{count} fields', other: '{count} fields' },
     invalid: 'Invalid',
     intro:
-      'Defines the editor fields, types, default values, and required validation. Removing a field does not remove its keys from existing files, and unconfigured fields are kept as-is.',
+      'Defines the editor fields, types, descriptions, candidates, default values, and required validation. Removing a field does not remove its keys from existing files, and unconfigured fields are kept as-is.',
   },
   fields: {
     required: 'Required',
     name: 'Field name',
     type: 'Type',
+    description: 'Description',
+    descriptionPlaceholder: 'Shown below the editor field (optional)',
+    options: 'Candidates',
+    optionsPlaceholder: 'One candidate per line',
+    optionsHint: 'Used by enum / enum-list only; candidates cannot contain commas.',
     defaultValue: 'Default value',
     defaultPlaceholder: 'Leave empty for no default',
     defaultNone: 'No default',
@@ -95,7 +100,7 @@ const settings: SettingsMessages = {
     add: 'Add field',
     reset: 'Restore common fields',
     limit: '{count} / 40',
-    hint: 'Names may contain letters, digits, underscores, and hyphens. Types are string / text / date / number / boolean / list. Default values apply only to new posts and never fill existing files. Drag the handle to reorder fields. title / date are required by the astro-blog schema; content saved after removing them may fail to build.',
+    hint: 'Names may contain letters, digits, underscores, and hyphens. Types are string / text / date / datetime / number / boolean / list / enum / enum-list. Descriptions appear below the editor field. Default values apply only to new posts and never fill existing files. Drag the handle to reorder fields. title / date are required by the astro-blog schema; content saved after removing them may fail to build.',
   },
   commit: {
     title: 'Commit message',

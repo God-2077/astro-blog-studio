@@ -77,6 +77,9 @@ const editor: EditorMessages = {
     empty:
       '現在 frontmatter フィールドが設定されていません。設定でフィールドを追加できます。既存ファイルのフィールドは未知のフィールドとしてそのまま保持されます。',
     listHint: 'カンマ区切り',
+    multiSelectHint: '複数選択可',
+    selectPlaceholder: '選択してください',
+    fillNow: '現在時刻を入力',
     categoriesPlaceholder: 'ノート > メモ, 記事',
     listPlaceholder: 'a, b, c',
   },
