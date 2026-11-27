@@ -1,0 +1,8 @@
+[config]
+model = "deepseek/deepseek-flash"
+fallback_models = []
+response_language = "zh-CN"
+
+[pr_reviewer]
+enable_review_labels_effort = false
+enable_review_labels_security = false
