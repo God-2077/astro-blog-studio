@@ -23,11 +23,11 @@ export const DAYBOOK_AUX_PATHS = ['config/site.ts', 'config/links.ts', 'spec/abo
  */
 export const DAYBOOK_FIELDS: Record<DaybookKind, FrontmatterField[]> = {
   daily: [
-    { name: 'date', type: 'date', required: true },
+    { name: 'date', type: 'datetime', required: true },
     { name: 'title', type: 'string', required: false },
     { name: 'category', type: 'string', required: false },
     { name: 'hideHomeTitle', type: 'boolean', required: false },
-    { name: 'updated', type: 'date', required: false },
+    { name: 'updated', type: 'datetime', required: false },
     { name: 'description', type: 'string', required: false },
     { name: 'slug', type: 'string', required: false },
     { name: 'permalink', type: 'string', required: false },
@@ -38,12 +38,12 @@ export const DAYBOOK_FIELDS: Record<DaybookKind, FrontmatterField[]> = {
     { name: 'comments', type: 'boolean', required: false },
   ],
   post: [
-    { name: 'date', type: 'date', required: true },
+    { name: 'date', type: 'datetime', required: true },
     { name: 'title', type: 'string', required: true },
     { name: 'categories', type: 'list', required: false },
     { name: 'tags', type: 'list', required: false },
     { name: 'keywords', type: 'list', required: false },
-    { name: 'updated', type: 'date', required: false },
+    { name: 'updated', type: 'datetime', required: false },
     { name: 'description', type: 'string', required: false },
     { name: 'slug', type: 'string', required: false },
     { name: 'permalink', type: 'string', required: false },
@@ -55,8 +55,8 @@ export const DAYBOOK_FIELDS: Record<DaybookKind, FrontmatterField[]> = {
   ],
   page: [
     { name: 'title', type: 'string', required: true },
-    { name: 'date', type: 'date', required: false },
-    { name: 'updated', type: 'date', required: false },
+    { name: 'date', type: 'datetime', required: false },
+    { name: 'updated', type: 'datetime', required: false },
     { name: 'description', type: 'string', required: false },
     { name: 'draft', type: 'boolean', required: false },
     { name: 'hideFrom', type: 'list', required: false },

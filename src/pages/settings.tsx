@@ -196,7 +196,7 @@ function SettingsSession({ onImported }: { onImported: () => void }) {
 
   const save = async (): Promise<void> => {
     if (!isDaybook) {
-      const issues = validateFrontmatterFields(fields);
+      const issues = validateFrontmatterFields(fields, settings.frontmatter.fields);
       if (issues.length) {
         setFieldError(issues.map((issue) => issue.message).join('；'));
         toast.error(t('settings.toast.fieldInvalid'));

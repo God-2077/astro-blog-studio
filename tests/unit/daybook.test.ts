@@ -27,6 +27,10 @@ describe('daybook paths and fields', () => {
     expect(daybookFieldsForPath('post/x.md')).toBe(DAYBOOK_FIELDS.post);
     expect(daybookFieldsForPath('pages/x.md')).toBe(DAYBOOK_FIELDS.page);
     expect(daybookFieldsForPath('spec/about.mdx')).toEqual([]);
+    for (const kind of ['daily', 'post', 'page'] as const) {
+      expect(DAYBOOK_FIELDS[kind].find((field) => field.name === 'date')?.type).toBe('datetime');
+      expect(DAYBOOK_FIELDS[kind].find((field) => field.name === 'updated')?.type).toBe('datetime');
+    }
   });
 
   it('keeps only the daybook allowlist and its content markdown visible', () => {
@@ -69,6 +73,9 @@ describe('daybook paths and fields', () => {
     expect(daily).toContain('comments: true');
     expect(daily).toContain('hideHomeTitle: false');
     expect(daily.endsWith('---\n\n')).toBe(true);
+
+    const timed = buildDaybookDocument('daily', { title: '带时间', date: '2026-06-01 12:34:56' });
+    expect(timed).toContain("date: '2026-06-01 12:34:56'");
 
     const post = buildDaybookDocument('post', { title: '文章', date: '2026-06-01' });
     expect(post).toContain('categories: []');

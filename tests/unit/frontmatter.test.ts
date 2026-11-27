@@ -22,6 +22,8 @@ describe('frontmatter field definitions', () => {
     const names = DEFAULT_FRONTMATTER_FIELDS.map((field) => field.name);
     expect(names).toEqual(['title', 'date', 'updated', 'description', 'categories', 'tags', 'draft']);
     expect(DEFAULT_FRONTMATTER_FIELDS.filter((field) => field.required).map((field) => field.name)).toEqual(['title', 'date']);
+    expect(DEFAULT_FRONTMATTER_FIELDS.find((field) => field.name === 'date')?.type).toBe('datetime');
+    expect(DEFAULT_FRONTMATTER_FIELDS.find((field) => field.name === 'updated')?.type).toBe('datetime');
     expect(cloneFrontmatterFields(DEFAULT_FRONTMATTER_FIELDS)).not.toBe(DEFAULT_FRONTMATTER_FIELDS);
   });
 
@@ -143,7 +145,7 @@ describe('frontmatter form mapping', () => {
   it('parses nested categories and fills updated automatically', () => {
     const fields: FrontmatterField[] = [
       { name: 'categories', type: 'list', required: false },
-      { name: 'updated', type: 'date', required: false },
+      { name: 'updated', type: 'datetime', required: false },
     ];
     const result = buildFrontmatterPatch(
       fields,
@@ -155,6 +157,89 @@ describe('frontmatter form mapping', () => {
       categories: [['笔记', '备忘'], ['文章']],
       updated: '2026-10-18 12:00:00',
     });
+  });
+
+  it('validates date-only and datetime formats separately', () => {
+    const dateField: FrontmatterField = { name: 'published', type: 'date', required: false };
+    expect(buildFrontmatterPatch([dateField], { published: '2024-01-01' }, {}).errors).toEqual({});
+    expect(buildFrontmatterPatch([dateField], { published: '2024-01-01 00:00:00' }, {}).errors.published).toBeTruthy();
+
+    const datetimeField: FrontmatterField = { name: 'published', type: 'datetime', required: false };
+    expect(buildFrontmatterPatch([datetimeField], { published: '2024-01-01 00:00:00' }, {}).errors).toEqual({});
+    expect(buildFrontmatterPatch([datetimeField], { published: '2024-01-01' }, {}).errors.published).toBeTruthy();
+  });
+
+  it('allows unchanged legacy date values and validates them after edits', () => {
+    const dateField: FrontmatterField = { name: 'published', type: 'date', required: false };
+    expect(
+      buildFrontmatterPatch([dateField], { published: '2024-01-01 00:00:00' }, { published: '2024-01-01 00:00:00' }).errors,
+    ).toEqual({});
+    expect(
+      buildFrontmatterPatch([dateField], { published: '2024-02-02 00:00:00' }, { published: '2024-01-01 00:00:00' }).errors
+        .published,
+    ).toBeTruthy();
+
+    const datetimeField: FrontmatterField = { name: 'published', type: 'datetime', required: false };
+    expect(buildFrontmatterPatch([datetimeField], { published: '2024-01-01' }, { published: '2024-01-01' }).errors).toEqual({});
+    expect(
+      buildFrontmatterPatch([datetimeField], { published: '2024-02-02' }, { published: '2024-01-01' }).errors.published,
+    ).toBeTruthy();
+  });
+
+  it('formats automatic updated by the configured field type', () => {
+    const dateOnly = buildFrontmatterPatch(
+      [{ name: 'updated', type: 'date', required: false }],
+      { updated: '' },
+      {},
+      { autoUpdatedAt: '2026-10-18 12:00:00' },
+    );
+    expect(dateOnly.patch).toEqual({ updated: '2026-10-18' });
+
+    const datetime = buildFrontmatterPatch(
+      [{ name: 'updated', type: 'datetime', required: false }],
+      { updated: '' },
+      {},
+      { autoUpdatedAt: '2026-10-18 12:00:00' },
+    );
+    expect(datetime.patch).toEqual({ updated: '2026-10-18 12:00:00' });
+  });
+
+  it('validates enum candidates, defaults, and list output', () => {
+    expect(
+      validateFrontmatterFields([{ name: 'status', type: 'enum', required: false }]).map((issue) => issue.message),
+    ).toEqual(expect.arrayContaining(['enum 字段至少需要一个候选值']));
+    expect(
+      validateFrontmatterFields([
+        { name: 'status', type: 'enum', required: false, options: ['draft', 'live'], defaultValue: 'archived' },
+      ]).map((issue) => issue.message),
+    ).toEqual(expect.arrayContaining(['默认值不是有效的 enum']));
+    expect(
+      validateFrontmatterFields([{ name: 'status', type: 'enum', required: false, options: ['draft', 'draft'] }]).map(
+        (issue) => issue.message,
+      ),
+    ).toEqual(expect.arrayContaining(['候选值 draft 重复']));
+    expect(
+      validateFrontmatterFields([{ name: 'status', type: 'enum', required: false, options: ['a,b'] }]).map(
+        (issue) => issue.message,
+      ),
+    ).toEqual(expect.arrayContaining(['候选值不能包含英文逗号']));
+
+    const fields: FrontmatterField[] = [
+      { name: 'status', type: 'enum', required: true, options: ['draft', 'live'] },
+      { name: 'flags', type: 'enum-list', required: false, options: ['a', 'b'] },
+    ];
+    const result = buildFrontmatterPatch(fields, { status: 'draft', flags: 'a, b' }, {});
+    expect(result.errors).toEqual({});
+    expect(result.patch).toEqual({ status: 'draft', flags: ['a', 'b'] });
+
+    const invalid = buildFrontmatterPatch([fields[0] as FrontmatterField], { status: 'archived' }, {});
+    expect(invalid.errors.status).toBeTruthy();
+  });
+
+  it('allows unchanged enum values that are no longer candidates', () => {
+    const field: FrontmatterField = { name: 'status', type: 'enum', required: false, options: ['draft', 'live'] };
+    expect(buildFrontmatterPatch([field], { status: 'archived' }, { status: 'archived' }).errors).toEqual({});
+    expect(buildFrontmatterPatch([field], { status: 'new' }, { status: 'archived' }).errors.status).toBeTruthy();
   });
 
   it('does not remove unchanged empty optional values', () => {
@@ -214,6 +299,14 @@ describe('new post document', () => {
     expect(buildNewPostDocument([{ name: 'order', type: 'number', required: false }], { title: 'x', date: 'y' })).toBe('');
   });
 
+  it('writes a full timestamp when date is configured as datetime', () => {
+    const text = buildNewPostDocument([{ name: 'date', type: 'datetime', required: true }], {
+      title: '',
+      date: '2026-10-18 12:00:00',
+    });
+    expect(text).toContain("date: '2026-10-18 12:00:00'");
+  });
+
   it('writes configured defaults for new posts only', () => {
     const fields: FrontmatterField[] = [
       { name: 'title', type: 'string', required: true },
@@ -224,6 +317,7 @@ describe('new post document', () => {
       { name: 'draft', type: 'boolean', required: false, defaultValue: 'false' },
     ];
     const text = buildNewPostDocument(fields, { title: '新文章', date: '2026-01-02 03:04:05' });
+    expect(text).toContain("date: '2026-01-02'");
     expect(text).toContain('summary: "第一行\\n第二行"');
     expect(text).toContain('series:\n- a\n- b');
     expect(text).toContain('order: 42');
@@ -266,12 +360,56 @@ describe('frontmatter layout and ordering', () => {
       validateFrontmatterFields([
         { name: 'order', type: 'number', required: false, defaultValue: 'not-a-number' },
         { name: 'published', type: 'date', required: false, defaultValue: '2026/01/01' },
+        { name: 'created', type: 'datetime', required: false, defaultValue: '2026/01/01' },
         { name: 'draft', type: 'boolean', required: false, defaultValue: 'yes' },
       ]).map((issue) => issue.message),
-    ).toEqual(expect.arrayContaining(['默认值不是有效的 number', '默认值不是有效的 date', '默认值不是有效的 boolean']));
+    ).toEqual(
+      expect.arrayContaining([
+        '默认值不是有效的 number',
+        '默认值不是有效的 date',
+        '默认值不是有效的 datetime',
+        '默认值不是有效的 boolean',
+      ]),
+    );
     expect(validateFrontmatterFields([{ name: 'summary', type: 'text', required: false, defaultValue: '任意文本' }])).toEqual(
       [],
     );
+  });
+
+  it('allows an unchanged legacy date default and rejects edits outside the date format', () => {
+    const original: FrontmatterField[] = [
+      { name: 'published', type: 'date', required: false, defaultValue: '2024-01-01 00:00:00' },
+    ];
+    expect(validateFrontmatterFields(cloneFrontmatterFields(original), original)).toEqual([]);
+    expect(
+      validateFrontmatterFields(
+        [{ name: 'published', type: 'date', required: false, defaultValue: '2024-02-02 00:00:00' }],
+        original,
+      ).map((issue) => issue.message),
+    ).toEqual(expect.arrayContaining(['默认值不是有效的 date']));
+  });
+
+  it('enforces enum candidate count and length limits', () => {
+    const tooMany = Array.from({ length: 101 }, (_, index) => `option-${index}`);
+    expect(
+      validateFrontmatterFields([{ name: 'status', type: 'enum', required: false, options: tooMany }]).map(
+        (issue) => issue.message,
+      ),
+    ).toEqual(expect.arrayContaining(['候选值最多 100 个']));
+
+    expect(
+      validateFrontmatterFields([{ name: 'status', type: 'enum', required: false, options: ['x'.repeat(201)] }]).map(
+        (issue) => issue.message,
+      ),
+    ).toEqual(expect.arrayContaining(['候选值不能超过 200 个字符']));
+
+    const parsed = settingsSchema.safeParse({
+      ...defaultSettings,
+      frontmatter: {
+        fields: [{ name: 'status', type: 'enum', required: false, options: tooMany }],
+      },
+    });
+    expect(parsed.success).toBe(false);
   });
 
   it('keeps optional field config compatible with old saved settings', () => {
@@ -293,6 +431,34 @@ describe('frontmatter layout and ordering', () => {
       required: false,
       fullWidth: false,
       defaultValue: 'x',
+    });
+  });
+
+  it('parses descriptions and enum candidates from saved settings', () => {
+    const parsed = settingsSchema.safeParse({
+      ...defaultSettings,
+      frontmatter: {
+        fields: [
+          {
+            name: 'status',
+            type: 'enum',
+            required: false,
+            description: '发布状态',
+            options: ['draft', 'live'],
+            defaultValue: 'draft',
+          },
+        ],
+      },
+    });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.frontmatter.fields[0]).toEqual({
+      name: 'status',
+      type: 'enum',
+      required: false,
+      description: '发布状态',
+      options: ['draft', 'live'],
+      defaultValue: 'draft',
     });
   });
 });

@@ -76,6 +76,9 @@ const editor: EditorMessages = {
     empty:
       'No frontmatter fields are configured. You can add fields in Settings; fields already in the file are kept as-is as unknown fields.',
     listHint: 'Comma separated',
+    multiSelectHint: 'Multiple selection allowed',
+    selectPlaceholder: 'Select…',
+    fillNow: 'Fill in the current time',
     categoriesPlaceholder: 'notes > memo, articles',
     listPlaceholder: 'a, b, c',
   },

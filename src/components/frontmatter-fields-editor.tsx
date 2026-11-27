@@ -5,14 +5,52 @@ import {
   FRONTMATTER_FIELD_TYPES,
   type FrontmatterField,
   type FrontmatterFieldType,
+  isEnumFieldType,
   isFullWidthField,
   KNOWN_BLOG_FIELDS,
   moveFrontmatterField,
+  normalizeFieldOptions,
 } from '@/lib/frontmatter/fields';
 import { useT } from '@/lib/i18n/react';
 import { cn } from '@/lib/utils/cn';
 
 let fieldRowSequence = 0;
+
+function optionsFromText(value: string): string[] {
+  return value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+/** Keep the raw textarea text so trailing spaces/newlines remain editable; the stored options are normalized. */
+function EnumOptionsInput({ initialValue, onChange }: { initialValue: string; onChange: (options: string[]) => void }) {
+  const t = useT();
+  const [text, setText] = useState(initialValue);
+
+  return (
+    <label className="abs-field sm:col-span-2">
+      <span>{t('settings.fields.options')}</span>
+      <textarea
+        className="abs-textarea text-[11px]"
+        rows={3}
+        value={text}
+        onChange={(event) => {
+          const next = event.target.value;
+          setText(next);
+          onChange(optionsFromText(next));
+        }}
+        onBlur={() => {
+          const options = optionsFromText(text);
+          setText(options.join('\n'));
+          onChange(options);
+        }}
+        placeholder={t('settings.fields.optionsPlaceholder')}
+      />
+      <small className="text-[10px] leading-relaxed text-muted">{t('settings.fields.optionsHint')}</small>
+    </label>
+  );
+}
 
 interface FrontmatterFieldsEditorProps {
   fields: FrontmatterField[];
@@ -94,6 +132,17 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
         const expanded = expandedKeys.has(rowKey);
         const panelId = `frontmatter-panel-${rowKey}`;
         const defaultControlId = `frontmatter-default-${rowKey}`;
+        const options = normalizeFieldOptions(field.options);
+        const defaultSelections =
+          field.type === 'enum-list'
+            ? (field.defaultValue ?? '')
+                .split(',')
+                .map((item) => item.trim())
+                .filter(Boolean)
+            : field.type === 'enum' && field.defaultValue
+              ? [field.defaultValue]
+              : [];
+        const defaultChoices = [...new Set([...options, ...defaultSelections])];
         return (
           <fieldset
             key={rowKey}
@@ -156,12 +205,14 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
                 <span className={cn('truncate font-mono text-[11px]', field.name ? 'text-ink' : 'text-muted italic')}>
                   {field.name || t('settings.fields.unnamed')}
                 </span>
-                <Badge tone="ghost">{field.type}</Badge>
-                {field.required ? <Badge tone="blush">{t('settings.fields.required')}</Badge> : null}
-                <ChevronDown
-                  aria-hidden
-                  className={cn('ml-auto size-3.5 shrink-0 text-muted transition-transform', !expanded && '-rotate-90')}
-                />
+                <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                  <Badge tone="ghost">{field.type}</Badge>
+                  {field.required ? <Badge tone="blush">{t('settings.fields.required')}</Badge> : null}
+                  <ChevronDown
+                    aria-hidden
+                    className={cn('size-3.5 shrink-0 text-muted transition-transform', !expanded && '-rotate-90')}
+                  />
+                </span>
               </button>
 
               <button
@@ -204,6 +255,26 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
                 </select>
               </label>
 
+              <label className="abs-field sm:col-span-2">
+                <span>{t('settings.fields.description')}</span>
+                <textarea
+                  className="abs-textarea text-[11px]"
+                  rows={2}
+                  value={field.description ?? ''}
+                  onChange={(event) => update(index, { description: event.target.value })}
+                  placeholder={t('settings.fields.descriptionPlaceholder')}
+                  maxLength={500}
+                />
+              </label>
+
+              {isEnumFieldType(field.type) ? (
+                <EnumOptionsInput
+                  key={`options-${rowKey}`}
+                  initialValue={(field.options ?? []).join('\n')}
+                  onChange={(options) => update(index, { options })}
+                />
+              ) : null}
+
               <label className="abs-field sm:col-span-2" htmlFor={defaultControlId}>
                 <span>{t('settings.fields.defaultValue')}</span>
                 {field.type === 'boolean' ? (
@@ -228,6 +299,38 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
                     <option value="true">true</option>
                     <option value="false">false</option>
                   </select>
+                ) : field.type === 'enum' ? (
+                  <select
+                    id={defaultControlId}
+                    className="abs-select text-[11px]"
+                    value={field.defaultValue ?? ''}
+                    onChange={(event) => update(index, { defaultValue: event.target.value })}
+                  >
+                    <option value="">{t('settings.fields.defaultNone')}</option>
+                    {defaultChoices.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === 'enum-list' ? (
+                  <select
+                    id={defaultControlId}
+                    className="abs-select min-h-[76px] text-[11px]"
+                    multiple
+                    value={defaultSelections}
+                    onChange={(event) =>
+                      update(index, {
+                        defaultValue: Array.from(event.target.selectedOptions, (option) => option.value).join(', '),
+                      })
+                    }
+                  >
+                    {defaultChoices.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 ) : field.type === 'text' ? (
                   <textarea
                     id={defaultControlId}
@@ -245,7 +348,13 @@ export function FrontmatterFieldsEditor({ fields, onChange, onResetDefaults }: F
                     step={field.type === 'number' ? 'any' : undefined}
                     value={field.defaultValue ?? ''}
                     onChange={(event) => update(index, { defaultValue: event.target.value })}
-                    placeholder={t('settings.fields.defaultPlaceholder')}
+                    placeholder={
+                      field.type === 'date'
+                        ? 'YYYY-MM-DD'
+                        : field.type === 'datetime'
+                          ? 'YYYY-MM-DD HH:mm:ss'
+                          : t('settings.fields.defaultPlaceholder')
+                    }
                     spellCheck={false}
                   />
                 )}

@@ -2,7 +2,17 @@ import { t } from '@/lib/i18n';
 import type { MessageKey } from '@/lib/i18n/messages';
 import { serializeFieldLines } from '@/lib/markdown/document';
 
-export const FRONTMATTER_FIELD_TYPES = ['string', 'text', 'date', 'number', 'boolean', 'list'] as const;
+export const FRONTMATTER_FIELD_TYPES = [
+  'string',
+  'text',
+  'date',
+  'datetime',
+  'number',
+  'boolean',
+  'list',
+  'enum',
+  'enum-list',
+] as const;
 
 export type FrontmatterFieldType = (typeof FRONTMATTER_FIELD_TYPES)[number];
 
@@ -14,6 +24,10 @@ export interface FrontmatterField {
   fullWidth?: boolean;
   /** 表单文本形式的默认值；仅用于新建文章，不补写已有文件。 */
   defaultValue?: string;
+  /** 显示在编辑器字段下方的说明，仅用于应用层表单。 */
+  description?: string;
+  /** enum / enum-list 的候选值。 */
+  options?: string[];
 }
 
 export type FrontmatterFormValue = string | boolean;
@@ -21,22 +35,31 @@ export type FrontmatterFormValues = Record<string, FrontmatterFormValue>;
 
 const RESERVED_FIELD_NAMES = new Set(['__proto__', 'prototype', 'constructor']);
 const FIELD_NAME_RE = /^[A-Za-z_][A-Za-z0-9_-]*$/;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATETIME_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+/** 旧版本 date 允许的格式；只在值未被编辑时用于放行已有内容。 */
+const LEGACY_DATE_RE = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/;
+
+export const MAX_ENUM_OPTIONS = 100;
+export const MAX_ENUM_OPTION_LENGTH = 200;
 
 export const FIELD_TYPE_LABELS: Record<FrontmatterFieldType, string> = {
   string: 'string',
   text: 'text',
   date: 'date',
+  datetime: 'datetime',
   number: 'number',
   boolean: 'boolean',
   list: 'list',
+  enum: 'enum',
+  'enum-list': 'enum-list',
 };
 
 /** Commonly used frontmatter fields. */
 export const DEFAULT_FRONTMATTER_FIELDS: FrontmatterField[] = [
   { name: 'title', type: 'string', required: true },
-  { name: 'date', type: 'date', required: true },
-  { name: 'updated', type: 'date', required: false },
+  { name: 'date', type: 'datetime', required: true },
+  { name: 'updated', type: 'datetime', required: false },
   { name: 'description', type: 'string', required: false },
   { name: 'categories', type: 'list', required: false },
   { name: 'tags', type: 'list', required: false },
@@ -46,8 +69,8 @@ export const DEFAULT_FRONTMATTER_FIELDS: FrontmatterField[] = [
 /** All frontmatter keys supported by astro-blog/src/content/config.ts. */
 export const KNOWN_BLOG_FIELDS: Record<string, { type: FrontmatterFieldType; required: boolean; hint?: MessageKey }> = {
   title: { type: 'string', required: true },
-  date: { type: 'date', required: true },
-  updated: { type: 'date', required: false },
+  date: { type: 'datetime', required: true },
+  updated: { type: 'datetime', required: false },
   description: { type: 'string', required: false, hint: 'common.fieldHint.description' },
   link: { type: 'string', required: false, hint: 'common.fieldHint.link' },
   cover: { type: 'string', required: false, hint: 'common.fieldHint.cover' },
@@ -70,12 +93,24 @@ export const KNOWN_BLOG_FIELDS: Record<string, { type: FrontmatterFieldType; req
 };
 
 export function cloneFrontmatterFields(fields: readonly FrontmatterField[]): FrontmatterField[] {
-  return fields.map((field) => ({ ...field }));
+  return fields.map((field) => ({ ...field, ...(field.options ? { options: [...field.options] } : {}) }));
 }
 
 export function isFullWidthField(field: FrontmatterField): boolean {
   if (field.fullWidth !== undefined) return field.fullWidth;
   return field.type === 'text' || field.name === 'title' || field.name === 'description';
+}
+
+export function isDateFieldType(type: FrontmatterFieldType): type is 'date' | 'datetime' {
+  return type === 'date' || type === 'datetime';
+}
+
+export function isEnumFieldType(type: FrontmatterFieldType): type is 'enum' | 'enum-list' {
+  return type === 'enum' || type === 'enum-list';
+}
+
+export function normalizeFieldOptions(options: readonly string[] | undefined): string[] {
+  return (options ?? []).map((option) => option.trim()).filter(Boolean);
 }
 
 export function moveFrontmatterField(fields: readonly FrontmatterField[], from: number, to: number): FrontmatterField[] {
@@ -100,11 +135,15 @@ export interface FrontmatterFieldIssue {
   message: string;
 }
 
-export function validateFrontmatterFields(fields: FrontmatterField[]): FrontmatterFieldIssue[] {
+export function validateFrontmatterFields(
+  fields: FrontmatterField[],
+  originalFields: readonly FrontmatterField[] = [],
+): FrontmatterFieldIssue[] {
   const issues: FrontmatterFieldIssue[] = [];
   if (fields.length > 40) {
     issues.push({ index: -1, message: t('errors.validation.maxFields') });
   }
+  const originals = new Map(originalFields.map((field) => [field.name.trim(), field]));
   const seen = new Set<string>();
   fields.forEach((field, index) => {
     const name = field.name.trim();
@@ -120,10 +159,29 @@ export function validateFrontmatterFields(fields: FrontmatterField[]): Frontmatt
     if (!FRONTMATTER_FIELD_TYPES.includes(field.type)) {
       issues.push({ index, message: t('errors.validation.invalidType') });
     }
+    if (isEnumFieldType(field.type)) {
+      const options = normalizeFieldOptions(field.options);
+      if (options.length === 0) {
+        issues.push({ index, message: t('errors.validation.enumOptionsRequired') });
+      }
+      if (options.length > MAX_ENUM_OPTIONS) {
+        issues.push({ index, message: t('errors.validation.enumOptionsTooMany', { count: MAX_ENUM_OPTIONS }) });
+      }
+      if (options.some((option) => option.length > MAX_ENUM_OPTION_LENGTH)) {
+        issues.push({ index, message: t('errors.validation.enumOptionTooLong', { count: MAX_ENUM_OPTION_LENGTH }) });
+      }
+      if (options.some((option) => option.includes(','))) {
+        issues.push({ index, message: t('errors.validation.enumOptionComma') });
+      }
+      const duplicate = options.find((option, optionIndex) => options.indexOf(option) !== optionIndex);
+      if (duplicate) {
+        issues.push({ index, message: t('errors.validation.enumOptionDuplicate', { option: duplicate }) });
+      }
+    }
     if (seen.has(name)) {
       issues.push({ index, message: t('errors.validation.duplicateName', { name }) });
     }
-    const defaultIssue = validateDefaultValue(field);
+    const defaultIssue = validateDefaultValue(field, originals.get(name));
     if (defaultIssue) {
       issues.push({ index, message: defaultIssue });
     }
@@ -132,23 +190,54 @@ export function validateFrontmatterFields(fields: FrontmatterField[]): Frontmatt
   return issues;
 }
 
-function validateDefaultValue(field: FrontmatterField): string | null {
+function validateDefaultValue(field: FrontmatterField, original?: FrontmatterField): string | null {
   const raw = field.defaultValue;
   if (raw === undefined || raw.trim() === '') return null;
-  if (field.type === 'date' && !DATE_RE.test(raw.trim())) {
+  const text = raw.trim();
+  if (field.type === 'date' && !DATE_RE.test(text)) {
+    const unchangedLegacy =
+      original?.type === 'date' &&
+      original.name.trim() === field.name.trim() &&
+      original.defaultValue?.trim() === text &&
+      LEGACY_DATE_RE.test(text);
+    if (!unchangedLegacy) {
+      return t('errors.validation.invalidDefault', { type: field.type });
+    }
+  }
+  if (field.type === 'datetime' && !DATETIME_RE.test(text)) {
     return t('errors.validation.invalidDefault', { type: field.type });
   }
-  if (field.type === 'number' && !Number.isFinite(Number(raw.trim()))) {
+  if (field.type === 'number' && !Number.isFinite(Number(text))) {
     return t('errors.validation.invalidDefault', { type: field.type });
   }
-  if (field.type === 'boolean' && !/^(true|false)$/i.test(raw.trim())) {
+  if (field.type === 'boolean' && !/^(true|false)$/i.test(text)) {
     return t('errors.validation.invalidDefault', { type: field.type });
+  }
+  if (isEnumFieldType(field.type)) {
+    const options = normalizeFieldOptions(field.options);
+    const selected = field.type === 'enum-list' ? splitList(text) : [text];
+    if (options.length > 0 && selected.some((item) => !options.includes(item))) {
+      return t('errors.validation.invalidDefault', { type: field.type });
+    }
   }
   return null;
 }
 
 export function normalizeFrontmatterFields(fields: FrontmatterField[]): FrontmatterField[] {
-  return fields.map((field) => ({ ...field, name: field.name.trim() }));
+  return fields.map((field) => {
+    const next = { ...field, name: field.name.trim() };
+    if (typeof field.description === 'string') {
+      const description = field.description.trim();
+      if (description) next.description = description;
+      else delete next.description;
+    }
+    if (field.options !== undefined) {
+      const options = Array.from(new Set(normalizeFieldOptions(field.options)));
+      if (options.length > 0) next.options = options;
+      else delete next.options;
+    }
+    return next;
+  });
 }
 
 function asString(value: unknown): string {
@@ -171,7 +260,8 @@ export function valueToDisplay(field: FrontmatterField, value: unknown): string 
       return value === true ? 'true' : 'false';
     case 'number':
       return asNumberText(value);
-    case 'list': {
+    case 'list':
+    case 'enum-list': {
       if (!Array.isArray(value)) return typeof value === 'string' ? value : '';
       return value
         .map((item) => (Array.isArray(item) ? stringItems(item).join(' > ') : typeof item === 'string' ? item : ''))
@@ -202,7 +292,7 @@ function splitList(value: string): string[] {
 function parseListValue(field: FrontmatterField, text: string): string[] | string[][] | undefined {
   const items = splitList(text);
   if (items.length === 0) return undefined;
-  if (field.name === 'categories' && items.some((item) => item.includes('>'))) {
+  if (field.type === 'list' && field.name === 'categories' && items.some((item) => item.includes('>'))) {
     return items.map((item) =>
       item
         .split('>')
@@ -230,6 +320,7 @@ export function defaultValueForField(field: FrontmatterField): unknown {
     case 'number':
       return Number.isFinite(Number(raw.trim())) ? Number(raw.trim()) : undefined;
     case 'list':
+    case 'enum-list':
       return parseListValue(field, raw);
     case 'text':
       return raw;
@@ -271,8 +362,18 @@ function validateFieldValue(field: FrontmatterField, value: FrontmatterFormValue
   if (field.type === 'date' && !DATE_RE.test(text)) {
     return t('errors.validation.invalidDate');
   }
+  if (field.type === 'datetime' && !DATETIME_RE.test(text)) {
+    return t('errors.validation.invalidDateTime');
+  }
   if (field.type === 'number' && !Number.isFinite(Number(text))) {
     return t('errors.validation.invalidNumber');
+  }
+  if (isEnumFieldType(field.type)) {
+    const options = normalizeFieldOptions(field.options);
+    const selected = field.type === 'enum-list' ? splitList(text) : [text];
+    if (options.length > 0 && selected.some((item) => !options.includes(item))) {
+      return t('errors.validation.invalidOption');
+    }
   }
   return null;
 }
@@ -281,8 +382,25 @@ function toPatchValue(field: FrontmatterField, value: FrontmatterFormValue): unk
   if (field.type === 'boolean') return value === true;
   const text = typeof value === 'string' ? value.trim() : '';
   if (field.type === 'number') return Number(text);
-  if (field.type === 'list') return parseListValue(field, text);
+  if (field.type === 'list' || field.type === 'enum-list') return parseListValue(field, text);
   return text;
+}
+
+/** 旧内容未编辑时放行旧日期格式或已不在候选里的 enum 值。 */
+function allowsLegacyUnchangedValue(field: FrontmatterField, text: string): boolean {
+  if (!text.trim()) return false;
+  if (field.type === 'date' && !DATE_RE.test(text)) {
+    return LEGACY_DATE_RE.test(text);
+  }
+  if (field.type === 'datetime' && !DATETIME_RE.test(text)) {
+    return LEGACY_DATE_RE.test(text);
+  }
+  if (isEnumFieldType(field.type)) {
+    const options = normalizeFieldOptions(field.options);
+    const selected = field.type === 'enum-list' ? splitList(text) : [text];
+    return options.length > 0 && selected.some((item) => !options.includes(item));
+  }
+  return false;
 }
 
 export interface BuildPatchOptions {
@@ -314,20 +432,11 @@ export function buildFrontmatterPatch(
 ): BuildPatchResult {
   const patch: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
-  const hasUpdatedField = fields.some((field) => field.name === 'updated' && field.type === 'date');
+  const updatedField = fields.find((field) => field.name === 'updated' && (field.type === 'date' || field.type === 'datetime'));
 
   for (const field of fields) {
     const value = values[field.name] ?? (field.type === 'boolean' ? false : '');
     const original = originalData[field.name];
-    const error = validateFieldValue(field, value);
-    if (error) {
-      if (options.invalidAsEmpty) {
-        if (original !== undefined) patch[field.name] = null;
-        continue;
-      }
-      errors[field.name] = error;
-      continue;
-    }
 
     if (field.type === 'boolean') {
       const bool = value === true;
@@ -342,7 +451,18 @@ export function buildFrontmatterPatch(
 
     const text = typeof value === 'string' ? value : '';
     const originalDisplay = valueToDisplay(field, original);
-    if (text === originalDisplay) continue;
+    const unchanged = text === originalDisplay;
+    const error = unchanged && allowsLegacyUnchangedValue(field, text) ? null : validateFieldValue(field, value);
+    if (error) {
+      if (options.invalidAsEmpty) {
+        if (original !== undefined) patch[field.name] = null;
+        continue;
+      }
+      errors[field.name] = error;
+      continue;
+    }
+
+    if (unchanged) continue;
     if (!text.trim()) {
       if (original !== undefined) patch[field.name] = null;
       continue;
@@ -350,8 +470,8 @@ export function buildFrontmatterPatch(
     patch[field.name] = toPatchValue(field, value);
   }
 
-  if (options.autoUpdatedAt && hasUpdatedField && !('updated' in patch) && !errors.updated) {
-    patch.updated = options.autoUpdatedAt;
+  if (options.autoUpdatedAt && updatedField && !('updated' in patch) && !errors.updated) {
+    patch.updated = updatedField.type === 'date' ? options.autoUpdatedAt.slice(0, 10) : options.autoUpdatedAt;
   }
 
   return { patch, errors };
@@ -369,8 +489,8 @@ export function buildNewPostDocument(fields: readonly FrontmatterField[], input:
       lines.push(...serializeFieldLines(field.name, input.title.trim()));
       continue;
     }
-    if (field.name === 'date' && field.type === 'date') {
-      lines.push(...serializeFieldLines(field.name, input.date));
+    if (field.name === 'date' && isDateFieldType(field.type)) {
+      lines.push(...serializeFieldLines(field.name, field.type === 'date' ? input.date.slice(0, 10) : input.date));
       continue;
     }
     const value = defaultValueForField(field);
